@@ -1,0 +1,6 @@
+*.log
+*.txt
+__pycache__
+indicators*
+ohlc*
+*.PNG
