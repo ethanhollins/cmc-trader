@@ -2,6 +2,7 @@
 *.txt
 __pycache__
 indicators*
+!CMCTrader/Indicators/
 ohlc*
 *.PNG
 testdrivers.py
