@@ -152,9 +152,9 @@ def init(utilities):
 	global adxr
 	adxr = utils.ADXR(8, 1)
 
-	# amount = 1
-	# while (not preSequence(0, amount)):
-	# 	amount += 1
+	amount = 1
+	while (not preSequence(0, amount)):
+		amount += 1
 
 	global isInit
 	isInit = False
