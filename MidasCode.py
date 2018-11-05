@@ -30,8 +30,8 @@ VARIABLES = {
 	'MACD' : None,
 	'macdSignal' : 0.00003,
 	'CCI' : None,
-	'cciTrendOverbought' : 70,
-	'cciTrendOversold' : -70,
+	'cciTrendOverbought' : 0,
+	'cciTrendOversold' : 0,
 	'cciCTOverbought' : 60,
 	'cciCTOversold' : -60,
 	'ADX' : None,
@@ -73,6 +73,7 @@ newsTradeBlock = False
 maxStrand = None
 minStrand = None
 blockCount = 0
+futureTriggers = []
 blockDirection = None
 
 entryPrice = 0
@@ -114,6 +115,7 @@ class Trigger(object):
 		self.waitForOppTrigger = False
 		self.canTrade = True
 		self.lastTriggerLength = 0
+		self.isLastFuture = False
 
 class Strand(object):
 	def __init__(self, start, direction):
@@ -303,7 +305,7 @@ def onLoop():
 					# print("price above sar:", "curr:", str(price), "entry:", str(t.entryPrice))
 					if (price <= t.entryPrice or t.entryPrice == 0):
 						if (rsi.getCurrent(VARIABLES['TICKETS'][0]) <= VARIABLES['rsiOverbought']):
-							if (cancelOnBlocked(t)):
+							if (cancelOnBlocked(t, shift)):
 								return
 							print("entered long onloop")
 							t.entryPrice = price
@@ -324,7 +326,7 @@ def onLoop():
 					# print("price below sar:", "curr:", str(price), "entry:", str(t.entryPrice))
 					if (price >= t.entryPrice or t.entryPrice == 0):
 						if (rsi.getCurrent(VARIABLES['TICKETS'][0]) >= VARIABLES['rsiOversold']):
-							if (cancelOnBlocked(t)):
+							if (cancelOnBlocked(t, shift)):
 								return
 							print("entered short onloop")
 							t.entryPrice = price
@@ -602,8 +604,24 @@ def cancelInvalidStrands(shift):
 				if (blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0] < strand.end):
 					strand.isPassed = True
 
+def resetFutureTriggers(shift):
+	global futureTiggers
+
+	if (not blockDirection == None and blackSAR.isNewCycle(VARIABLES['TICKETS'][0], shift)):
+		if (blackSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
+			if (blockDirection == Direction.LONG):
+				futureTiggers = []
+			else:
+				futureTiggers[-1].isLastFuture = True
+		else:
+			if (blockDirection == Direction.SHORT):
+				futureTiggers = []
+			else:
+				futureTiggers[-1].isLastFuture = True
+
+
 def getPassedStrands(shift):
-	global blockCount, blockDirection
+	global blockCount, blockDirection, futureTiggers
 	getExtremeStrands()
 
 	if (len(utils.positions) <= 0 and len(pendingEntries) <= 0):
@@ -697,11 +715,12 @@ def blockFollowingTriggers():
 	global blockCount
 
 	if (not blockDirection == None):
-		for trig in pendingTriggers:
-			if (trig.direction == blockDirection and blockCount < 3 and not trig.isCancelled and not trig.isBlocked):
-				print("blocked new trigger", str(trig.direction))
-				trig.isBlocked = True
+		for t in pendingTriggers:
+			if (t.direction == blockDirection and blockCount < 3 and not t.isCancelled and not t.isBlocked):
+				print("blocked new trigger", str(t.direction))
+				t.isBlocked = True
 				blockCount += 1
+				futureTriggers.append(t)
 
 def unblockOnTag(shift):
 	global entryPrice
@@ -859,10 +878,18 @@ def cancelOnRetPara(t, shift):
 			return True
 	return False
 
-def cancelOnBlocked(t):
+def cancelOnBlocked(t, shift):
 	if t.isBlocked:
+		if (unblockOnAdx(t, shift)):
+			return False
 		t.isCancelled = True
 		print("cancelled blocked entry")
+		return True
+	return False
+
+def unblockOnAdx(t, shift):
+	if (futureTiggers[-1].isLastFuture and adxr.get(VARIABLES['TICKETS'][0], shift, 1)[0][0] < VARIABLES['adxThreshold']):
+		t.isBlocked = False
 		return True
 	return False
 
@@ -946,35 +973,23 @@ def swingThree(t, shift):
 	if (t.direction == Direction.LONG):
 		if (chIdx > VARIABLES['cciTrendOversold'] or t.noCCIObos):
 			if (chIdx > smaTwo and chIdx > smaThree):
-				if (hist > 0 or t.macdConfirmed):
+				if (currRsi > 50.0):
 					t.entryState = EntryState.CONFIRMATION
 					t.noCCIObos = True
-					t.macdConfirmed = True
-					confirmation(t, shift)
-				elif((hist == 0 and currRsi > 50.0) or t.macdConfirmed):
-					t.entryState = EntryState.CONFIRMATION
-					t.noCCIObos = True
-					t.macdConfirmed = True
 					confirmation(t, shift)
 				else:
-					print("MACD not confirmed")
+					print("RSI not confirmed")
 					t.entryState = EntryState.SWING_TWO
 					swingTwo(t, shift)
 	else:
 		if (chIdx < VARIABLES['cciTrendOverbought'] or t.noCCIObos):
 			if (chIdx < smaTwo and chIdx < smaThree):
-				if (hist < 0 or t.macdConfirmed):
+				if (currRsi < 50.0):
 					t.entryState = EntryState.CONFIRMATION
 					t.noCCIObos = True
-					t.macdConfirmed = True
-					confirmation(t, shift)
-				elif((hist == 0 and currRsi < 50.0) or t.macdConfirmed):
-					t.entryState = EntryState.CONFIRMATION
-					t.noCCIObos = True
-					t.macdConfirmed = True
 					confirmation(t, shift)
 				else:
-					print("MACD not confirmed")
+					print("RSI not confirmed")
 					t.entryState = EntryState.SWING_TWO
 					swingTwo(t, shift)
 
@@ -986,7 +1001,7 @@ def confirmation(t, shift):
 		if ((regSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0] and slowSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]) or t.bothParaHit):
 			t.bothParaHit = True
 			if (t.isObos):
-				if (cancelOnBlocked(t)):
+				if (cancelOnBlocked(t, shift)):
 					return
 				print("Position entered")
 				t.entryState = EntryState.ENTER
@@ -995,7 +1010,7 @@ def confirmation(t, shift):
 				t.isCancelled = True
 			elif (rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0] < VARIABLES['rsiOverbought']):
 				if (close <= t.entryPrice or t.entryPrice == 0):
-					if (cancelOnBlocked(t)):
+					if (cancelOnBlocked(t, shift)):
 						return
 					print("Position entered")
 					t.entryState = EntryState.ENTER
@@ -1016,7 +1031,7 @@ def confirmation(t, shift):
 		if ((regSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0] and slowSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]) or t.bothParaHit):
 			t.bothParaHit = True
 			if (t.isObos):
-				if (cancelOnBlocked(t)):
+				if (cancelOnBlocked(t, shift)):
 					return
 				print("Position entered")
 				t.entryState = EntryState.ENTER
@@ -1025,7 +1040,7 @@ def confirmation(t, shift):
 				t.isCancelled = True
 			elif (rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0] > VARIABLES['rsiOversold']):
 				if (close >= t.entryPrice or t.entryPrice == 0):
-					if (cancelOnBlocked(t)):
+					if (cancelOnBlocked(t, shift)):
 						return
 					print("Position entered")
 					t.entryState = EntryState.ENTER
@@ -1053,7 +1068,7 @@ def backtestConfirmation(t, shift):
 			if (rsi.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0] < VARIABLES['rsiOverbought']):
 				t.entryState = EntryState.ENTER
 				if (close <= t.entryPrice or t.entryPrice == 0):
-					if (cancelOnBlocked(t)):
+					if (cancelOnBlocked(t, shift)):
 						return
 					if (t.bothParaHit):
 						t.entryPrice = close
@@ -1083,7 +1098,7 @@ def backtestConfirmation(t, shift):
 			if (rsi.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0] > VARIABLES['rsiOversold']):
 				t.entryState = EntryState.ENTER
 				if (close >= t.entryPrice or t.entryPrice == 0):
-					if (cancelOnBlocked(t)):
+					if (cancelOnBlocked(t, shift)):
 						return
 					if (t.bothParaHit):
 						t.entryPrice = close
