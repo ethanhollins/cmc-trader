@@ -328,8 +328,10 @@ class Start(object):
 					if (seconds == 0 and not second_is_zero):
 						second_is_zero = True
 						
+						start_time = time.time()
 						self.utils.updatePositions()
 						isUpdated = self.utils.updateValues()
+						print("elapsed time:", str(time.time() - startTime))
 						
 						if (isUpdated):
 							missingTimestamps = self.utils.recoverMissingValues()
