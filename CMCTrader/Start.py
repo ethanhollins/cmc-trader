@@ -77,7 +77,7 @@ class Start(object):
 
 	def initDriver(self, isHeadless=False, window_size=[1920,1080]):
 		options = webdriver.ChromeOptions()
-		options.add_argument('window-size='+ str(window_size[0]) + 'x'+ str(window_size[1]))
+		options.add_argument('--window-size='+ str(window_size[0]) + ',' + str(window_size[1]))
 
 		self.driver = webdriver.Chrome(self.getChromeDriverPath(), chrome_options=options)
 		self.driver.get(CMC_WEBSITE)
