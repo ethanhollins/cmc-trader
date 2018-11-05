@@ -44,9 +44,9 @@ class Utilities:
 		self.tickets = tickets
 		self.tAUDUSD = tAUDUSD
 
-		self.dynamodb = boto3.resource('dynamodb', region_name='ap-southeast-2')
-		self.dynamodbClient = boto3.client('dynamodb', region_name='ap-southeast-2')
-		self._initVARIABLES(name)
+		# self.dynamodb = boto3.resource('dynamodb', region_name='ap-southeast-2')
+		# self.dynamodbClient = boto3.client('dynamodb', region_name='ap-southeast-2')
+		# self._initVARIABLES(name)
 
 		self.historyLog = HistoryLog(self.driver)
 		self.positionLog = PositionLog(self.driver)
