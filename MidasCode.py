@@ -567,6 +567,7 @@ def checkCurrentNews():
 def runSequence(shift, isDownTime = False):
 	trendTrigger(shift)
 	onNewCycle(shift)
+	resetFutureTriggers(shift)
 
 	# BLACK PARA
 	if (len(strands) > 0):
