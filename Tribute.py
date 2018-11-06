@@ -870,6 +870,7 @@ def swingThree(t, shift):
 				else:
 					print("RSI or MACD not confirmed")
 					t.entryState = EntryState.SWING_TWO
+					t.noCCIObos = True
 					swingTwo(t, shift)
 	else:
 		if (chIdx < VARIABLES['cciTrendOverbought'] or t.noCCIObos):
@@ -881,6 +882,7 @@ def swingThree(t, shift):
 				else:
 					print("RSI or MACD not confirmed")
 					t.entryState = EntryState.SWING_TWO
+					t.noCCIObos = True
 					swingTwo(t, shift)
 
 def confirmation(t, shift):
