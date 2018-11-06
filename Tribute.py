@@ -243,7 +243,7 @@ def preSequence(shift, amount):
 		currShift = shift + amount - i
 		runSequence(currShift)
 
-	if (len(pendingTriggers) >= 3):
+	if (len(pendingTriggers) >= 1):
 		pendingTriggers[0].isCancelled = True
 		pendingEntries = []
 		print(pendingTriggers)
@@ -557,10 +557,9 @@ def runSequence(shift, isDownTime = False):
 	# BLACK PARA
 	if (len(strands) > 0):
 		cancelInvalidStrands(shift)
-		if (not isDownTime):
-			getPassedStrands(shift)
-			blockFollowingTriggers()
-			unblockOnTag(shift)
+		getPassedStrands(shift)
+		blockFollowingTriggers()
+		unblockOnTag(shift)
 
 	entrySetup(shift)
 
