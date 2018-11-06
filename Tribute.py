@@ -765,6 +765,7 @@ def trendTrigger(shift):
 	if (regSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0] and slowSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 		isShortSignal = False
 		if (not isLongSignal):
+			print("new long trigger!")
 			isLongSignal = True
 			pendingTriggers.append(Trigger(Direction.LONG))
 			# for pos in utils.positions:
@@ -775,6 +776,7 @@ def trendTrigger(shift):
 	if (regSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0] and slowSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
 		isLongSignal = False
 		if (not isShortSignal):
+			print("new short trigger!")
 			isShortSignal = True
 			pendingTriggers.append(Trigger(Direction.SHORT))
 			# for pos in utils.positions:

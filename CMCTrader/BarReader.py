@@ -487,6 +487,7 @@ class BarReader(object):
 			values['studies'].append(rec_values[count - study.valueCount:count])
 
 		elapsed_time = time.time() - start_time
+		print("Elaspsed time:", elapsed_time)
 		return values
 
 	def _getImage(self, chart, canvas, xOff, yOff):
