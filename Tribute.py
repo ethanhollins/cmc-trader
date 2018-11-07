@@ -21,8 +21,8 @@ VARIABLES = {
 	'newsTimeBeforeBE' : 1,
 	'newsTimeBeforeBlock' : 5,
 	'RSI' : None,
-	'rsiOverbought' : 70,
-	'rsiOversold' : 30,
+	'rsiOverbought' : 75,
+	'rsiOversold' : 25,
 	'longRsiSignal' : 60,
 	'shortRsiSignal' : 40,
 	'longZeroMACD' : 65,
@@ -51,6 +51,8 @@ pendingEntries = []
 pendingExits = []
 pendingBreakevens = []
 strands = []
+longStrands = []
+shortStrands = []
 
 isInit = True
 
@@ -58,6 +60,7 @@ isLongSignal = False
 isShortSignal = False
 isHalfLongSignal = False
 isHalfShortSignal = False
+performedHalfSignal = False
 isWaitForHit = True
 
 noNewTrades = False
@@ -557,13 +560,19 @@ def checkCurrentNews():
 		newsTradeBlock = False
 
 def runSequence(shift, isDownTime = False):
-	trendTrigger(shift)
+	trendTrigger(shift, isDownTime)
 	onNewCycle(shift)
 
+	if (not performedHalfSignal):
+		setupSequence(shift, isDownTime)
+
+def setupSequence(shift, isDownTime):
+	global performedHalfSignal
+	performedHalfSignal = False
 	# BLACK PARA
 	if (len(strands) > 0):
 		cancelInvalidStrands(shift)
-		getPassedStrands(shift, isDownTime)
+		getPassedStrands(shift, isDownTime = isDownTime)
 		blockFollowingTriggers()
 		unblockOnTag(shift)
 
@@ -580,33 +589,43 @@ def onNewCycle(shift):
 			strands[-1].end = regSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
 			print("End of last strand:", str(strands[-1].end))
 		print("New Strand:", str(direction), ":", str(regSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0]))
-		strands.append(Strand(regSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0], direction))
-
+		strand = Strand(regSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0], direction)
+		strands.append(strand)
+		if (strand.direction == Direction.LONG):
+			longStrands.append(strand)
+		else:
+			shortStrands.append(strand)
 
 def cancelInvalidStrands(shift):
+	global longStrands, shortStrands
+
 	if (blackSAR.isNewCycle(VARIABLES['TICKETS'][0], shift)):
 		if (blackSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
-			longStrands = [i for i in strands if i.direction == Direction.SHORT and not i.isPassed and not i.end == 0]
-			for strand in longStrands:
+			shortStrands = [i for i in strands if i.direction == Direction.SHORT and not i.isPassed and not i.end == 0]
+			for strand in shortStrands:
 				print(str(blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0]), ",", str(strand.end))
 				if (blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0] > strand.end):
 					print("passed rising:", str(strand.end))
 					strands[strands.index(strand)].isPassed = True
+					del shortStrands[shortStrands.index(strand)]
+			shortStrands = shortStrands[-2:]
 		else:
-			shortStrands = [i for i in strands if i.direction == Direction.LONG and not i.isPassed and not i.end == 0]
-			for strand in shortStrands:
+			longStrands = [i for i in strands if i.direction == Direction.LONG and not i.isPassed and not i.end == 0]
+			for strand in longStrands:
 				print(str(blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0]), ",", str(strand.end))
 				if (blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0] < strand.end):
 					print("passed falling:", str(strand.end))
 					strands[strands.index(strand)].isPassed = True
+					del longStrands[longStrands.index(strand)]
+			longStrands = longStrands[-2:]
 
-def getPassedStrands(shift, isDownTime):
+def getPassedStrands(shift, isDownTime = False):
 	global blockCount, blockDirection, futureCount
 	getExtremeStrands()
 
 	if (len(utils.positions) <= 0 and len(pendingEntries) <= 0 and not isDownTime):
 		return
-	
+
 	if (not maxStrand == None):
 		if (blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0] < maxStrand.start and blackSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			strands[strands.index(maxStrand)].isPassed = True
@@ -624,7 +643,7 @@ def getPassedStrands(shift, isDownTime):
 				blockCount = 0
 				futureCount = 0
 				for t in pendingTriggers:
-					if t.direction == Direction.LONG and not t.isCancelled and blockCount < 3:
+					if t.direction == Direction.LONG and not t.isCancelled and not t.isHalfTrigger and blockCount < 3:
 						t.isBlocked = True
 						blockCount += 1
 				if (blockCount < 1):
@@ -649,7 +668,7 @@ def getPassedStrands(shift, isDownTime):
 				blockCount = 0
 				futureCount = 0
 				for t in pendingTriggers:
-					if t.direction == Direction.SHORT and not t.isCancelled and blockCount < 3:
+					if t.direction == Direction.SHORT and not t.isCancelled and not t.isHalfTrigger and blockCount < 3:
 						t.isBlocked = True
 						blockCount += 1
 				if (blockCount < 1):
@@ -663,19 +682,18 @@ def getExtremeStrands():
 	global maxStrand
 	global minStrand
 	
-	longStrands = [i for i in strands if i.direction == Direction.LONG and not i.isPassed and not i.end == 0]
-	longStrands = longStrands[-2:]
 	maxStrand = None
 	for i in longStrands:
+		print("current:", str(i.start))
 		if not maxStrand == None:
+			print("another:", str(i.start), str(i.isPassed))
 			if i.start > maxStrand.start and not i.isPassed:
 				strands[strands.index(maxStrand)].isPassed = True
 				maxStrand = i
-		elif not i.isPassed: 
+		elif not i.isPassed:
+			print("None:", str(i.start))
 			maxStrand = i
 
-	shortStrands = [j for j in strands if j.direction == Direction.SHORT and not j.isPassed and not j.end == 0]
-	shortStrands = shortStrands[-2:]
 	minStrand = None
 	for j in shortStrands:
 		if not minStrand == None:
@@ -690,7 +708,7 @@ def blockFollowingTriggers():
 
 	if (not blockDirection == None):
 		for t in pendingTriggers:
-			if (t.direction == blockDirection and blockCount < 2 and not t.isCancelled and not t.isBlocked):
+			if (t.direction == blockDirection and blockCount < 2 and not t.isCancelled and not t.isBlocked and not t.isHalfTrigger):
 				print("blocked new trigger", str(t.direction))
 				t.isBlocked = True
 				blockCount += 1
@@ -778,8 +796,9 @@ def getParaState(shift):
 		isWaitForHit = True
 		return False
 
-def trendTrigger(shift):
-	global isLongSignal, isShortSignal, isHalfLongSignal, isHalfShortSignal
+def trendTrigger(shift, isDownTime):
+	global isLongSignal, isShortSignal
+	global isHalfLongSignal, isHalfShortSignal, performedHalfSignal
 
 	if (isWaitForHit):
 		if (not getParaState(shift)):
@@ -796,7 +815,10 @@ def trendTrigger(shift):
 				print("checking half signal")
 				t = pendingTriggers[-1]
 				isHalfLongSignal = False
-				entrySetup(shift)
+				
+				performedHalfSignal = True
+				setupSequence(shift, isDownTime)
+				
 				t.isHalfTrigger = False
 				if (t.entryState == EntryState.CONFIRMATION):
 					print("half signal confirmed")
@@ -831,7 +853,10 @@ def trendTrigger(shift):
 			if (isHalfShortSignal):
 				t = pendingTriggers[-1]
 				isHalfShortSignal = False
-				entrySetup(shift)
+
+				performedHalfSignal = True
+				setupSequence(shift, isDownTime)
+				
 				t.isHalfTrigger = False
 				if (t.entryState == EntryState.CONFIRMATION):
 					if (not momentumEntry(t, shift)):
