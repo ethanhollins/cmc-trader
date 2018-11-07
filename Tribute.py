@@ -279,63 +279,14 @@ def onLoop():
 	exitPositions()
 	enterPositions()
 
-	for pos in utils.positions:
-		if (pos.getProfit() >= VARIABLES['halfprofit'] and not isPositionHalved):
-			isPositionHalved = True
-			pos.modifyPositionSize(pos.lotsize/2)
-			pos.breakeven()
-			if (not pos.apply()):
-				pendingBreakevens.append(pos)
-
-		if pos in pendingBreakevens:
-			if (pos.getProfit() > VARIABLES['beRange']):
-				pos.breakeven()
-				if (pos.apply()):
-					del pendingBreakevens[pendingBreakevens.index(pos)]
+	handleBreakeven()
 
 	for t in pendingTriggers:
-		if (t.entryState == EntryState.CONFIRMATION and not t.isCancelled and not t.isHalfTrigger):
-			price = utils.getBid(VARIABLES['TICKETS'][0])
-			if (t.direction == Direction.LONG):
-				if ((price > regSAR.getCurrent(VARIABLES['TICKETS'][0]) and price > slowSAR.getCurrent(VARIABLES['TICKETS'][0])) or t.bothParaHit):
-					t.bothParaHit = True
-					# print("price above sar:", "curr:", str(price), "entry:", str(t.entryPrice))
-					if (price <= t.entryPrice or t.entryPrice == 0):
-						if (rsi.getCurrent(VARIABLES['TICKETS'][0]) <= VARIABLES['rsiOverbought']):
-							if (cancelOnBlocked(t, 0)):
-								return
-							print("entered long onloop")
-							t.entryPrice = price
-							pendingEntries.append(t)
-							t.isCancelled = True
-						else:
-							print("overbought")
-							t.entryState = EntryState.SWING_TWO
-							t.noCCIObos = True
-							t.isObos = True
-							t.macdConfirmed = False
-							t.entryPrice = price
-							swingTwo(t, 0)
-			else:
-				if ((price < regSAR.getCurrent(VARIABLES['TICKETS'][0]) and price < slowSAR.getCurrent(VARIABLES['TICKETS'][0])) or t.bothParaHit):
-					t.bothParaHit = True
-					# print("price below sar:", "curr:", str(price), "entry:", str(t.entryPrice))
-					if (price >= t.entryPrice or t.entryPrice == 0):
-						if (rsi.getCurrent(VARIABLES['TICKETS'][0]) >= VARIABLES['rsiOversold']):
-							if (cancelOnBlocked(t, 0)):
-								return
-							print("entered short onloop")
-							t.entryPrice = price
-							pendingEntries.append(t)
-							t.isCancelled = True
-						else:
-							print("overbought")
-							t.entryState = EntryState.SWING_TWO
-							t.noCCIObos = True
-							t.isObos = True
-							t.macdConfirmed = False
-							t.entryPrice = price
-							swingTwo(t, 0)
+		if (t.entryState == EntryState.CONFIRMATION and not t.isCancelled):
+			# if (t.isHalfTrigger):
+			# 	entryOnMomentumHit()
+			# else:
+			entryOnParaHit()
 
 def exitPositions():
 	global pendingExits
@@ -429,6 +380,99 @@ def enterPositions():
 					else:
 						print("Couldn't enter:", str(utils.getTotalProfit()))
 						del pendingEntries[pendingEntries.index(entry)]
+
+def handleBreakeven():
+	for pos in utils.positions:
+		if (pos.getProfit() >= VARIABLES['halfprofit'] and not isPositionHalved):
+			isPositionHalved = True
+			pos.modifyPositionSize(pos.lotsize/2)
+			pos.breakeven()
+			if (not pos.apply()):
+				pendingBreakevens.append(pos)
+
+		if pos in pendingBreakevens:
+			if (pos.getProfit() > VARIABLES['beRange']):
+				pos.breakeven()
+				if (pos.apply()):
+					del pendingBreakevens[pendingBreakevens.index(pos)]
+
+def entryOnMomentumHit(t):
+	price = utils.getBid(VARIABLES['TICKETS'][0])
+	if (t.direction == Direction.LONG):
+		if (price > t.entryPrice):
+			if (rsi.getCurrent(VARIABLES['TICKETS'][0]) <= VARIABLES['rsiOverbought']):
+				if (cancelOnBlocked(t, 0)):
+					return
+				print("entered long momentum onloop")
+				t.entryPrice = price
+				pendingEntries.append(t)
+				t.isCancelled = True
+			else:
+				print("overbought momentum onloop")
+				t.entryState = EntryState.SWING_TWO
+				t.noCCIObos = True
+				t.isObos = True
+				t.macdConfirmed = False
+				swingTwo(t, 0)
+	else:
+		if (price < t.entryPrice):
+			if (rsi.getCurrent(VARIABLES['TICKETS'][0]) <= VARIABLES['rsiOverbought']):
+				if (cancelOnBlocked(t, 0)):
+					return
+				print("entered short momentum onloop")
+				t.entryPrice = price
+				pendingEntries.append(t)
+				t.isCancelled = True
+			else:
+				print("oversold momentum onloop")
+				t.entryState = EntryState.SWING_TWO
+				t.noCCIObos = True
+				t.isObos = True
+				t.macdConfirmed = False
+				swingTwo(t, 0)
+
+def entryOnParaHit():
+	price = utils.getBid(VARIABLES['TICKETS'][0])
+	if (t.direction == Direction.LONG):
+		if ((price > regSAR.getCurrent(VARIABLES['TICKETS'][0]) and price > slowSAR.getCurrent(VARIABLES['TICKETS'][0])) or t.bothParaHit):
+			t.bothParaHit = True
+			# print("price above sar:", "curr:", str(price), "entry:", str(t.entryPrice))
+			if (price <= t.entryPrice or t.entryPrice == 0):
+				if (rsi.getCurrent(VARIABLES['TICKETS'][0]) <= VARIABLES['rsiOverbought']):
+					if (cancelOnBlocked(t, 0)):
+						return
+					print("entered long para hit onloop")
+					t.entryPrice = price
+					pendingEntries.append(t)
+					t.isCancelled = True
+				else:
+					print("overbought para hit")
+					t.entryState = EntryState.SWING_TWO
+					t.noCCIObos = True
+					t.isObos = True
+					t.macdConfirmed = False
+					t.entryPrice = price
+					swingTwo(t, 0)
+	else:
+		if ((price < regSAR.getCurrent(VARIABLES['TICKETS'][0]) and price < slowSAR.getCurrent(VARIABLES['TICKETS'][0])) or t.bothParaHit):
+			t.bothParaHit = True
+			# print("price below sar:", "curr:", str(price), "entry:", str(t.entryPrice))
+			if (price >= t.entryPrice or t.entryPrice == 0):
+				if (rsi.getCurrent(VARIABLES['TICKETS'][0]) >= VARIABLES['rsiOversold']):
+					if (cancelOnBlocked(t, 0)):
+						return
+					print("entered short para hit onloop")
+					t.entryPrice = price
+					pendingEntries.append(t)
+					t.isCancelled = True
+				else:
+					print("oversold para hit")
+					t.entryState = EntryState.SWING_TWO
+					t.noCCIObos = True
+					t.isObos = True
+					t.macdConfirmed = False
+					t.entryPrice = price
+					swingTwo(t, 0)
 
 def failsafe(timestamps):
 	global pendingEntries
@@ -1095,6 +1139,7 @@ def momentumEntry(t, shift):
 		if (momentumMacdRsiConf(t, shift)):
 			if (currRsi < VARIABLES['rsiOverbought']):
 				print("momentum 2")
+				t.entryPrice = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1] + utils.convertToPrice(0.2)
 				pendingEntries.append(t)
 				t.isCancelled = True
 			else:
@@ -1115,6 +1160,7 @@ def momentumEntry(t, shift):
 	else:
 		if (momentumMacdRsiConf(t, shift)):
 			if (currRsi > VARIABLES['rsiOversold']):
+				t.entryPrice = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2] - utils.convertToPrice(0.2)
 				pendingEntries.append(t)
 				t.isCancelled = True
 			else:
