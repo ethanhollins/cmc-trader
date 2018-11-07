@@ -393,8 +393,8 @@ class Start(object):
 			print("Pair not found!")
 			pair = input("Enter pair: ")
 			
-		ohlc = pickle.load(open("ohlc0611", "rb"))
-		indicators = pickle.load(open("indicators0611", "rb"))
+		ohlc = pickle.load(open("ohlc0711", "rb"))
+		indicators = pickle.load(open("indicators0711", "rb"))
 
 		# startDate = input("Start Date: ")
 		# startTime = input("Start Time: ")
@@ -412,8 +412,8 @@ class Start(object):
 			# indicators['studies'].append(self.utils.indicators['studies'][j].history[pair].copy())
 			self.utils.indicators['studies'][j].history[pair] = {}
 		
-		# pickle.dump(ohlc, open("ohlc0611", "wb"))
-		# pickle.dump(indicators, open("indicators0611", "wb"))
+		# pickle.dump(ohlc, open("ohlc0711", "wb"))
+		# pickle.dump(indicators, open("indicators0711", "wb"))
 		
 		sortedTimestamps = [i[0] for i in sorted(ohlc.items(), key=lambda kv: kv[0], reverse=False)]
 		self.insertValuesByTimestamp(pair, sortedTimestamps[0], ohlc, indicators)

@@ -56,6 +56,9 @@ isInit = True
 
 isLongSignal = False
 isShortSignal = False
+isHalfLongSignal = False
+isHalfShortSignal = False
+isWaitForHit = True
 
 noNewTrades = False
 
@@ -95,8 +98,9 @@ class EntryState(Enum):
 	ENTER = 5
 
 class Trigger(object):
-	def __init__(self, direction):
+	def __init__(self, direction, isHalfTrigger = False):
 		self.direction = direction
+		self.isHalfTrigger = isHalfTrigger
 		self.entryState = EntryState.SWING_ONE
 		self.entryPrice = 0
 		self.isCancelled = False
@@ -146,6 +150,8 @@ def init(utilities): # swap entry line unblock, fix immedexit in trend trig func
 	# amount = 1
 	# while (not preSequence(0, amount)):
 	# 	amount += 1
+
+
 
 	global isInit
 	isInit = False
@@ -285,7 +291,7 @@ def onLoop():
 					del pendingBreakevens[pendingBreakevens.index(pos)]
 
 	for t in pendingTriggers:
-		if (t.entryState == EntryState.CONFIRMATION and not t.isCancelled):
+		if (t.entryState == EntryState.CONFIRMATION and not t.isCancelled and not t.isHalfTrigger):
 			price = utils.getBid(VARIABLES['TICKETS'][0])
 			if (t.direction == Direction.LONG):
 				if ((price > regSAR.getCurrent(VARIABLES['TICKETS'][0]) and price > slowSAR.getCurrent(VARIABLES['TICKETS'][0])) or t.bothParaHit):
@@ -557,7 +563,7 @@ def runSequence(shift, isDownTime = False):
 	# BLACK PARA
 	if (len(strands) > 0):
 		cancelInvalidStrands(shift)
-		getPassedStrands(shift)
+		getPassedStrands(shift, isDownTime)
 		blockFollowingTriggers()
 		unblockOnTag(shift)
 
@@ -594,11 +600,11 @@ def cancelInvalidStrands(shift):
 					print("passed falling:", str(strand.end))
 					strands[strands.index(strand)].isPassed = True
 
-def getPassedStrands(shift):
+def getPassedStrands(shift, isDownTime):
 	global blockCount, blockDirection, futureCount
 	getExtremeStrands()
 
-	if (len(utils.positions) <= 0 and len(pendingEntries) <= 0):
+	if (len(utils.positions) <= 0 and len(pendingEntries) <= 0 and not isDownTime):
 		return
 	
 	if (not maxStrand == None):
@@ -609,7 +615,7 @@ def getPassedStrands(shift):
 			if (len(utils.positions) > 0):
 				if (utils.positions[0].direction == 'buy'):
 					canBlock = False
-			else:
+			elif (len(pendingEntries) > 0):
 				print(pendingEntries[-1].direction)
 				if (pendingEntries[-1].direction == Direction.LONG):
 					print("can't block")
@@ -636,7 +642,7 @@ def getPassedStrands(shift):
 			if (len(utils.positions) > 0):
 				if (utils.positions[0].direction == 'sell'):
 					canBlock = False
-			else:
+			elif (len(pendingEntries) > 0):
 				if (pendingEntries[-1].direction == Direction.SHORT):
 					canBlock = False
 			if (canBlock):
@@ -759,30 +765,90 @@ def unblockOnTag(shift):
 					if t.direction == Direction.LONG and not t.isCancelled and t.isBlocked:
 						t.isBlocked = False
 
-def trendTrigger(shift):
-	global isLongSignal, isShortSignal
+def getParaState(shift):
+	global isWaitForHit
 
 	if (regSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0] and slowSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
+		isWaitForHit = False
+		return True
+	elif (regSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0] and slowSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
+		isWaitForHit = False
+		return True
+	else:
+		isWaitForHit = True
+		return False
+
+def trendTrigger(shift):
+	global isLongSignal, isShortSignal, isHalfLongSignal, isHalfShortSignal
+
+	if (isWaitForHit):
+		if (not getParaState(shift)):
+			return
+	
+	if (regSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0] and slowSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 		isShortSignal = False
+		isHalfShortSignal = False
 		if (not isLongSignal):
 			print("new long trigger!")
 			isLongSignal = True
-			pendingTriggers.append(Trigger(Direction.LONG))
-			# for pos in utils.positions:
-			# 	immedExitSequence(pos, 0)
-			if (len(pendingEntries) > 0):
-				backtestImmedExitSequence(pendingEntries[-1], 0)
+
+			if (isHalfLongSignal):
+				t = pendingTriggers[-1]
+				isHalfLongSignal = False
+				entrySetup(shift)
+				t.isHalfTrigger = False
+				if (t.entryState == EntryState.CONFIRMATION):
+					if (not momentumEntry(t, shift)):
+						t.entryState = EntryState.SWING_ONE
+						swingOne(t, shift)
+				else:
+					t.entryState = EntryState.SWING_ONE
+					swingOne(t, shift)
+
+			else:
+				pendingTriggers.append(Trigger(Direction.LONG))
+				for pos in utils.positions:
+					immedExitSequence(pos, 0)
+				if (len(pendingEntries) > 0):
+					backtestImmedExitSequence(pendingEntries[-1], 0)
+
+	elif (regSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0] or slowSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
+		if (isShortSignal and not isHalfLongSignal):
+			isHalfLongSignal = True
+			pendingTriggers.append(Trigger(Direction.LONG, isHalfTrigger = True))
 
 	if (regSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0] and slowSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
 		isLongSignal = False
+		isHalfLongSignal = False
 		if (not isShortSignal):
 			print("new short trigger!")
 			isShortSignal = True
-			pendingTriggers.append(Trigger(Direction.SHORT))
-			# for pos in utils.positions:
-			# 	immedExitSequence(pos, 0)
-			if (len(pendingEntries) > 0):
-				backtestImmedExitSequence(pendingEntries[-1], 0)
+
+			if (isHalfShortSignal):
+				t = pendingTriggers[-1]
+				isHalfShortSignal = False
+				entrySetup(shift)
+				t.isHalfTrigger = False
+				if (t.entryState == EntryState.CONFIRMATION):
+					if (not momentumEntry(t, shift)):
+						t.entryState = EntryState.SWING_ONE
+						swingOne(t, shift)
+				else:
+					t.entryState = EntryState.SWING_ONE
+					swingOne(t, shift)
+				pendingTriggers[-1].entryState = EntryState.SWING_ONE
+
+			else:
+				pendingTriggers.append(Trigger(Direction.SHORT))
+				for pos in utils.positions:
+					immedExitSequence(pos, 0)
+				if (len(pendingEntries) > 0):
+					backtestImmedExitSequence(pendingEntries[-1], 0)
+
+	elif (regSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0] or slowSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
+		if (isLongSignal and not isHalfShortSignal):
+			isHalfShortSignal = True
+			pendingTriggers.append(Trigger(Direction.SHORT, isHalfTrigger = True))
 
 def entrySetup(shift):
 	for t in pendingTriggers:
@@ -877,7 +943,7 @@ def swingThree(t, shift):
 			if (chIdx < smaTwo and chIdx < smaThree):
 				if (currRsi < 50.0 and hist <= 0):
 					t.entryState = EntryState.CONFIRMATION
-					t.noCCIObos = True
+					t.noCCIObos = True	
 					confirmation(t, shift)
 				else:
 					print("RSI or MACD not confirmed")
@@ -886,6 +952,9 @@ def swingThree(t, shift):
 					swingTwo(t, shift)
 
 def confirmation(t, shift):
+	if (t.isHalfTrigger):
+		return
+
 	print("confirmation:")
 	close = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][3]
 
@@ -932,6 +1001,9 @@ def confirmation(t, shift):
 				swingTwo(t, shift)
 
 def backtestConfirmation(t, shift):
+	if (t.isHalfTrigger):
+		return
+		
 	print("backtest confirmation")
 	close = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][3]
 
@@ -940,28 +1012,26 @@ def backtestConfirmation(t, shift):
 			t.bothParaHit = True
 			if (rsi.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0] < VARIABLES['rsiOverbought']):
 				t.entryState = EntryState.ENTER
-				if (close <= t.entryPrice or t.entryPrice == 0):
-					if (cancelOnBlocked(t, shift)):
-						return
-					if (t.bothParaHit):
-						t.entryPrice = close
-					elif (regSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0] > slowSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]):
-						t.entryPrice = regSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
-						pendingEntries.append(t)
-						t.isCancelled = True
-					else:
-						t.entryPrice = slowSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
-						pendingEntries.append(t)
-						t.isCancelled = True
-					print("Position entered")
+				# if (close <= t.entryPrice or t.entryPrice == 0):
+				if (cancelOnBlocked(t, shift)):
+					return
+				if (t.bothParaHit):
+					t.entryPrice = close
+				elif (regSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0] > slowSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]):
+					t.entryPrice = regSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
+					pendingEntries.append(t)
+					t.isCancelled = True
+				else:
+					t.entryPrice = slowSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
+					pendingEntries.append(t)
+					t.isCancelled = True
+				print("Position entered")
 			else:
 				print("overbought")
 				t.entryState = EntryState.SWING_TWO
 				t.noCCIObos = True
 				t.isObos = True
 				t.macdConfirmed = False
-				if (t.entryPrice == 0):
-					t.entryPrice = close
 				pendingEntries.append(t)
 				swingTwo(t, shift)
 	else:
@@ -969,27 +1039,64 @@ def backtestConfirmation(t, shift):
 			t.bothParaHit = True
 			if (rsi.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0] > VARIABLES['rsiOversold']):
 				t.entryState = EntryState.ENTER
-				if (close >= t.entryPrice or t.entryPrice == 0):
-					if (cancelOnBlocked(t, shift)):
-						return
-					if (t.bothParaHit):
-						t.entryPrice = close
-					elif (regSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0] < slowSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]):
-						t.entryPrice = regSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
-					else:
-						t.entryPrice = slowSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
-					pendingEntries.append(t)
-					t.isCancelled = True
-					print("Position entered")
+				# if (close >= t.entryPrice or t.entryPrice == 0):
+				if (cancelOnBlocked(t, shift)):
+					return
+				if (t.bothParaHit):
+					t.entryPrice = close
+				elif (regSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0] < slowSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]):
+					t.entryPrice = regSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
+				else:
+					t.entryPrice = slowSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
+				pendingEntries.append(t)
+				t.isCancelled = True
+				print("Position entered")
 			else:
 				print("oversold")
 				t.entryState = EntryState.SWING_TWO
 				t.noCCIObos = True
 				t.isObos = True
 				t.macdConfirmed = False
-				if (t.entryPrice == 0):
-					t.entryPrice = close
 				swingTwo(t, shift)
+
+def momentumEntry(t, shift):
+	currRsi = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+	if (immedMacdRsiConf(t, shift)):
+		if (pos.direction == Direction.LONG):
+			if (currRsi < VARIABLES['rsiOverbought']):
+				pendingEntries.append(t)
+				t.isCancelled = True
+			else:
+				print("overbought on momentum entry")
+				t.entryState = EntryState.SWING_TWO
+				t.noCCIObos = True
+				t.isObos = True
+				t.macdConfirmed = False
+				swingTwo(t, shift)
+
+				for pos in utils.positions:
+					immedExitSequence(pos, 0)
+				if (len(pendingEntries) > 0):
+					backtestImmedExitSequence(pendingEntries[-1], 0)
+		else:
+			if (currRsi > VARIABLES['rsiOversold']):
+				pendingEntries.append(t)
+				t.isCancelled = True
+			else:
+				print("oversold on momentum entry")
+				t.entryState = EntryState.SWING_TWO
+				t.noCCIObos = True
+				t.isObos = True
+				t.macdConfirmed = False
+				swingTwo(t, shift)
+
+				for pos in utils.positions:
+					immedExitSequence(pos, 0)
+				if (len(pendingEntries) > 0):
+					backtestImmedExitSequence(pendingEntries[-1], 0)
+		return True
+	else:
+		return False
 
 def immedExitSequence(pos, shift):
 	if (immedMacdRsiConf(pos, shift)):
@@ -1012,6 +1119,24 @@ def immedExitSequence(pos, shift):
 				print("Attempting to set pos to breakeven.")
 		else:
 			print("Within 2 pips profit, exit ignored")
+
+def backtestImmedExitSequence(pos, shift, isOnHalfSignal = False):
+	if (immedMacdRsiConf(pos, shift)):
+		if (backtestIsPosAtLoss(pos, shift)):
+			print("Immediate exit activated.")
+			global exitPrice
+			if (pos.direction == Direction.LONG):
+				exitPrice = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2] - utils.convertToPrice(0.2)
+				exitPos = pos
+				print("Exit at", str(exitPrice))
+			else:
+				exitPrice = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1] + utils.convertToPrice(0.2)
+				exitPos = pos
+				print("Exit at", str(exitPrice))
+		elif (backtestIsPosInProfit(pos, shift)):
+			print("Set position to breakeven.")
+
+	return False
 
 def isRegRetParaHit(pos, shift):
 	if (pos.direction == 'buy' or pos.direction == Direction.LONG):
@@ -1046,24 +1171,6 @@ def isPosAtLoss(pos):
 
 def isPosInProfit(pos):
 	return pos.getProfit() >= 2.0
-
-def backtestImmedExitSequence(pos, shift):
-	if (immedMacdRsiConf(pos, shift)):
-		if (backtestIsPosAtLoss(pos, shift)):
-			print("Immediate exit activated.")
-			global exitPrice
-			if (pos.direction == Direction.LONG):
-				exitPrice = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2] - utils.convertToPrice(0.2)
-				exitPos = pos
-				print("Exit at", str(exitPrice))
-			else:
-				exitPrice = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1] + utils.convertToPrice(0.2)
-				exitPos = pos
-				print("Exit at", str(exitPrice))
-		elif (backtestIsPosInProfit(pos, shift)):
-			print("Set position to breakeven.")
-
-	return False
 
 def backtestIsPosAtLoss(pos, shift):
 	close = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][3]
