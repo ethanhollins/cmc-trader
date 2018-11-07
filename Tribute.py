@@ -793,15 +793,19 @@ def trendTrigger(shift):
 			isLongSignal = True
 
 			if (isHalfLongSignal):
+				print("checking half signal")
 				t = pendingTriggers[-1]
 				isHalfLongSignal = False
 				entrySetup(shift)
 				t.isHalfTrigger = False
 				if (t.entryState == EntryState.CONFIRMATION):
+					print("half signal confirmed")
 					if (not momentumEntry(t, shift)):
+						print("half not momentum")
 						t.entryState = EntryState.SWING_ONE
 						swingOne(t, shift)
 				else:
+					print("half not confirmed")
 					t.entryState = EntryState.SWING_ONE
 					swingOne(t, shift)
 
@@ -943,7 +947,7 @@ def swingThree(t, shift):
 			if (chIdx < smaTwo and chIdx < smaThree):
 				if (currRsi < 50.0 and hist <= 0):
 					t.entryState = EntryState.CONFIRMATION
-					t.noCCIObos = True	
+					t.noCCIObos = True
 					confirmation(t, shift)
 				else:
 					print("RSI or MACD not confirmed")
@@ -953,6 +957,7 @@ def swingThree(t, shift):
 
 def confirmation(t, shift):
 	if (t.isHalfTrigger):
+		print("confirmed half trigger")
 		return
 
 	print("confirmation:")
@@ -1061,9 +1066,10 @@ def backtestConfirmation(t, shift):
 
 def momentumEntry(t, shift):
 	currRsi = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
-	if (immedMacdRsiConf(t, shift)):
-		if (pos.direction == Direction.LONG):
+	if (t.direction == Direction.LONG):
+		if (momentumMacdRsiConf(t, shift)):
 			if (currRsi < VARIABLES['rsiOverbought']):
+				print("momentum 2")
 				pendingEntries.append(t)
 				t.isCancelled = True
 			else:
@@ -1078,7 +1084,11 @@ def momentumEntry(t, shift):
 					immedExitSequence(pos, 0)
 				if (len(pendingEntries) > 0):
 					backtestImmedExitSequence(pendingEntries[-1], 0)
+			return True
 		else:
+			return False
+	else:
+		if (momentumMacdRsiConf(t, shift)):
 			if (currRsi > VARIABLES['rsiOversold']):
 				pendingEntries.append(t)
 				t.isCancelled = True
@@ -1094,9 +1104,26 @@ def momentumEntry(t, shift):
 					immedExitSequence(pos, 0)
 				if (len(pendingEntries) > 0):
 					backtestImmedExitSequence(pendingEntries[-1], 0)
-		return True
+			return True
+		else:
+			return False
+
+def momentumMacdRsiConf(pos, shift):
+	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+	currRsi = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+
+	if (pos.direction == 'buy' or pos.direction == Direction.LONG):
+		if (currRsi >= VARIABLES['longRsiSignal'] and hist > 0):
+			return True
+		elif (currRsi >= VARIABLES['longZeroMACD'] and hist >= 0):
+			return True
 	else:
-		return False
+		if (currRsi <= VARIABLES['shortRsiSignal'] and hist < 0):
+			return True
+		elif (currRsi <= VARIABLES['shortZeroMACD'] and hist <= 0):
+			return True
+
+	return False
 
 def immedExitSequence(pos, shift):
 	if (immedMacdRsiConf(pos, shift)):
