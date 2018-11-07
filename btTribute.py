@@ -81,7 +81,6 @@ blockDirection = None
 futureCount = 0
 
 entryPrice = 0
-exitPrice = 0
 exitPos = None
 
 bank = 0
@@ -109,6 +108,7 @@ class Trigger(object):
 		self.isHalfTrigger = isHalfTrigger
 		self.entryState = EntryState.SWING_ONE
 		self.entryPrice = 0
+		self.exitPrice = 0
 		self.isCancelled = False
 		self.isBlocked = False
 		self.macdConfirmed = False
@@ -116,6 +116,7 @@ class Trigger(object):
 		self.bothParaHit = False
 		self.waitForOppTrigger = False
 		self.canTrade = True
+		self.isPositionHalved = False
 
 class Strand(object):
 	def __init__(self, start, direction):
@@ -165,11 +166,14 @@ def backtest():
 	runSequence(0)
 
 	for t in pendingTriggers:
-		if (t.entryState == EntryState.CONFIRMATION and not t.isCancelled):
-			if (t.isHalfTrigger):
-				backtestMomentumEntry(t, 0)
-			else:
-				backtestConfirmation(t, 0)
+		if (not t.isCancelled):
+			if (t.entryState == EntryState.CONFIRMATION):
+				if (t.isHalfTrigger):
+					backtestMomentumEntry(t, 0)
+				else:
+					backtestConfirmation(t, 0)
+
+	backtestImmedExitSequence(shift)
 
 	print("PENDING TRIGGERS:")
 	count = 0
@@ -179,11 +183,11 @@ def backtest():
 			print(str(count) + ":", str(t.direction), "isBlocked:", str(t.isBlocked))
 	print(" Block Count:", str(blockCount), "Block direction:", str(blockDirection))
 
-	print("PENDING ENTRIES:")
+	print("ALL POSITIONS:")
 	count = 0
-	for entry in pendingEntries:
+	for pos in positions:
 		count += 1
-		print(str(count) + ":", str(entry.direction))
+		print(str(count) + ":", str(pos.direction))
 
 	if (not currentPosition == None):
 		print("CURRENT POSITION:", currentPosition.direction)
@@ -286,8 +290,6 @@ def checkCurrentNews():
 		newsTradeBlock = True
 	else:
 		newsTradeBlock = False
-
-
 
 def runSequence(shift, isDownTime = False):
 	trendTrigger(shift, isDownTime)
@@ -941,12 +943,12 @@ def immedExitSequence(t, shift):
 			print("Immediate exit activated.")
 			global exitPrice
 			if (t.direction == Direction.LONG):
-				exitPrice = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2] - utils.convertToPrice(0.2)
+				t.exitPrice = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2] - utils.convertToPrice(0.2)
 				exitPos = t
 				pendingExits.append(exitPos)
 				print("Exit at", str(exitPrice))
 			else:
-				exitPrice = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1] + utils.convertToPrice(0.2)
+				t.exitPrice = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1] + utils.convertToPrice(0.2)
 				exitPos = t
 				pendingExits.append(exitPos)
 				print("Exit at", str(exitPrice))
@@ -955,8 +957,32 @@ def immedExitSequence(t, shift):
 
 	return False
 
-def backtestImmedExitSequence(t, shift):
+def backtestImmedExitSequence(shift):
+	global currentPosition
+	global exitPos, pendingExits
 
+	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
+	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
+	if (not currentPosition == None and not exitPos == None):
+		for t in pendingExits:
+			if (exitPos == currentPosition):
+				if (exitPos == t):
+					if (t.direction == Direction.LONG):
+						if (low < t.exitPrice):
+							print("exited long on momentum")
+							currentPosition = None
+							exitPos = None
+							pendingExits = []
+					else:
+						if (high > t.exitPrice):
+							print("exited long on momentum")
+							currentPosition = None
+							exitPos = None
+							pendingExits = []
+				return
+
+	exitPos = None
+	pendingExits = []
 
 def isRegRetParaHit(t, shift):
 	if (t.direction == Direction.LONG):
@@ -999,3 +1025,40 @@ def isPosInProfit(t, shift):
 		return close >= (t.entryPrice + utils.convertToPrice(VARIABLES['beRange']))
 	else:
 		return close <= (t.entryPrice - utils.convertToPrice(VARIABLES['beRange']))
+
+def checkStoploss(shift):
+	global currentPosition
+	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
+	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
+	if (not currentPosition == None):
+		if (currentPosition.direction == Direction.LONG):
+			if (low < currentPosition.entryPrice - utils.convertToPrice(VARIABLES['stoprange'])):
+				print("Long position stopped out!")
+				currentPosition = None
+		else:
+			if (high > currentPosition.entryPrice + utils.convertToPrice(VARIABLES['stoprange'])):
+				print("Short position stopped out!")
+				currentPosition = None
+
+def checkTakeProfit(shift):
+	global currentPosition
+	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
+	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
+
+	if (not currentPosition == None):
+		if (not currentPosition.isPositionHalved):
+			if (currentPosition.direction == Direction.LONG):
+				if (high > currentPosition.entryPrice + utils.convertToPrice(VARIABLES['halfprofit'])):
+					print("Long position halved!")
+			else:
+				if (low < currentPosition.entryPrice - utils.convertToPrice(VARIABLES['halfprofit'])):
+					print("Short position halved!")
+		else:
+			if (currentPosition.direction == Direction.LONG):
+				if (high > currentPosition.entryPrice + utils.convertToPrice(VARIABLES['fullprofit'])):
+					print("Long position full profit!")
+					currentPosition = None
+			else:
+				if (low < currentPosition.entryPrice - utils.convertToPrice(VARIABLES['fullprofit'])):
+					print("Short position full profit!")
+					currentPosition = None
