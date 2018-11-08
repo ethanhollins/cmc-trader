@@ -46,10 +46,11 @@ def init(utilities):
 
 	print(utils.getPositionAmount("GBPUSD"))
 	global pos
-	pos = utils.buy(1000)
+	pos = utils.buy(400)
 
 def onNewBar():
 	print("onNewBar")
+	pos.breakeven()
 	pos.quickExit()
 	# pos = utils.buy(1000, ordertype = 'stopentry', entry = 1.4, sl = 300, tp = 100)
 	# pos.close()
@@ -61,7 +62,6 @@ def onNewBar():
 	# pos.modifyTP(30)
 	# pos.modifySL(60)
 	# pos.removeTP()
-	# pos.breakeven()
 	# pos.apply()
 	# pos.close()
 	# print(pos.closeprice)
