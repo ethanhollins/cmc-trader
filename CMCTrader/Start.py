@@ -317,9 +317,10 @@ class Start(object):
 				try:
 					self.checkIfInApp()
 					# try:
-					for pair in self.plan.VARIABLES['TICKETS']:
-						if (self.utils.isCurrentTimestamp(pair)):
-							self.plan.onLoop()
+					if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
+						for pair in self.plan.VARIABLES['TICKETS']:
+							if (self.utils.isCurrentTimestamp(pair)):
+								self.plan.onLoop()
 					# except AttributeError as e:
 					# 	pass
 

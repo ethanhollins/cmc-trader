@@ -4,8 +4,8 @@ import datetime
 
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD],
-	'START_TIME' : '6:55',
-	'END_TIME' : '16:00',
+	# 'START_TIME' : '6:55',
+	# 'END_TIME' : '16:00',
 	'noNewTradesOnProfit' : '15:00',
 	'noNewTrades' : '15:30',
 	'setBE' : '15:50',
@@ -175,18 +175,25 @@ def onNewBar():
 			print(str(count) + ":", t.direction, "isBlocked:", str(t.isBlocked))
 	print(" Block Count:", str(blockCount), "Block direction:", str(blockDirection))
 
+	print("CLOSED POSITIONS:")
+	count = 0
+	for pos in utils.closedPositions:
+		count += 1
+		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit())
+
 	print("POSITIONS:")
 	count = 0
 	for pos in utils.positions:
 		count += 1
-		print(str(count) + ":", pos.direction)
+		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit())
 
 def onStartTrading():
 	print("onStartTrading")
 	global noNewTrades
 	noNewTrades = False
 	global bank
-	bank = utils.getBankSize()
+	bank = 1000
+	# bank = utils.getBankSize()
 	print(bank)
 	global isProfitTime, isNoTradesTime, isBETime
 	isProfitTime = False
@@ -281,9 +288,9 @@ def onLoop():
 	for t in pendingTriggers:
 		if (t.entryState == EntryState.CONFIRMATION and not t.isCancelled):
 			if (t.isHalfTrigger and not t.entryPrice == 0):
-				entryOnMomentumHit()
+				entryOnMomentumHit(t)
 			else:
-				entryOnParaHit()
+				entryOnParaHit(t)
 
 def exitPositions():
 	global pendingExits
@@ -426,7 +433,7 @@ def entryOnMomentumHit(t):
 				t.macdConfirmed = False
 				swingTwo(t, 0)
 
-def entryOnParaHit():
+def entryOnParaHit(t):
 	price = utils.getBid(VARIABLES['TICKETS'][0])
 	if (t.direction == Direction.LONG):
 		if ((price > regSAR.getCurrent(VARIABLES['TICKETS'][0]) and price > slowSAR.getCurrent(VARIABLES['TICKETS'][0])) or t.bothParaHit):
@@ -481,8 +488,12 @@ def failsafe(timestamps):
 		print("Time:", str(utils.convertTimestampToTime(timestamp)))
 		runSequence(currShift)
 		for t in pendingTriggers:
-			if (t.entryState == EntryState.CONFIRMATION and not t.isCancelled):
-				backtestConfirmation(t, currShift)
+			if (not t.isCancelled):
+				if (t.entryState == EntryState.CONFIRMATION):
+					if (t.isHalfTrigger):
+						backtestMomentumEntry(t, currShift)
+					else:
+						backtestConfirmation(t, currShift)
 
 		high = utils.ohlc[VARIABLES['TICKETS'][0]][timestamp][1]
 		low = utils.ohlc[VARIABLES['TICKETS'][0]][timestamp][2]
@@ -496,12 +507,12 @@ def failsafe(timestamps):
 			if (exitPrice > 0):
 				if (pendingEntries[-1].direction == Direction.LONG):
 					if (low < exitPrice):
-						del pendingEntries[pendingEntries.index(entry)]
+						pendingEntries = []
 						exitPrice = 0
 						exitPos = None
 				else:
 					if (high > exitPrice):
-						del pendingEntries[pendingEntries.index(entry)]
+						pendingEntries = []
 						exitPrice = 0
 						exitPos = None
 		else:
@@ -619,7 +630,6 @@ def cancelInvalidStrands(shift):
 		if (blackSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			shortStrands = [i for i in strands if i.direction == Direction.SHORT and not i.isPassed and not i.end == 0]
 			for strand in shortStrands:
-				print(str(blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0]), ",", str(strand.end))
 				if (blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0] > strand.end):
 					print("passed rising:", str(strand.end))
 					strands[strands.index(strand)].isPassed = True
@@ -628,7 +638,6 @@ def cancelInvalidStrands(shift):
 		else:
 			longStrands = [i for i in strands if i.direction == Direction.LONG and not i.isPassed and not i.end == 0]
 			for strand in longStrands:
-				print(str(blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0]), ",", str(strand.end))
 				if (blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0] < strand.end):
 					print("passed falling:", str(strand.end))
 					strands[strands.index(strand)].isPassed = True
@@ -700,21 +709,16 @@ def getExtremeStrands():
 	
 	maxStrand = None
 	for i in longStrands:
-		print("current:", str(i.start))
 		if not maxStrand == None:
-			print("another:", str(i.start), str(i.isPassed))
 			if i.start > maxStrand.start and not i.isPassed:
-				strands[strands.index(maxStrand)].isPassed = True
 				maxStrand = i
 		elif not i.isPassed:
-			print("None:", str(i.start))
 			maxStrand = i
 
 	minStrand = None
 	for j in shortStrands:
 		if not minStrand == None:
 			if j.start < minStrand.start and not j.isPassed:
-				strands[strands.index(minStrand)].isPassed = True
 				minStrand = j
 		elif not j.isPassed:
 			minStrand = j
@@ -819,8 +823,6 @@ def trendTrigger(shift, isDownTime):
 				pendingTriggers.append(Trigger(Direction.LONG))
 				for pos in utils.positions:
 					immedExitSequence(pos, 0)
-				if (len(pendingEntries) > 0):
-					backtestImmedExitSequence(pendingEntries[-1], 0)
 
 	elif (regSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0] or slowSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 		if (isShortSignal and not isHalfLongSignal):
@@ -858,8 +860,6 @@ def trendTrigger(shift, isDownTime):
 				pendingTriggers.append(Trigger(Direction.SHORT))
 				for pos in utils.positions:
 					immedExitSequence(pos, 0)
-				if (len(pendingEntries) > 0):
-					backtestImmedExitSequence(pendingEntries[-1], 0)
 
 	elif (regSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0] or slowSAR.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
 		if (isLongSignal and not isHalfShortSignal):
@@ -910,12 +910,28 @@ def swingOne(t, shift):
 
 	if (t.direction == Direction.LONG):
 		if (chIdx > VARIABLES['cciTrendOversold']):
-			if (chIdx > smaTwo and chIdx > smaThree):
+			isPassed = False
+			if (t.isHalfTrigger):
+				if (chIdx > smaTwo and chIdx > smaThree):
+					isPassed = True
+			else:
+				if (chIdx > smaTwo):
+					isPassed = True
+
+			if (isPassed):
 				t.entryState = EntryState.SWING_TWO
 				swingTwo(t, shift)
 	else:
 		if (chIdx < VARIABLES['cciTrendOverbought']):
-			if (chIdx < smaTwo and chIdx < smaThree):
+			isPassed = False
+			if (t.isHalfTrigger):
+				if (chIdx < smaTwo and chIdx < smaThree):
+					isPassed = True
+			else:
+				if (chIdx < smaTwo):
+					isPassed = True
+
+			if (isPassed):
 				t.entryState = EntryState.SWING_TWO
 				swingTwo(t, shift)
 
@@ -926,12 +942,28 @@ def swingTwo(t, shift):
 
 	if (t.direction == Direction.LONG):
 		if (chIdx <= VARIABLES['cciCTOverbought'] or t.noCCIObos):
-			if (chIdx < smaTwo and chIdx < smaThree):
+			isPassed = False
+			if (t.isHalfTrigger):
+				if (chIdx < smaTwo and chIdx < smaThree):
+					isPassed = True
+			else:
+				if (chIdx < smaTwo):
+					isPassed = True
+
+			if (isPassed):
 				t.entryState = EntryState.SWING_THREE
 				swingThree(t, shift)
 	else:
 		if (chIdx >= VARIABLES['cciCTOversold'] or t.noCCIObos):
-			if (chIdx > smaTwo and chIdx > smaThree):
+			isPassed = False
+			if (t.isHalfTrigger):
+				if (chIdx > smaTwo and chIdx > smaThree):
+					isPassed = True
+			else:
+				if (chIdx > smaTwo):
+					isPassed = True
+
+			if (isPassed):
 				t.entryState = EntryState.SWING_THREE
 				swingThree(t, shift)
 
@@ -943,8 +975,16 @@ def swingThree(t, shift):
 	currRsi = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 	if (t.direction == Direction.LONG):
-		if (chIdx > VARIABLES['cciTrendOversold'] or t.noCCIObos):
-			if (chIdx > smaTwo and chIdx > smaThree):
+		if (chIdx > VARIABLES['cciTrendOversold']):
+			isPassed = False
+			if (t.isHalfTrigger):
+				if (chIdx > smaTwo and chIdx > smaThree):
+					isPassed = True
+			else:
+				if (chIdx > smaTwo):
+					isPassed = True
+
+			if (isPassed):
 				if (currRsi > 50.0 and hist >= 0):
 					t.entryState = EntryState.CONFIRMATION
 					t.noCCIObos = True
@@ -955,8 +995,16 @@ def swingThree(t, shift):
 					t.noCCIObos = True
 					swingTwo(t, shift)
 	else:
-		if (chIdx < VARIABLES['cciTrendOverbought'] or t.noCCIObos):
-			if (chIdx < smaTwo and chIdx < smaThree):
+		if (chIdx < VARIABLES['cciTrendOverbought']):
+			isPassed = False
+			if (t.isHalfTrigger):
+				if (chIdx < smaTwo and chIdx < smaThree):
+					isPassed = True
+			else:
+				if (chIdx < smaTwo):
+					isPassed = True
+
+			if (isPassed):
 				if (currRsi < 50.0 and hist <= 0):
 					t.entryState = EntryState.CONFIRMATION
 					t.noCCIObos = True
@@ -1122,6 +1170,41 @@ def momentumEntry(t, shift):
 			return True
 		else:
 			return False
+
+def backtestMomentumEntry(t, shift):
+	global currentPosition
+	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
+	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
+	currRsi = rsi.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
+
+	if (t.direction == Direction.LONG):
+		if (high > t.entryPrice):
+			if (currRsi <= VARIABLES['rsiOverbought']):
+				if (cancelOnBlocked(t, 0)):
+					return
+				print("entered long momentum onloop")
+				pendingEntries.append(t)
+				t.isCancelled = True
+			else:
+				print("overbought momentum onloop")
+				t.entryState = EntryState.SWING_TWO
+				t.noCCIObos = True
+				t.macdConfirmed = False
+				swingTwo(t, 0)
+	else:
+		if (low < t.entryPrice):
+			if (currRsi >= VARIABLES['rsiOversold']):
+				if (cancelOnBlocked(t, 0)):
+					return
+				print("entered short momentum onloop")
+				pendingEntries.append(t)
+				t.isCancelled = True
+			else:
+				print("oversold momentum onloop")
+				t.entryState = EntryState.SWING_TWO
+				t.noCCIObos = True
+				t.macdConfirmed = False
+				swingTwo(t, 0)
 
 def momentumMacdRsiConf(pos, shift):
 	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]

@@ -21,8 +21,8 @@ VARIABLES = {
 	'newsTimeBeforeBE' : 1,
 	'newsTimeBeforeBlock' : 5,
 	'RSI' : None,
-	'rsiOverbought' : 75,
-	'rsiOversold' : 25,
+	'rsiOverbought' : 70,
+	'rsiOversold' : 30,
 	'longRsiSignal' : 60,
 	'shortRsiSignal' : 40,
 	'longZeroMACD' : 65,
@@ -353,7 +353,6 @@ def cancelInvalidStrands(shift):
 		if (blackSAR.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			shortStrands = [i for i in strands if i.direction == Direction.SHORT and not i.isPassed and not i.end == 0]
 			for strand in shortStrands:
-				print(str(blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0]), ",", str(strand.end))
 				if (blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0] > strand.end):
 					print("passed rising:", str(strand.end))
 					strands[strands.index(strand)].isPassed = True
@@ -362,7 +361,6 @@ def cancelInvalidStrands(shift):
 		else:
 			longStrands = [i for i in strands if i.direction == Direction.LONG and not i.isPassed and not i.end == 0]
 			for strand in longStrands:
-				print(str(blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0]), ",", str(strand.end))
 				if (blackSAR.get(VARIABLES['TICKETS'][0], shift, 1)[0] < strand.end):
 					print("passed falling:", str(strand.end))
 					strands[strands.index(strand)].isPassed = True
@@ -434,21 +432,16 @@ def getExtremeStrands():
 	
 	maxStrand = None
 	for i in longStrands:
-		print("current:", str(i.start))
 		if not maxStrand == None:
-			print("another:", str(i.start), str(i.isPassed))
 			if i.start > maxStrand.start and not i.isPassed:
-				strands[strands.index(maxStrand)].isPassed = True
 				maxStrand = i
 		elif not i.isPassed:
-			print("None:", str(i.start))
 			maxStrand = i
 
 	minStrand = None
 	for j in shortStrands:
 		if not minStrand == None:
 			if j.start < minStrand.start and not j.isPassed:
-				strands[strands.index(minStrand)].isPassed = True
 				minStrand = j
 		elif not j.isPassed:
 			minStrand = j
@@ -644,12 +637,28 @@ def swingOne(t, shift):
 
 	if (t.direction == Direction.LONG):
 		if (chIdx > VARIABLES['cciTrendOversold']):
-			if (chIdx > smaTwo and chIdx > smaThree):
+			isPassed = False
+			if (t.isHalfTrigger):
+				if (chIdx > smaTwo and chIdx > smaThree):
+					isPassed = True
+			else:
+				if (chIdx > smaTwo):
+					isPassed = True
+
+			if (isPassed):
 				t.entryState = EntryState.SWING_TWO
 				swingTwo(t, shift)
 	else:
 		if (chIdx < VARIABLES['cciTrendOverbought']):
-			if (chIdx < smaTwo and chIdx < smaThree):
+			isPassed = False
+			if (t.isHalfTrigger):
+				if (chIdx < smaTwo and chIdx < smaThree):
+					isPassed = True
+			else:
+				if (chIdx < smaTwo):
+					isPassed = True
+
+			if (isPassed):
 				t.entryState = EntryState.SWING_TWO
 				swingTwo(t, shift)
 
@@ -660,12 +669,28 @@ def swingTwo(t, shift):
 
 	if (t.direction == Direction.LONG):
 		if (chIdx <= VARIABLES['cciCTOverbought'] or t.noCCIObos):
-			if (chIdx < smaTwo and chIdx < smaThree):
+			isPassed = False
+			if (t.isHalfTrigger):
+				if (chIdx < smaTwo and chIdx < smaThree):
+					isPassed = True
+			else:
+				if (chIdx < smaTwo):
+					isPassed = True
+
+			if (isPassed):
 				t.entryState = EntryState.SWING_THREE
 				swingThree(t, shift)
 	else:
 		if (chIdx >= VARIABLES['cciCTOversold'] or t.noCCIObos):
-			if (chIdx > smaTwo and chIdx > smaThree):
+			isPassed = False
+			if (t.isHalfTrigger):
+				if (chIdx > smaTwo and chIdx > smaThree):
+					isPassed = True
+			else:
+				if (chIdx > smaTwo):
+					isPassed = True
+
+			if (isPassed):
 				t.entryState = EntryState.SWING_THREE
 				swingThree(t, shift)
 
@@ -677,8 +702,16 @@ def swingThree(t, shift):
 	currRsi = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 	if (t.direction == Direction.LONG):
-		if (chIdx > VARIABLES['cciTrendOversold'] or t.noCCIObos):
-			if (chIdx > smaTwo and chIdx > smaThree):
+		if (chIdx > VARIABLES['cciTrendOversold']):
+			isPassed = False
+			if (t.isHalfTrigger):
+				if (chIdx > smaTwo and chIdx > smaThree):
+					isPassed = True
+			else:
+				if (chIdx > smaTwo):
+					isPassed = True
+
+			if (isPassed):
 				if (currRsi > 50.0 and hist >= 0):
 					t.entryState = EntryState.CONFIRMATION
 					t.noCCIObos = True
@@ -689,8 +722,16 @@ def swingThree(t, shift):
 					t.noCCIObos = True
 					swingTwo(t, shift)
 	else:
-		if (chIdx < VARIABLES['cciTrendOverbought'] or t.noCCIObos):
-			if (chIdx < smaTwo and chIdx < smaThree):
+		if (chIdx < VARIABLES['cciTrendOverbought']):
+			isPassed = False
+			if (t.isHalfTrigger):
+				if (chIdx < smaTwo and chIdx < smaThree):
+					isPassed = True
+			else:
+				if (chIdx < smaTwo):
+					isPassed = True
+
+			if (isPassed):
 				if (currRsi < 50.0 and hist <= 0):
 					t.entryState = EntryState.CONFIRMATION
 					t.noCCIObos = True
@@ -719,6 +760,7 @@ def confirmation(t, shift):
 					return
 				print("Position entered")
 				t.entryState = EntryState.ENTER
+				print("CLOSE:", str(close))
 				t.entryPrice = close
 				pendingEntries.append(t)
 				
@@ -1065,6 +1107,8 @@ def checkTakeProfit(shift):
 	if (not currentPosition == None):
 		if (not currentPosition.isPositionHalved):
 			if (currentPosition.direction == Direction.LONG):
+				print("Entry price:", currentPosition.entryPrice)
+				print("Half profit:", str(currentPosition.entryPrice + utils.convertToPrice(VARIABLES['halfprofit'])))
 				if (high > currentPosition.entryPrice + utils.convertToPrice(VARIABLES['halfprofit'])):
 					print("Long position halved!")
 					currentPosition.isPositionHalved = True
