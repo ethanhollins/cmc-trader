@@ -65,6 +65,7 @@ class HistoryLog(object):
 			)
 
 		for i in rowDict:
+			print(i)
 			print(i[1])
 			i[1] = self._convertTime(i[1])
 			i[3] = self._convertPair(i[3])
