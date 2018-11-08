@@ -4,8 +4,8 @@ import datetime
 
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD],
-	# 'START_TIME' : '6:55',
-	# 'END_TIME' : '16:00',
+	'START_TIME' : '6:55',
+	'END_TIME' : '16:00',
 	'noNewTradesOnProfit' : '15:00',
 	'noNewTrades' : '15:30',
 	'setBE' : '15:50',
