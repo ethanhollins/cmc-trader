@@ -545,27 +545,6 @@ def failsafe(timestamps):
 						if not pos in pendingExits:
 							pendingExits.append(pos)
 
-def backtest():
-	runSequence(0)
-
-	for t in pendingTriggers:
-		if (t.entryState == EntryState.CONFIRMATION and not t.isCancelled):
-			backtestConfirmation(t, 0)
-
-	print("PENDING TRIGGERS:")
-	count = 0
-	for t in pendingTriggers:
-		if (not t.isCancelled):
-			count += 1
-			print(str(count) + ":", str(t.direction), "isBlocked:", str(t.isBlocked))
-	print(" Block Count:", str(blockCount), "Block direction:", str(blockDirection))
-
-	print("PENDING ENTRIES:")
-	count = 0
-	for entry in pendingEntries:
-		count += 1
-		print(str(count) + ":", str(entry.direction))
-
 def onNews(title, time):
 	global currentNews
 	print("NEWS:", str(title))
@@ -755,70 +734,37 @@ def unblockOnTag(shift):
 	global entryPrice
 	global blockCount, blockDirection
 
-	# if (not entryPrice == 0):
-	# 	if (len(utils.positions) <= 0):
-	# 		print("no positions")
-	# 		entryPrice = 0
-	# 		if (blockCount > 0):
-	# 			blockDirection = None
-	# 			blockCount = 0
-	# 			for t in pendingTriggers:
-	# 				if not t.isCancelled and t.isBlocked:
-	# 					t.isBlocked = False
-	# 		return
-
-	# 	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
-	# 	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
-	# 	for pos in utils.positions:
-	# 		if pos.direction == 'buy':
-	# 			if (low <= entryPrice and blockCount > 0):
-	# 				print("Unblock all blocked SHORT triggers")
-	# 				blockDirection = None
-	# 				blockCount = 0
-	# 				for t in pendingTriggers:
-	# 					if t.direction == Direction.SHORT and not t.isCancelled and t.isBlocked:
-	# 						t.isBlocked = False
-	# 		else:
-	# 			if (high >= entryPrice and blockCount > 0):
-	# 				print("Unblock all blocked LONG triggers")
-	# 				blockDirection = None
-	# 				blockCount = 0
-	# 				for t in pendingTriggers:
-	# 					if t.direction == Direction.LONG and not t.isCancelled and t.isBlocked:
-	# 						t.isBlocked = False
-	entryPrice = 0
-	lastEntry = None
-	for entry in pendingEntries:
-		if lastEntry == None:
-			entryPrice = entry.entryPrice
-			lastEntry = entry
-		else:
-			if not lastEntry.direction == entry.direction:
-				entryPrice = entry.entryPrice
-			lastEntry = entry
-
-	print(futureCount)
 	if (not entryPrice == 0):
-		print("en price:", str(entryPrice))
-		pos = pendingEntries[-1]
+		if (len(utils.positions) <= 0):
+			print("no positions")
+			entryPrice = 0
+			if (blockCount > 0):
+				blockDirection = None
+				blockCount = 0
+				for t in pendingTriggers:
+					if not t.isCancelled and t.isBlocked:
+						t.isBlocked = False
+			return
+
 		high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
 		low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
-		if pos.direction == Direction.LONG:
-			if (low <= entryPrice and blockCount > 0 and futureCount > 0):
-				print("Unblock all blocked SHORT triggers")
-				blockDirection = None
-				blockCount = 0
-				for t in pendingTriggers:
-					if t.direction == Direction.SHORT and not t.isCancelled and t.isBlocked:
-						t.isBlocked = False
-		else:
-			if (high >= entryPrice and blockCount > 0 and futureCount > 0):
-				print("Unblock all blocked LONG triggers")
-				blockDirection = None
-				blockCount = 0
-				for t in pendingTriggers:
-					if t.direction == Direction.LONG and not t.isCancelled and t.isBlocked:
-						t.isBlocked = False
+		for pos in utils.positions:
+			if pos.direction == 'buy':
+				if (low <= entryPrice and blockCount > 0):
+					print("Unblock all blocked SHORT triggers")
+					blockDirection = None
+					blockCount = 0
+					for t in pendingTriggers:
+						if t.direction == Direction.SHORT and not t.isCancelled and t.isBlocked:
+							t.isBlocked = False
+			else:
+				if (high >= entryPrice and blockCount > 0):
+					print("Unblock all blocked LONG triggers")
+					blockDirection = None
+					blockCount = 0
+					for t in pendingTriggers:
+						if t.direction == Direction.LONG and not t.isCancelled and t.isBlocked:
+							t.isBlocked = False
 
 def getParaState(shift):
 	global isWaitForHit

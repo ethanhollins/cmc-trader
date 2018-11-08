@@ -624,10 +624,12 @@ class Utilities:
 		then = datetime.datetime(year = 2018, month = 1, day = 1)
 		return then + datetime.timedelta(seconds = timestamp)
 
-	def isTradeTime(self):
+	def isTradeTime(self, currentTime = None):
 		tz = pytz.timezone('Europe/London')
 		if ('START_TIME' in self.plan.VARIABLES.keys() or 'END_TIME' in self.plan.VARIABLES.keys()):
-			currentTime = self.getLondonTime()
+			if (currentTime == None):
+				currentTime = self.getLondonTime()
+
 			startTimeParts = self.plan.VARIABLES['START_TIME'].split(':')
 			startTime = tz.localize(datetime.datetime(
 					year = currentTime.year,

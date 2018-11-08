@@ -46,6 +46,8 @@ sma3 = None
 macd = None
 rsi = None
 
+startDate = 0
+
 pendingTriggers = []
 pendingEntries = []
 pendingExits = []
@@ -153,17 +155,24 @@ def init(utilities): # swap entry line unblock, fix immedexit in trend trig func
 	global adxr
 	adxr = utils.ADXR(8, 1)
 
-	# amount = 1
-	# while (not preSequence(0, amount)):
-	# 	amount += 1
-
 	global isInit
 	isInit = False
 	for t in pendingTriggers:
 		print(t.direction)
 
 def backtest():
+	print("Trading time")
 	runSequence(0)
+
+	global startDate
+	if (startDate == 0):
+		startDate = [i[0] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][0]
+		print(startDate)
+
+	timestamp = [i[0] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][0]
+
+	checkStoploss(0)
+	checkTakeProfit(0)
 
 	for t in pendingTriggers:
 		if (not t.isCancelled):
@@ -173,7 +182,7 @@ def backtest():
 				else:
 					backtestConfirmation(t, 0)
 
-	backtestImmedExitSequence(shift)
+	backtestImmedExitSequence(0)
 
 	print("PENDING TRIGGERS:")
 	count = 0
@@ -214,13 +223,13 @@ def onFinishTrading():
 def checkTime():
 	global isProfitTime, isNoTradesTime, isBETime
 
-	londonTime = utils.getLondonTime()
+	startTime = utils.convertTimestampToTime(startDate)
 	parts = VARIABLES['noNewTradesOnProfit'].split(':')
-	noNewTradesOnProfitTime = utils.createLondonTime(londonTime.year, londonTime.month, londonTime.day, int(parts[0]), int(parts[1]), 0)
+	noNewTradesOnProfitTime = utils.createLondonTime(startTime.year, startTime.month, startTime.day, int(parts[0]), int(parts[1]), 0)
 	parts = VARIABLES['noNewTrades'].split(':')
-	noNewTradesTime = utils.createLondonTime(londonTime.year, londonTime.month, londonTime.day, int(parts[0]), int(parts[1]), 0)
+	noNewTradesTime = utils.createLondonTime(startTime.year, startTime.month, startTime.day, int(parts[0]), int(parts[1]), 0)
 	parts = VARIABLES['setBE'].split(':')
-	setBETime = utils.createLondonTime(londonTime.year, londonTime.month, londonTime.day, int(parts[0]), int(parts[1]), 0)
+	setBETime = utils.createLondonTime(startTime.year, startTime.month, startTime.day, int(parts[0]), int(parts[1]), 0)
 
 	global noNewTrades
 	if (londonTime > setBETime and not isBETime):
@@ -249,17 +258,26 @@ def checkTime():
 	# 		pendingExits.append(pos)
 
 def onDownTime():
-	if (isInit):
-		return
-
 	print("onDownTime")
-	ausTime = utils.getAustralianTime()
-	print("\nTime:",str(ausTime.hour)+":"+str(ausTime.minute)+":"+str(ausTime.second))
 
 	runSequence(0, isDownTime = True)
 
+	for t in pendingTriggers:
+		if (not t.isCancelled):
+			if (t.entryState == EntryState.CONFIRMATION):
+				if (t.isHalfTrigger):
+					backtestMomentumEntry(t, 0)
+				else:
+					backtestConfirmation(t, 0)
+
 	for entry in pendingEntries:
 		del pendingEntries[pendingEntries.index(entry)]
+	
+	for pos in positions:
+		del positions[positions.index(pos)]
+
+	global currentPosition
+	currentPosition = None
 
 def onNews(title, time):
 	global currentNews
@@ -684,6 +702,8 @@ def swingThree(t, shift):
 					swingTwo(t, shift)
 
 def confirmation(t, shift):
+	global currentPosition
+
 	if (t.isHalfTrigger):
 		print("Confirmed half trigger")
 		return
@@ -702,7 +722,6 @@ def confirmation(t, shift):
 				t.entryPrice = close
 				pendingEntries.append(t)
 				
-				global currentPosition
 				if (currentPosition == None):
 					currentPosition = t
 					positions.append(currentPosition)
@@ -731,7 +750,6 @@ def confirmation(t, shift):
 				t.entryPrice = close
 				pendingEntries.append(t)
 				
-				global currentPosition
 				if (currentPosition == None):
 					currentPosition = t
 					positions.append(currentPosition)
@@ -750,6 +768,8 @@ def confirmation(t, shift):
 				swingTwo(t, shift)
 
 def backtestConfirmation(t, shift):
+	global currentPosition
+
 	if (t.isHalfTrigger):
 		return
 		
@@ -772,7 +792,6 @@ def backtestConfirmation(t, shift):
 					t.entryPrice = slowSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
 				pendingEntries.append(t)
 				
-				global currentPosition
 				if (currentPosition == None):
 					currentPosition = t
 					positions.append(currentPosition)
@@ -804,7 +823,6 @@ def backtestConfirmation(t, shift):
 					t.entryPrice = slowSAR.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
 				pendingEntries.append(t)
 				
-				global currentPosition
 				if (currentPosition == None):
 					currentPosition = t
 					positions.append(currentPosition)
@@ -869,6 +887,7 @@ def momentumEntry(t, shift):
 			return False
 
 def backtestMomentumEntry(t, shift):
+	global currentPosition
 	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
 	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
 	currRsi = rsi.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
@@ -881,7 +900,6 @@ def backtestMomentumEntry(t, shift):
 				print("entered long momentum onloop")
 				pendingEntries.append(t)
 				
-				global currentPosition
 				if (currentPosition == None):
 					currentPosition = t
 					positions.append(currentPosition)
@@ -904,7 +922,6 @@ def backtestMomentumEntry(t, shift):
 				print("entered short momentum onloop")
 				pendingEntries.append(t)
 				
-				global currentPosition
 				if (currentPosition == None):
 					currentPosition = t
 					positions.append(currentPosition)
@@ -941,17 +958,17 @@ def immedExitSequence(t, shift):
 	if (immedMacdRsiConf(t, shift)):
 		if (isPosAtLoss(t, shift)):
 			print("Immediate exit activated.")
-			global exitPrice
+			global exitPos
 			if (t.direction == Direction.LONG):
 				t.exitPrice = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2] - utils.convertToPrice(0.2)
 				exitPos = t
 				pendingExits.append(exitPos)
-				print("Exit at", str(exitPrice))
+				print("Exit at", str(t.exitPrice))
 			else:
 				t.exitPrice = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1] + utils.convertToPrice(0.2)
 				exitPos = t
 				pendingExits.append(exitPos)
-				print("Exit at", str(exitPrice))
+				print("Exit at", str(t.exitPrice))
 		elif (isPosInProfit(t, shift)):
 			print("Set position to breakeven.")
 
@@ -1050,9 +1067,11 @@ def checkTakeProfit(shift):
 			if (currentPosition.direction == Direction.LONG):
 				if (high > currentPosition.entryPrice + utils.convertToPrice(VARIABLES['halfprofit'])):
 					print("Long position halved!")
+					currentPosition.isPositionHalved = True
 			else:
 				if (low < currentPosition.entryPrice - utils.convertToPrice(VARIABLES['halfprofit'])):
 					print("Short position halved!")
+					currentPosition.isPositionHalved = True
 		else:
 			if (currentPosition.direction == Direction.LONG):
 				if (high > currentPosition.entryPrice + utils.convertToPrice(VARIABLES['fullprofit'])):

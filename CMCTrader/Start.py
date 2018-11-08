@@ -393,8 +393,8 @@ class Start(object):
 			print("Pair not found!")
 			pair = input("Enter pair: ")
 			
-		ohlc = pickle.load(open("ohlc0711", "rb"))
-		indicators = pickle.load(open("indicators0711", "rb"))
+		ohlc = pickle.load(open("ohlc0811", "rb"))
+		indicators = pickle.load(open("indicators0811", "rb"))
 
 		# startDate = input("Start Date: ")
 		# startTime = input("Start Time: ")
@@ -412,8 +412,8 @@ class Start(object):
 			# indicators['studies'].append(self.utils.indicators['studies'][j].history[pair].copy())
 			self.utils.indicators['studies'][j].history[pair] = {}
 		
-		# pickle.dump(ohlc, open("ohlc0711", "wb"))
-		# pickle.dump(indicators, open("indicators0711", "wb"))
+		# pickle.dump(ohlc, open("ohlc0811", "wb"))
+		# pickle.dump(indicators, open("indicators0811", "wb"))
 		
 		sortedTimestamps = [i[0] for i in sorted(ohlc.items(), key=lambda kv: kv[0], reverse=False)]
 		self.insertValuesByTimestamp(pair, sortedTimestamps[0], ohlc, indicators)
@@ -425,10 +425,21 @@ class Start(object):
 			print("Bar:", str(time.hour)+":"+str(time.minute)+":"+str(time.second))
 			self.insertValuesByTimestamp(pair, timestamp, ohlc, indicators)
 			
-			# try:
-			self.plan.backtest()
-			# except AttributeError as e:
-			# 	pass
+			tz = pytz.timezone('Australia/Melbourne')
+			time = tz.localize(time)
+			tz = pytz.timezone('Europe/London')
+			londonTime = time.astimezone(tz)
+
+			if (self.utils.isTradeTime(currentTime = londonTime)):
+				try:
+					self.plan.backtest()
+				except AttributeError as e:
+					pass
+			else:
+				try:
+					self.plan.onDownTime()
+				except AttributeError as e:
+					pass
 
 			if (skipTo > i):
 				continue
@@ -456,7 +467,7 @@ class Start(object):
 					self.getValuesByTime(cmd.split(' ')[2:4], pair)
 				elif cmd.startswith('skip'):
 					try:
-						skipTo = int(cmd.split(' ')[2])
+						skipTo = int(cmd.split(' ')[1])
 						break
 					except:
 						print("Could not complete command.")
