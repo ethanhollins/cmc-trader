@@ -65,6 +65,7 @@ class HistoryLog(object):
 			)
 
 		for i in rowDict:
+			print(i[1])
 			i[1] = self._convertTime(i[1])
 			i[3] = self._convertPair(i[3])
 			if (i[4] == '-'):
@@ -94,7 +95,8 @@ class HistoryLog(object):
 	def _convertTime(self, time):
 		time.strip()
 		parts = time.split(' ')
-
+		print(time)
+		print(parts)
 		year = int(parts[2])
 		mon = self._getMonth(parts[1])
 		day = int(parts[0])
