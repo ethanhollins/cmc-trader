@@ -229,7 +229,7 @@ def checkTime():
 					pendingBreakevens.append(pos)
 			else:
 				pendingBreakevens.append(pos)
-	elif (londonTime > noNewTradesTime and not isNoTradesTime and not isBETime0):
+	elif (londonTime > noNewTradesTime and not isNoTradesTime and not isBETime):
 		print("IS NO NEW TRADES TIME")
 		noNewTrades = True
 		isNoTradesTime = True
@@ -240,9 +240,19 @@ def checkTime():
 			isProfitTime = True
 			noNewTrades = True
 
-	# if (londonTime.weekday() == 4 and londonTime.hour >= int(VARIABLES['END_TIME'].split(':')[0]) + 1): # time checking is wrong
-	# 	for pos in utils.positions:
-	# 		pendingExits.append(pos)
+	utc = pytz.timezone('UTC')
+	fridayExit = utc.localize(datetime.datetime(
+				year = londonTime.year,
+				month = londonTime.month,
+				day = londonTime.day,
+				hour = 16,
+				minute = 0,
+				second = 0
+			))
+	if (londonTime.weekday() == 4 and londonTime.hour >= fridayExit): # time checking is wrong
+		noNewTrades = True
+		for pos in utils.positions:
+			pendingExits.append(pos)
 
 def preSequence(shift, amount):
 	global pendingTriggers

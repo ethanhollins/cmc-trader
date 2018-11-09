@@ -242,7 +242,7 @@ def checkTime():
 					pendingBreakevens.append(pos)
 			else:
 				pendingBreakevens.append(pos)
-	elif (londonTime > noNewTradesTime and not isNoTradesTime and not isBETime0):
+	elif (londonTime > noNewTradesTime and not isNoTradesTime and not isBETime):
 		print("IS NO NEW TRADES TIME")
 		noNewTrades = True
 		isNoTradesTime = True

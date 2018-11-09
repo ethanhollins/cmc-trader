@@ -6,3 +6,4 @@ indicators*
 ohlc*
 *.PNG
 testdrivers.py
+*.stackdump
