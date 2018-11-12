@@ -4,8 +4,8 @@ import datetime
 
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD],
-	'START_TIME' : '23:00',
-	'END_TIME' : '16:00',
+	# 'START_TIME' : '23:00',
+	# 'END_TIME' : '16:00',
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
 	'profit_limit' : 85,
@@ -38,6 +38,7 @@ utils = None
 reg_sar = None
 slow_sar = None
 black_sar = None
+rsi = None
 cci = None
 macd = None
 
@@ -90,19 +91,21 @@ class Strand(object):
 		self.sar_type = sar_type
 		self.start = start
 		self.end = 0
+		self.isPassed = False
 
 def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global reg_sar, slow_sar, black_sar, cci, macd
+	global reg_sar, slow_sar, black_sar, rsi, cci, macd
 
 	utils = utilities
 	reg_sar = utils.SAR(1)
 	black_sar = utils.SAR(2)
 	slow_sar = utils.SAR(3)
-	cci = utils.CCI(4, 1)
-	macd = utils.MACD(5, 1)
+	rsi = utils.RSI(4, 1)
+	cci = utils.CCI(5, 1)
+	macd = utils.MACD(6, 1)
 
 def onStartTrading():
 	''' Function called on trade start time '''
@@ -135,10 +138,14 @@ def onFinishTrading():
 def onNewBar():
 	''' Function called on every new bar '''
 
+	if (stop_trading):
+		onDownTime()
+		return
+
 	print("onNewBar")
 	checkTime()
 
-	ausTime = utils.printTime(utils.getAustralianTime())
+	utils.printTime(utils.getAustralianTime())
 
 	runSequence(0)
 
@@ -152,11 +159,20 @@ def onDownTime():
 
 	runSequence(0)
 
+	report()
+
 	for entry in pending_entries:
 		del pending_entries[pending_entries.index(entry)]
 
 def onLoop():
 	''' Function called on every program iteration '''
+
+	if (no_new_trades and len(utils.positions) <= 0):
+		global stop_trading
+		stop_trading = True
+
+	if (stop_trading):
+		return
 
 	handleEntries()		# Handle all pending entries
 	handleBreakeven()	# Handle all pending breakeven
@@ -189,6 +205,7 @@ def handleEntries():
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
+					print("Attempting position enter long: stop and reverse")
 					handleStopAndReverse(pos)
 					del pending_entries[pending_entries.index(entry)]
 					current_trigger = None
@@ -207,6 +224,7 @@ def handleEntries():
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
+					print("Attempting position enter long: regular")
 					handleRegularEntry(entry)
 					del pending_entries[pending_entries.index(entry)]
 					current_trigger = None
@@ -232,6 +250,7 @@ def handleEntries():
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
+					print("Attempting position enter short: stop and reverse")
 					handleStopAndReverse(pos)
 					del pending_entries[pending_entries.index(entry)]
 					current_trigger = None
@@ -249,6 +268,7 @@ def handleEntries():
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
+					print("Attempting position enter short: regular")
 					handleRegularEntry(entry)
 					del pending_entries[pending_entries.index(entry)]
 					current_trigger = None
@@ -266,9 +286,11 @@ def handleStopAndReverse(pos):
 	loss_limit = -VARIABLES['stoprange'] * 1.5
 	
 	if (current_profit < loss_limit or current_profit > VARIABLES['profit_limit']):
+		print("Tradable conditions not met:", str(current_profit))
 		pos.quickExit()
 		stop_trading = True
 	else:
+		print("Entered")
 		pos.stopAndReverse(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
 		is_position_breakeven = False
 
@@ -284,8 +306,10 @@ def handleRegularEntry(entry):
 	loss_limit = -VARIABLES['stoprange'] * 1.5
 
 	if (current_profit < loss_limit or current_profit > VARIABLES['profit_limit']):
+		print("Tradable conditions not met:", str(current_profit))
 		stop_trading = True
 	else:
+		print("Entered")
 		if (entry.direction == Direction.LONG):
 			utils.buy(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
 		else:
@@ -303,6 +327,7 @@ def handleBreakeven():
 	for pos in utils.positions:
 		
 		if (pos.getProfit() >= VARIABLES['breakeven_point'] and not is_position_breakeven):
+			print("Reached BREAKEVEN point:", str(pos.getProfit()))
 			is_position_breakeven = True
 			pos.breakeven()
 			if (not pos.apply()):
@@ -460,6 +485,8 @@ def onNewCycle(shift):
 		if (reg_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			strand = Strand(Direction.LONG, SARType.REG, reg_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
 			
+			print("New strand long!")
+
 			strands.append(strand)
 			long_strands.append(strand)
 		else:
@@ -482,6 +509,8 @@ def onNewCycle(shift):
 		if (slow_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			strand = Strand(Direction.LONG, SARType.SLOW, slow_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
 			
+			print("New strand short!")
+
 			strands.append(strand)
 			long_strands.append(strand)
 		else:
@@ -615,6 +644,8 @@ def entrySetup(shift):
 def crossNegative(shift):
 	''' Checks for swing to first be in negative direction '''
 
+	print("crossNegative")
+
 	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
 	if (current_trigger.direction == Direction.LONG):
@@ -628,6 +659,8 @@ def crossNegative(shift):
 def crossPositive(shift):
 	''' Checks for swing to be in positive direction '''
 
+	print("crossPositive")
+
 	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
@@ -635,7 +668,7 @@ def crossPositive(shift):
 	if (current_trigger.direction == Direction.LONG):
 		if (ch_idx > VARIABLES['cci_threshold']):
 			if (str_idx > VARIABLES['rsi_threshold']):
-				if (hist >= VARIABLES['macd_threshold'] or isParaConfirmation(shift, Direction.LONG))
+				if (hist >= VARIABLES['macd_threshold'] or isParaConfirmation(shift, Direction.LONG)):
 					current_trigger.state = State.ENTERED
 					confirmation(shift)
 					return
@@ -645,7 +678,7 @@ def crossPositive(shift):
 	else:
 		if (ch_idx < VARIABLES['cci_threshold']):
 			if (str_idx < VARIABLES['rsi_threshold']):
-				if (hist <= VARIABLES['macd_threshold'] or isParaConfirmation(shift, Direction.SHORT))
+				if (hist <= VARIABLES['macd_threshold'] or isParaConfirmation(shift, Direction.SHORT)):
 					current_trigger.state = State.ENTERED
 					confirmation(shift)
 					return
@@ -663,6 +696,8 @@ def isParaConfirmation(shift, direction):
 def confirmation(shift):
 	''' Checks for overbought, oversold and confirm entry '''
 
+	print("confirmation")
+
 	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 	
 	if (current_trigger.direction == Direction.LONG):
@@ -678,11 +713,11 @@ def confirmation(shift):
 			pending_entries.append(current_trigger)
 
 
-def report(shift):
+def report():
 	''' Prints report for debugging '''
 
-	if (not current_trigger == None)
-		print("CURRENT TRIGGER:", current_trigger.direction)
+	if (not current_trigger == None):
+		print("CURRENT TRIGGER:", current_trigger.direction, current_trigger.state)
 	else:
 		print("CURRENT TRIGGER: None")
 

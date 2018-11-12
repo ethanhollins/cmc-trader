@@ -154,13 +154,15 @@ class Start(object):
 		accountSelected = False
 		while 'loader' not in self.driver.current_url:
 			if 'accountOptionsSelection' in self.driver.current_url and not accountSelected:
-				account_type_btn = self.driver.find_element(By.XPATH, "//button[text() = 'Corporate']")
-				account_type_btn.click()
-				wait = ui.WebDriverWait(self.driver, 10)
-				wait.until(EC.presence_of_element_located(
-					(By.XPATH, "//div[@id='13011253']")
-				))
-				account_btn = self.driver.find_element(By.XPATH, "//div[@id='13011253']")
+				# account_type_btn = self.driver.find_element(By.XPATH, "//button[text() = 'Individual']") #Corporate
+				# account_type_btn.click()
+
+				# wait = ui.WebDriverWait(self.driver, 10)
+				# wait.until(EC.presence_of_element_located(
+				# 	(By.XPATH, "//div[@id='11307219']") #13011253
+				# ))
+
+				account_btn = self.driver.find_element(By.XPATH, "//div[@id='11307219']") #13011253
 				account_btn.click()
 				accountSelected = True
 			elif 'login' in self.driver.current_url:
@@ -405,8 +407,8 @@ class Start(object):
 			print("Pair not found!")
 			pair = input("Enter pair: ")
 			
-		ohlc = pickle.load(open("ohlc0811", "rb"))
-		indicators = pickle.load(open("indicators0811", "rb"))
+		ohlc = pickle.load(open("ohlc1211", "rb"))
+		indicators = pickle.load(open("indicators1211", "rb"))
 
 		# startDate = input("Start Date: ")
 		# startTime = input("Start Time: ")
@@ -424,8 +426,8 @@ class Start(object):
 			# indicators['studies'].append(self.utils.indicators['studies'][j].history[pair].copy())
 			self.utils.indicators['studies'][j].history[pair] = {}
 		
-		# pickle.dump(ohlc, open("ohlc0811", "wb"))
-		# pickle.dump(indicators, open("indicators0811", "wb"))
+		# pickle.dump(ohlc, open("ohlc1211", "wb"))
+		# pickle.dump(indicators, open("indicators1211", "wb"))
 		
 		sortedTimestamps = [i[0] for i in sorted(ohlc.items(), key=lambda kv: kv[0], reverse=False)]
 		self.insertValuesByTimestamp(pair, sortedTimestamps[0], ohlc, indicators)

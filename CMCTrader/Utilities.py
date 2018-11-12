@@ -628,7 +628,6 @@ class Utilities:
 		return then + datetime.timedelta(seconds = timestamp)
 
 	def setTradeTimes(self, currentTime = None):
-		self.createLondonTime()
 		if ('START_TIME' in self.plan.VARIABLES.keys() and 'END_TIME' in self.plan.VARIABLES.keys()):
 			if (currentTime == None):
 				currentTime = self.getLondonTime()
@@ -675,7 +674,6 @@ class Utilities:
 			currentTime = self.getLondonTime()
 
 		if ('START_TIME' in self.plan.VARIABLES.keys() and 'END_TIME' in self.plan.VARIABLES.keys()):
-
 			if (self.startTime < currentTime < self.endTime):
 				return True
 			else:
@@ -684,7 +682,7 @@ class Utilities:
 		else:
 			return True
 
-	def printTime(time):
+	def printTime(self, time):
 		print("Time:",str(time.hour)+":"+str(time.minute)+":"+str(time.second))
 
 	def _prompt(self):

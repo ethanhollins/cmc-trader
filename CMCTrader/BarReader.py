@@ -416,8 +416,14 @@ class BarReader(object):
 
 		currentY += STUDIES_Y_START_OFFSET - OVERLAY_Y_OFFSET
 
-		count = len(self.utils.indicators['studies']) - 1
-		studyGraphStartYOff = 730
+		count = len(self.utils.indicators['studies'])
+
+		height = int(self.driver.execute_script(
+				'return arguments[0].getAttribute("height");',
+				canvas
+			))
+
+		studyGraphStartYOff = height
 		studyGraphOffset = 61
 		negativeImageArray = []
 		for i in self.utils.indicators['studies']:
