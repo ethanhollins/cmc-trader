@@ -21,8 +21,8 @@ VARIABLES = {
 	'newsTimeBeforeBE' : 1,
 	'newsTimeBeforeBlock' : 5,
 	'RSI' : None,
-	'rsiOverbought' : 75,
-	'rsiOversold' : 25,
+	'rsiOverbought' : 70,
+	'rsiOversold' : 30,
 	'longRsiSignal' : 60,
 	'shortRsiSignal' : 40,
 	'longZeroMACD' : 65,
@@ -668,6 +668,7 @@ def getPassedStrands(shift, isDownTime = False):
 			canBlock = True
 			if (len(utils.positions) > 0):
 				if (utils.positions[0].direction == 'buy'):
+					print("can't block")
 					canBlock = False
 			elif (len(pendingEntries) > 0):
 				print(pendingEntries[-1].direction)
