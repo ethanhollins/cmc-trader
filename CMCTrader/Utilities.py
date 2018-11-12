@@ -67,6 +67,9 @@ class Utilities:
 
 		self.latestTimestamp = {}
 
+		self.startTime = None
+		self.endTime = None
+
 		self._startPrompt()
 
 	def reinit(self):
@@ -624,47 +627,65 @@ class Utilities:
 		then = datetime.datetime(year = 2018, month = 1, day = 1)
 		return then + datetime.timedelta(seconds = timestamp)
 
-	def isTradeTime(self, currentTime = None):
-		tz = pytz.timezone('Europe/London')
-		if ('START_TIME' in self.plan.VARIABLES.keys() or 'END_TIME' in self.plan.VARIABLES.keys()):
+	def setTradeTimes(self, currentTime = None):
+		self.createLondonTime()
+		if ('START_TIME' in self.plan.VARIABLES.keys() and 'END_TIME' in self.plan.VARIABLES.keys()):
 			if (currentTime == None):
 				currentTime = self.getLondonTime()
 
 			startTimeParts = self.plan.VARIABLES['START_TIME'].split(':')
-			startTime = tz.localize(datetime.datetime(
-					year = currentTime.year,
-					month = currentTime.month,
-					day = currentTime.day,
-					hour = int(startTimeParts[0]),
-					minute = int(startTimeParts[1]),
-					second = 0
-				))
 			endTimeParts = self.plan.VARIABLES['END_TIME'].split(':')
-			if (int(endTimeParts[0]) < int(startTimeParts[0])):
-				endTime = tz.localize(datetime.datetime(
-						year = currentTime.year,
-						month = currentTime.month,
-						day = currentTime.day,
-						hour = int(endTimeParts[0]),
-						minute = int(endTimeParts[1]),
-						second = 0
-					)) + datetime.timedelta(days=1)
+
+			self.startTime = self.createLondonTime(
+					currentTime.year,
+					currentTime.month,
+					currentTime.day,
+					int(startTimeParts[0]),
+					int(startTimeParts[1]),
+					0
+				)
+
+			if (int(startTimeParts[0]) < int(endTimeParts[0])):
+				self.endTime = self.createLondonTime(
+						currentTime.year,
+						currentTime.month,
+						currentTime.day,
+						int(endTimeParts[0]),
+						int(endTimeParts[1]),
+						0
+					)
 			else:
-				endTime = tz.localize(datetime.datetime(
-						year = currentTime.year,
-						month = currentTime.month,
-						day = currentTime.day,
-						hour = int(endTimeParts[0]),
-						minute = int(endTimeParts[1]),
-						second = 0
-					))
-				
-			if (startTime < currentTime < endTime):
+				self.endTime = self.createLondonTime(
+						currentTime.year,
+						currentTime.month,
+						currentTime.day,
+						int(endTimeParts[0]),
+						int(endTimeParts[1]),
+						0
+					) + datetime.timedelta(days=1)
+
+		else:
+			self.startTime = None
+			self.endTime = None
+
+	def isTradeTime(self, currentTime = None):
+		tz = pytz.timezone('Europe/London')
+
+		if (currentTime == None):
+			currentTime = self.getLondonTime()
+
+		if ('START_TIME' in self.plan.VARIABLES.keys() and 'END_TIME' in self.plan.VARIABLES.keys()):
+
+			if (self.startTime < currentTime < self.endTime):
 				return True
 			else:
 				return False
+
 		else:
 			return True
+
+	def printTime(time):
+		print("Time:",str(time.hour)+":"+str(time.minute)+":"+str(time.second))
 
 	def _prompt(self):
 		x = input()

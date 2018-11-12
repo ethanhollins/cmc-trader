@@ -396,6 +396,8 @@ def enterPositions():
 						del pendingEntries[pendingEntries.index(entry)]
 
 def handleBreakeven():
+	global isPositionHalved
+
 	for pos in utils.positions:
 		if (pos.getProfit() >= VARIABLES['halfprofit'] and not isPositionHalved):
 			isPositionHalved = True

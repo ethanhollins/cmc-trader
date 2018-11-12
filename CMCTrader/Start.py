@@ -319,6 +319,8 @@ class Start(object):
 		self.isTrading = True
 		# self.utils.isStopped = True
 		
+		self.utils.setTradeTimes()
+
 		while (True):
 			if (not self.utils.isStopped):
 				try:
@@ -364,6 +366,8 @@ class Start(object):
 								except AttributeError as e:
 									pass
 							else:
+								self.utils.setTradeTimes()
+
 								# try:
 								self.plan.onDownTime()
 								# except AttributeError as e:
