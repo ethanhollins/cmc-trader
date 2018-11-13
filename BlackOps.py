@@ -109,14 +109,7 @@ def init(utilities):
 	macd = utils.MACD(6, 1)
 
 	global current_trigger
-	current_trigger = Trigger(Direction.SHORT, tradable = False)
-
-	strand = Strand(Direction.SHORT, SARType.REG, 1.28546)
-	strand.end = 1.28458
-	strands.append(strand)
-	strand = Strand(Direction.SHORT, SARType.SLOW, 1.28546)
-	strand.end = 1.28480
-	strands.append(strand)
+	current_trigger = Trigger(Direction.LONG, tradable = False)
 
 def onStartTrading():
 	''' Function called on trade start time '''
