@@ -108,9 +108,6 @@ def init(utilities):
 	cci = utils.CCI(5, 1)
 	macd = utils.MACD(6, 1)
 
-	global current_trigger
-	current_trigger = Trigger(Direction.SHORT, tradable = False)
-
 def onStartTrading():
 	''' Function called on trade start time '''
 

@@ -642,7 +642,7 @@ class Utilities:
 					int(startTimeParts[0]),
 					int(startTimeParts[1]),
 					0
-				)
+				) - datetime.timedelta(days=1)
 
 			if (int(startTimeParts[0]) < int(endTimeParts[0])):
 				self.endTime = self.createLondonTime(
@@ -661,7 +661,7 @@ class Utilities:
 						int(endTimeParts[0]),
 						int(endTimeParts[1]),
 						0
-					) + datetime.timedelta(days=1)
+					) #+ datetime.timedelta(days=1)
 
 		else:
 			self.startTime = None

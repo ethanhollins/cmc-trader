@@ -111,6 +111,13 @@ def init(utilities):
 	global current_trigger
 	current_trigger = Trigger(Direction.SHORT, tradable = False)
 
+	strand = Strand(Direction.SHORT, SARType.REG, 1.28546)
+	strand.end = 1.28458
+	strands.append(strand)
+	strand = Strand(Direction.SHORT, SARType.SLOW, 1.28546)
+	strand.end = 1.28480
+	strands.append(strand)
+
 def onStartTrading():
 	''' Function called on trade start time '''
 
