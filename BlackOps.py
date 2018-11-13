@@ -109,13 +109,10 @@ def init(utilities):
 	macd = utils.MACD(6, 1)
 
 	global current_trigger
-	current_trigger = Trigger(Direction.SHORT, tradable = False)
+	current_trigger = Trigger(Direction.LONG, tradable = False)
 
-	strand = Strand(Direction.SHORT, SARType.REG, 1.28652)
-	strand.end = 1.28580
-	strands.append(strand)
-	strand = Strand(Direction.LONG, SARType.REG, 1.28580)
-	strand.end = 1.28626
+	strand = Strand(Direction.LONG, SARType.REG, 1.28830)
+	strand.end = 1.28836
 	strands.append(strand)
 
 def onStartTrading():
@@ -202,7 +199,7 @@ def handleEntries():
 					if (pos.direction == 'buy'):
 						del pending_entries[pending_entries.index(entry)]
 						current_trigger = None
-						break
+						return
 				
 				if (no_new_trades):
 					print("Trade blocked! Current position exited.")
@@ -247,7 +244,7 @@ def handleEntries():
 					if (pos.direction == 'sell'):
 						del pending_entries[pending_entries.index(entry)]
 						current_trigger = None
-						break
+						return
 				
 				if (no_new_trades):
 					print("Trade blocked! Current position exited.")
