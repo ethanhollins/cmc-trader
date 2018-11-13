@@ -109,7 +109,11 @@ def init(utilities):
 	macd = utils.MACD(6, 1)
 
 	global current_trigger
-	current_trigger = Trigger(Direction.SHORT, tradable = True)
+	current_trigger = Trigger(Direction.LONG, tradable = False)
+
+	strand = Strand(Direction.LONG, SARType.REG, 1.28642)
+	strand.end = 1.28642
+	strands.append(strand)
 
 def onStartTrading():
 	''' Function called on trade start time '''
@@ -547,7 +551,7 @@ def cancelInvalidStrands(shift):
 					print("passed falling:", str(strand.end))
 					strand.isPassed = True
 
-def isCrossedLong(shift):
+def isCrossedShort(shift):
 	''' Check if black sar has passed the current max strand on falling black '''
 	print(max_strand)
 	if (not max_strand == None):
@@ -561,7 +565,7 @@ def isCrossedLong(shift):
 
 	return False
 
-def isCrossedShort(shift):
+def isCrossedLong(shift):
 	''' Check if black sar has passed the current min strand on rising black '''
 	print(min_strand)
 	if (not min_strand == None):
