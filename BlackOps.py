@@ -109,10 +109,10 @@ def init(utilities):
 	macd = utils.MACD(6, 1)
 
 	global current_trigger
-	current_trigger = Trigger(Direction.LONG, tradable = False)
+	current_trigger = Trigger(Direction.SHORT, tradable = False)
 
-	strand = Strand(Direction.LONG, SARType.REG, 1.28642)
-	strand.end = 1.28642
+	strand = Strand(Direction.SHORT, SARType.REG, 1.28652)
+	strand.end = 1.28580
 	strands.append(strand)
 
 def onStartTrading():
