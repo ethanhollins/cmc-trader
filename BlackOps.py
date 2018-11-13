@@ -77,7 +77,7 @@ class State(Enum):
 	ENTERED = 3
 
 class Trigger(object):
-	def __init__(self, direction, tradable):
+	def __init__(self, direction, tradable = True):
 		self.direction = direction
 		self.state = State.POSITIVE
 		self.tradable = tradable
@@ -109,7 +109,7 @@ def init(utilities):
 	macd = utils.MACD(6, 1)
 
 	global current_trigger
-	current_trigger = Trigger(Direction.LONG, tradable = False)
+	current_trigger = Trigger(Direction.SHORT, tradable = True)
 
 def onStartTrading():
 	''' Function called on trade start time '''
