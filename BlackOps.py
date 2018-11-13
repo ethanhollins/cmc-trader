@@ -77,9 +77,10 @@ class State(Enum):
 	ENTERED = 3
 
 class Trigger(object):
-	def __init__(self, direction):
+	def __init__(self, direction, tradable):
 		self.direction = direction
 		self.state = State.POSITIVE
+		self.tradable = tradable
 
 class SARType(Enum):
 	REG = 1
@@ -106,6 +107,9 @@ def init(utilities):
 	rsi = utils.RSI(4, 1)
 	cci = utils.CCI(5, 1)
 	macd = utils.MACD(6, 1)
+
+	global current_trigger
+	current_trigger = Trigger(Direction.SHORT, tradable = False)
 
 def onStartTrading():
 	''' Function called on trade start time '''
@@ -142,7 +146,7 @@ def onNewBar():
 		onDownTime()
 		return
 
-	print("onNewBar")
+	print("\nonNewBar")
 	checkTime()
 
 	utils.printTime(utils.getAustralianTime())
@@ -458,13 +462,17 @@ def runSequence(shift):
 def getTrigger(shift):
 	''' Form trigger in direction of black cross '''
 
+	global current_trigger
+
 	if (isCrossedLong(shift)):
 		if (current_trigger == None or current_trigger.direction == Direction.SHORT):
+			print("New trigger long!")
 			current_trigger = Trigger(Direction.LONG)
 			getMostRecentStrands(Direction.LONG)
 
 	elif (isCrossedShort(shift)):
 		if (current_trigger == None or current_trigger.direction == Direction.LONG):
+			print("New trigger short!")
 			current_trigger = Trigger(Direction.SHORT)
 			getMostRecentStrands(Direction.SHORT)
 
@@ -477,15 +485,13 @@ def onNewCycle(shift):
 	if (reg_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
 		
 		for strand in strands[::-1]:
-			if (strand.sar_type == SARType.REG and not strand.end == 0):
+			if (strand.sar_type == SARType.REG and strand.end == 0):
 				strand.end = reg_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
 				print("End of last strand:", str(strand.end))
 				break
 
 		if (reg_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			strand = Strand(Direction.LONG, SARType.REG, reg_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
-			
-			print("New strand long!")
 
 			strands.append(strand)
 			long_strands.append(strand)
@@ -495,21 +501,19 @@ def onNewCycle(shift):
 			strands.append(strand)
 			short_strands.append(strand)
 
-		print("New Strand:", str(strand.direction), ":", str(strand.start))
+		print("New REG Strand:", str(strand.direction), ":", str(strand.start))
 		
 
 	if (slow_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
 		
 		for strand in strands[::-1]:
-			if (strand.sar_type == SARType.SLOW and not strand.end == 0):
+			if (strand.sar_type == SARType.SLOW and strand.end == 0):
 				strand.end = slow_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
 				print("End of last strand:", str(strand.end))
 				break
 
 		if (slow_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			strand = Strand(Direction.LONG, SARType.SLOW, slow_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
-			
-			print("New strand short!")
 
 			strands.append(strand)
 			long_strands.append(strand)
@@ -519,7 +523,7 @@ def onNewCycle(shift):
 			strands.append(strand)
 			short_strands.append(strand)
 
-		print("New Strand:", str(strand.direction), ":", str(strand.start))
+		print("New SLOW Strand:", str(strand.direction), ":", str(strand.start))
 
 def cancelInvalidStrands(shift):
 	''' 
@@ -545,10 +549,11 @@ def cancelInvalidStrands(shift):
 
 def isCrossedLong(shift):
 	''' Check if black sar has passed the current max strand on falling black '''
-
+	print(max_strand)
 	if (not max_strand == None):
+		print(max_strand.start)
 		if (black_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0] < max_strand.start and black_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
-			
+	
 			strands[strands.index(max_strand)].isPassed = True
 			print("black para crossed long")
 
@@ -558,8 +563,9 @@ def isCrossedLong(shift):
 
 def isCrossedShort(shift):
 	''' Check if black sar has passed the current min strand on rising black '''
-
+	print(min_strand)
 	if (not min_strand == None):
+		print(min_strand.start)
 		if (black_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0] > min_strand.start and black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			
 			strands[strands.index(min_strand)].isPassed = True
@@ -605,7 +611,7 @@ def getMostRecentStrands(direction):
 	direction_strands = [i for i in strands if i.direction == direction and not i.isPassed and not i.end == 0]
 	isFoundReg = False
 	isFoundSlow = False
-	for strand in direction[::-1]:
+	for strand in direction_strands[::-1]:
 
 		if (strand.sar_type == SARType.REG):
 			if (isFoundReg):
@@ -622,7 +628,7 @@ def getMostRecentStrands(direction):
 def resetStrands(direction):
 	''' Resets all strands in specified direction to not passed '''
 
-	for stand in strands:
+	for strand in strands:
 		if (strand.direction == direction and strand.isPassed):
 			strand.isPassed = False
 
@@ -635,7 +641,7 @@ def getShortStrands():
 def entrySetup(shift):
 	''' Checks for swing sequence once trigger has been formed '''
 
-	if (not current_trigger == None):
+	if (not current_trigger == None and current_trigger.tradable):
 		if (current_trigger.state == State.POSITIVE):
 			crossNegative(shift)
 		elif (current_trigger.state == State.NEGATIVE):
