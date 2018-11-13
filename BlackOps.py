@@ -4,8 +4,8 @@ import datetime
 
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD],
-	# 'START_TIME' : '23:00',
-	# 'END_TIME' : '16:00',
+	'START_TIME' : '23:00',
+	'END_TIME' : '16:00',
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
 	'profit_limit' : 85,
@@ -41,6 +41,8 @@ black_sar = None
 rsi = None
 cci = None
 macd = None
+
+is_down_time = True
 
 current_trigger = None
 
@@ -108,11 +110,13 @@ def init(utilities):
 	cci = utils.CCI(5, 1)
 	macd = utils.MACD(6, 1)
 
-	global current_trigger
-	current_trigger = Trigger(Direction.LONG, tradable = False)
-
-	strand = Strand(Direction.LONG, SARType.REG, 1.28830)
-	strand.end = 1.28836
+	strand = Strand(Direction.LONG, SARType.REG, 1.29556)
+	strand.end = 1.29629
+	strands.append(strand)
+	strand = Strand(Direction.LONG, SARType.REG, 1.29603)
+	strands.append(strand)
+	strand = Strand(Direction.SHORT, SARType.REG, 1.29664)
+	strand.end = 1.29603
 	strands.append(strand)
 
 def onStartTrading():
@@ -122,6 +126,7 @@ def onStartTrading():
 
 	global bank, stop_trading, no_new_trades
 	global is_profit_nnt, is_nnt, is_be
+	global is_down_time
 
 	if (utils.getBankSize() > VARIABLES['maximum_bank']):
 		bank = VARIABLES['maximum_bank']
@@ -134,10 +139,15 @@ def onStartTrading():
 
 	is_profit_nnt = False
 	is_nnt = False
-	is_be = False 
+	is_be = False
+
+	is_down_time = False
 
 def onFinishTrading():
 	''' Function called on trade end time '''
+
+	global is_down_time
+	is_down_time = True
 
 	print("onFinishTrading")
 
@@ -471,13 +481,23 @@ def getTrigger(shift):
 	if (isCrossedLong(shift)):
 		if (current_trigger == None or current_trigger.direction == Direction.SHORT):
 			print("New trigger long!")
-			current_trigger = Trigger(Direction.LONG)
+
+			if (is_down_time):
+				current_trigger = Trigger(Direction.LONG, tradable = False)
+			else:
+				current_trigger = Trigger(Direction.LONG)
+
 			getMostRecentStrands(Direction.LONG)
 
 	elif (isCrossedShort(shift)):
 		if (current_trigger == None or current_trigger.direction == Direction.LONG):
 			print("New trigger short!")
-			current_trigger = Trigger(Direction.SHORT)
+
+			if (is_down_time):
+				current_trigger = Trigger(Direction.SHORT, tradable = False)
+			else:
+				current_trigger = Trigger(Direction.SHORT)
+
 			getMostRecentStrands(Direction.SHORT)
 
 def onNewCycle(shift):

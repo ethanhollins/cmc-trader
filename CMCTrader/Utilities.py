@@ -642,27 +642,25 @@ class Utilities:
 					int(startTimeParts[0]),
 					int(startTimeParts[1]),
 					0
-				) - datetime.timedelta(days=1)
+				)
 
-			if (int(startTimeParts[0]) < int(endTimeParts[0])):
-				self.endTime = self.createLondonTime(
-						currentTime.year,
-						currentTime.month,
-						currentTime.day,
-						int(endTimeParts[0]),
-						int(endTimeParts[1]),
-						0
-					)
-			else:
-				self.endTime = self.createLondonTime(
-						currentTime.year,
-						currentTime.month,
-						currentTime.day,
-						int(endTimeParts[0]),
-						int(endTimeParts[1]),
-						0
-					) #+ datetime.timedelta(days=1)
+			self.endTime = self.createLondonTime(
+					currentTime.year,
+					currentTime.month,
+					currentTime.day,
+					int(endTimeParts[0]),
+					int(endTimeParts[1]),
+					0
+				)
+			print(str(self.startTime), str(currentTime), str(self.endTime))
 
+			if (int(startTimeParts[0]) > int(endTimeParts[0])):
+
+				if (currentTime.hour < self.endTime.hour and currentTime.hour >= 0):
+					self.startTime -= datetime.timedelta(days=1)
+				else:
+					self.endTime += datetime.timedelta(days=1)
+			print(str(self.startTime), str(self.endTime))
 		else:
 			self.startTime = None
 			self.endTime = None
@@ -673,7 +671,7 @@ class Utilities:
 		if (currentTime == None):
 			currentTime = self.getLondonTime()
 
-		if ('START_TIME' in self.plan.VARIABLES.keys() and 'END_TIME' in self.plan.VARIABLES.keys()):
+		if (not self.startTime == None and not self.endTime == None):
 			if (self.startTime < currentTime < self.endTime):
 				return True
 			else:
