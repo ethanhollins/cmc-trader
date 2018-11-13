@@ -114,6 +114,9 @@ def init(utilities):
 	strand = Strand(Direction.SHORT, SARType.REG, 1.28652)
 	strand.end = 1.28580
 	strands.append(strand)
+	strand = Strand(Direction.LONG, SARType.REG, 1.28580)
+	strand.end = 1.28626
+	strands.append(strand)
 
 def onStartTrading():
 	''' Function called on trade start time '''
