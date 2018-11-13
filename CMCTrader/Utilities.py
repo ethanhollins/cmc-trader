@@ -652,7 +652,6 @@ class Utilities:
 					int(endTimeParts[1]),
 					0
 				)
-			print(str(self.startTime), str(currentTime), str(self.endTime))
 
 			if (int(startTimeParts[0]) > int(endTimeParts[0])):
 
@@ -660,7 +659,6 @@ class Utilities:
 					self.startTime -= datetime.timedelta(days=1)
 				else:
 					self.endTime += datetime.timedelta(days=1)
-			print(str(self.startTime), str(self.endTime))
 		else:
 			self.startTime = None
 			self.endTime = None
