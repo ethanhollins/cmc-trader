@@ -385,7 +385,7 @@ class BarReader(object):
 
 	def _performBarInfoCapture(self, chart, canvas, pair, xOff, prevTimestamp, exactTimestamp = None):
 		start_time = time.time()
-		values = {'timestamp':None, 'x': xOff, 'ohlc':[], 'overlays':[], 'studies':[], 'hasLookedBack' : False, 'hasLookedFwd' : False}
+		values = {'timestamp':None, 'x': xOff, 'ohlc':[], 'overlays':[], 'studies':[]}
 
 		img = self._getImage(chart, canvas, xOff, 300)
 
@@ -404,9 +404,9 @@ class BarReader(object):
 				if (prevTimestamp - 60 > values['timestamp']):
 					values['hasLookedBack'] = True
 
-					if (values['hasLookedFwd']):
-						values['hasLookedFwd'] = False
-						values['hasLookedBack'] = False
+					if ('hasLookedFwd' in values):
+						del values['hasLookedFwd']
+						del values['hasLookedBack']
 						return self._addFillerData(pair, values['timestamp'])
 
 					return self._performBarInfoCapture(chart, canvas, pair, xOff + self.chartValues[pair][1], prevTimestamp)
@@ -414,9 +414,9 @@ class BarReader(object):
 				else:
 					values['hasLookedFwd'] = True
 
-					if (values['hasLookedBack']):
-						values['hasLookedFwd'] = False
-						values['hasLookedBack'] = False
+					if ('hasLookedBack' in values):
+						del values['hasLookedFwd']
+						del values['hasLookedBack']
 						return self._addFillerData(pair, values['timestamp'])
 						
 
