@@ -110,14 +110,16 @@ def init(utilities):
 	cci = utils.CCI(5, 1)
 	macd = utils.MACD(6, 1)
 
-	strand = Strand(Direction.LONG, SARType.REG, 1.29556)
-	strand.end = 1.29629
+	global current_trigger
+	current_trigger = Trigger(Direction.SHORT, tradable = False)
+
+	strand = Strand(Direction.LONG, SARType.REG, 1.30129)
+	strand.end = 1.30173
 	strands.append(strand)
-	strand = Strand(Direction.LONG, SARType.REG, 1.29603)
+	strand = Strand(Direction.SHORT, SARType.REG, 1.30166)
+	strand.end = 1.30153
 	strands.append(strand)
-	strand = Strand(Direction.SHORT, SARType.REG, 1.29664)
-	strand.end = 1.29603
-	strands.append(strand)
+
 
 def onStartTrading():
 	''' Function called on trade start time '''
@@ -438,6 +440,13 @@ def checkTime():
 	nnt_time = utils.createLondonTime(london_time.year, london_time.month, london_time.day, int(parts[0]), int(parts[1]), 0)
 	parts = VARIABLES['set_breakeven'].split(':')
 	be_time = utils.createLondonTime(london_time.year, london_time.month, london_time.day, int(parts[0]), int(parts[1]), 0)
+
+	if (london_time.hour < utils.endTime.hour and london_time.hour >= 0):
+		pass
+	else:
+		profit_nnt_time += datetime.timedelta(days=1)
+		nnt_time += datetime.timedelta(days=1)
+		be_time += datetime.timedelta(days=1)
 
 	if (london_time > be_time and not is_be):
 		print("Set breakeven")
