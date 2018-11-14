@@ -5,7 +5,7 @@ import datetime
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD],
 	'START_TIME' : '23:00',
-	'END_TIME' : '16:00',
+	'END_TIME' : '19:00',
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
 	'profit_limit' : 85,
@@ -54,6 +54,7 @@ min_strand = None
 
 pending_entries = []
 pending_breakevens = []
+pending_exits = []
 
 is_position_breakeven = False
 
@@ -66,6 +67,7 @@ no_new_trades = False
 is_profit_nnt = False
 is_nnt = False
 is_be = False
+is_end_time = False
 
 bank = 0
 
@@ -168,6 +170,7 @@ def onNewBar():
 	utils.printTime(utils.getAustralianTime())
 
 	runSequence(0)
+	handleExits()
 
 	report()
 
@@ -359,6 +362,34 @@ def handleBreakeven():
 				if (pos.apply()):
 					del pending_breakevens[pending_breakevens.index(pos)]
 
+def handleExits():
+
+	global pending_exits
+
+	is_exit = False
+
+	for exit in pending_exits:
+
+		if (exit.state == State.POSITIVE):
+			if (crossNegative(shift, exit.direction)):
+				exit.state = State.NEGATIVE
+
+		elif (exit.state == State.NEGATIVE):
+
+			result = crossPositive(shift, exit.direction, no_rsi = True)
+			if (result == 1):
+				exit.state = State.ENTERED
+
+		if (exit.state == State.ENTERED):
+			for pos in utils.positions:
+				pos.quickExit()
+
+			is_exit = True
+			break
+
+	if (is_exit):
+		pending_exits = []
+
 def failsafe(timestamps):
 	''' Function called on any error or interuption '''
 
@@ -394,8 +425,8 @@ def onNews(title, time):
 	global current_news
 
 	print("NEWS:", str(title))
-	be_time = time - datetime.timedelta(minutes = VARIABLES['newsTimeBeforeBE'])
-	no_trade_time = time - datetime.timedelta(minutes = VARIABLES['newsTimeBeforeBlock'])
+	be_time = time - datetime.timedelta(minutes = VARIABLES['time_threshold_no_trades'])
+	no_trade_time = time - datetime.timedelta(minutes = VARIABLES['time_threshold_no_trades'])
 	
 	if (be_time <= utils.getLondonTime() < time):
 		print(str(title), "done")
@@ -431,7 +462,7 @@ def checkTime():
 	closing sequence where necessary.
 	'''
 
-	global is_profit_nnt, is_nnt, is_be, no_new_trades
+	global is_profit_nnt, is_nnt, is_be, is_end_time, no_new_trades
 
 	london_time = utils.getLondonTime()
 	parts = VARIABLES['no_more_trades_in_profit'].split(':')
@@ -440,6 +471,8 @@ def checkTime():
 	nnt_time = utils.createLondonTime(london_time.year, london_time.month, london_time.day, int(parts[0]), int(parts[1]), 0)
 	parts = VARIABLES['set_breakeven'].split(':')
 	be_time = utils.createLondonTime(london_time.year, london_time.month, london_time.day, int(parts[0]), int(parts[1]), 0)
+	parts = VARIABLES['END_TIME'].split(':')
+	end_time = utils.createLondonTime(london_time.year, london_time.month, london_time.day, int(parts[0]), int(parts[1]), 0)
 
 	if (london_time.hour < utils.endTime.hour and london_time.hour >= 0):
 		pass
@@ -447,31 +480,39 @@ def checkTime():
 		profit_nnt_time += datetime.timedelta(days=1)
 		nnt_time += datetime.timedelta(days=1)
 		be_time += datetime.timedelta(days=1)
+		end_time += datetime.timedelta(days=1)
 
-	if (london_time > be_time and not is_be):
-		print("Set breakeven")
-		no_new_trades = True
-		is_be = True
-		for pos in utils.positions:
-			if (pos.getProfit() >= VARIABLES['breakeven_min_pips']):
-				if not pos in pending_breakevens:
-					pending_breakevens.append(pos)
-			else:
-				pending_breakevens.append(pos)
+	# if (london_time > be_time and not is_be):
+	# 	print("Set breakeven")
+	# 	no_new_trades = True
+	# 	is_be = True
+	# 	for pos in utils.positions:
+	# 		if (pos.getProfit() >= VARIABLES['breakeven_min_pips']):
+	# 			if not pos in pending_breakevens:
+	# 				pending_breakevens.append(pos)
+	# 		else:
+	# 			pending_breakevens.append(pos)
 	
-	elif (london_time > nnt_time and not is_nnt and not is_be):
+	if (london_time > end_time and not is_end_time):
+		is_endTime = True
+		for pos in utils.positions:
+			if (pos.direction == 'buy'):
+				pending_exits.append(Trigger(Direction.SHORT))
+			else:
+				pending_exits.append(Trigger(Direction.LONG))
+
+	elif (london_time > nnt_time and not is_nnt and not is_end_time):
 		print("No more trades")
 		no_new_trades = True
 		is_nnt = True
 	
-	elif (london_time > profit_nnt_time and not is_profit_nnt and not is_nnt and not is_be):
-		print("No more trades in profit")
-		print("Total profit:", str(utils.getTotalProfit()))
-		if (utils.getTotalProfit() >= VARIABLES['breakeven_point']):
-			is_profit_nnt = True
-			no_new_trades = True
+	# elif (london_time > profit_nnt_time and not is_profit_nnt and not is_nnt and not is_be):
+	# 	print("No more trades in profit")
+	# 	print("Total profit:", str(utils.getTotalProfit()))
+	# 	if (utils.getTotalProfit() >= VARIABLES['breakeven_point']):
+	# 		is_profit_nnt = True
+	# 		no_new_trades = True
 
-	return
 
 def runSequence(shift):
 	''' Main trade plan sequence '''
@@ -676,26 +717,36 @@ def entrySetup(shift):
 
 	if (not current_trigger == None and current_trigger.tradable):
 		if (current_trigger.state == State.POSITIVE):
-			crossNegative(shift)
-		elif (current_trigger.state == State.NEGATIVE):
-			crossPositive(shift)
+			if (crossNegative(shift, current_trigger.direction)):
+				current_trigger.state = State.NEGATIVE
 
-def crossNegative(shift):
+		elif (current_trigger.state == State.NEGATIVE):
+
+			result = crossPositive(shift, current_trigger.direction)
+			if (result == 1):
+				current_trigger.state = State.ENTERED
+				confirmation(shift)
+			elif (result == 0):
+				current_trigger.state = State.POSITIVE
+
+def crossNegative(shift, direction):
 	''' Checks for swing to first be in negative direction '''
 
 	print("crossNegative")
 
 	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
-	if (current_trigger.direction == Direction.LONG):
+	if (direction == Direction.LONG):
 		if (ch_idx < VARIABLES['cci_threshold']):
-			current_trigger.state = State.NEGATIVE
+			return True
 	
 	else:
 		if (ch_idx > VARIABLES['cci_threshold']):
-			current_trigger.state = State.NEGATIVE
+			return True
 
-def crossPositive(shift):
+	return False
+
+def crossPositive(shift, direction, no_rsi = False):
 	''' Checks for swing to be in positive direction '''
 
 	print("crossPositive")
@@ -704,25 +755,25 @@ def crossPositive(shift):
 	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
-	if (current_trigger.direction == Direction.LONG):
+	if (direction == Direction.LONG):
 		if (ch_idx > VARIABLES['cci_threshold']):
+			
+			if (no_rsi):
+				return 1
+
 			if (str_idx > VARIABLES['rsi_threshold']):
 				if (hist >= VARIABLES['macd_threshold'] or isParaConfirmation(shift, Direction.LONG)):
-					current_trigger.state = State.ENTERED
-					confirmation(shift)
-					return
-			
-			current_trigger.state = State.POSITIVE
+					return 1
+			return 0
+		return -1
 	
 	else:
 		if (ch_idx < VARIABLES['cci_threshold']):
 			if (str_idx < VARIABLES['rsi_threshold']):
 				if (hist <= VARIABLES['macd_threshold'] or isParaConfirmation(shift, Direction.SHORT)):
-					current_trigger.state = State.ENTERED
-					confirmation(shift)
-					return
-			
-			current_trigger.state = State.POSITIVE
+					return 1
+			return 0
+		return -1
 
 def isParaConfirmation(shift, direction):
 	''' Finds if both sar are in correct direction for confirmation '''
