@@ -154,15 +154,15 @@ class Start(object):
 		accountSelected = False
 		while 'loader' not in self.driver.current_url:
 			if 'accountOptionsSelection' in self.driver.current_url and not accountSelected:
-				account_type_btn = self.driver.find_element(By.XPATH, "//button[text() = 'Corporate']") #Corporate
-				account_type_btn.click()
+				# account_type_btn = self.driver.find_element(By.XPATH, "//button[text() = 'Corporate']") #Corporate
+				# account_type_btn.click()
 
-				wait = ui.WebDriverWait(self.driver, 10)
-				wait.until(EC.presence_of_element_located(
-					(By.XPATH, "//div[@id='13011253']") #13011253
-				))
+				# wait = ui.WebDriverWait(self.driver, 10)
+				# wait.until(EC.presence_of_element_located(
+				# 	(By.XPATH, "//div[@id='13011253']") #13011253
+				# ))
 
-				account_btn = self.driver.find_element(By.XPATH, "//div[@id='13011253']") #13011253
+				account_btn = self.driver.find_element(By.XPATH, "//div[@id='11307219']") #13011253
 				account_btn.click()
 				accountSelected = True
 			elif 'login' in self.driver.current_url:
