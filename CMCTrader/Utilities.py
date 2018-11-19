@@ -837,3 +837,6 @@ class Utilities:
 
 	def setAUDUSDTicket(self, tAUDUSD):
 		self.tAUDUSD = tAUDUSD
+
+	def restartCMC(self):
+		self.driver.get(CMC_WEBSITE);

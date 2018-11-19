@@ -297,6 +297,7 @@ def handleStopAndReverse(pos):
 
 		resetPositionStrands()
 		getPositionStrand()
+		utils.restartCMC()
 
 def handleRegularEntry(entry):
 	''' 
@@ -323,6 +324,7 @@ def handleRegularEntry(entry):
 
 		resetPositionStrands()
 		getPositionStrand()
+		utils.restartCMC()
 
 def handleBreakeven():
 	''' 
