@@ -18,17 +18,21 @@ VARIABLES = {
 	'breakeven_min_pips' : 2,
 	'CLOSING SEQUENCE' : None,
 	'no_more_trades_in_profit' : '15:00',
-	'no_more_trades' : '15:30',
+	'no_more_trades' : '15:00',
 	'set_breakeven' : '15:50',
 	'NEWS' : None,
 	'time_threshold_breakeven' : 1,
 	'time_threshold_no_trades' : 5,
+	'TRIGGER' : None,
+	'sar_size' : 25,
 	'RSI' : None,
 	'rsi_overbought' : 75,
 	'rsi_oversold' : 25,
 	'rsi_threshold' : 50,
 	'CCI' : None,
-	'cci_threshold' : 0,
+	'cci_t_cross' : 80,
+	'cci_ct_cross' : 50,
+	'cci_entry_cross' : 0,
 	'MACD' : None,
 	'macd_threshold' : 0
 }
@@ -76,14 +80,17 @@ class Direction(Enum):
 	SHORT = 2
 
 class State(Enum):
-	POSITIVE = 1
-	NEGATIVE = 2
-	ENTERED = 3
+	SWING_ONE = 1
+	SWING_TWO = 2
+	SWING_THREE = 3
+	CROSS_NEGATIVE = 4
+	ENTERED = 5
 
 class Trigger(object):
-	def __init__(self, direction, tradable = True):
+	def __init__(self, direction, start, tradable = True):
 		self.direction = direction
-		self.state = State.POSITIVE
+		self.start = start
+		self.state = State.SWING_ONE
 		self.tradable = tradable
 
 class SARType(Enum):
@@ -91,12 +98,9 @@ class SARType(Enum):
 	SLOW = 2
 
 class Strand(object):
-	def __init__(self, direction, sar_type, start):
+	def __init__(self, direction, start):
 		self.direction = direction
-		self.sar_type = sar_type
 		self.start = start
-		self.end = 0
-		self.isPassed = False
 
 def init(utilities):
 	''' Initialize utilities and indicators '''
@@ -169,7 +173,9 @@ def onDownTime():
 	print("onDownTime")
 	ausTime = utils.printTime(utils.getAustralianTime())
 
-	runSequence(0)
+	onNewCycle(0)	
+	if (len(strands) > 0):
+		getTrigger(0)
 
 	report()
 
@@ -355,29 +361,29 @@ def handleExits():
 
 	global pending_exits
 
+	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 	is_exit = False
 
 	for exit in pending_exits:
 
-		if (exit.state == State.POSITIVE):
-			if (crossNegative(shift, exit.direction)):
-				exit.state = State.NEGATIVE
+		if (exit.direction == Direction.LONG):
+			if (ch_idx < VARIABLES['cci_entry_cross']):
+				is_exit = True
+				for pos in utils.positions:
+					pos.quickExit()
 
-		elif (exit.state == State.NEGATIVE):
-
-			result = crossPositive(shift, exit.direction, no_rsi = True)
-			if (result == 1):
-				exit.state = State.ENTERED
-
-		if (exit.state == State.ENTERED):
-			for pos in utils.positions:
-				pos.quickExit()
-
-			is_exit = True
-			break
+		else:
+			if (ch_idx < VARIABLES['cci_entry_cross']):
+				is_exit = True
+				for pos in utils.positions:
+					pos.quickExit()
 
 	if (is_exit):
 		pending_exits = []
+
+def onStopLoss(pos):
+	print("onStopLoss")
+	return
 
 def failsafe(timestamps):
 	''' Function called on any error or interuption '''
@@ -400,7 +406,7 @@ def failsafe(timestamps):
 
 		if (len(pending_entries) > 0):
 			current_trigger = pending_entries[-1]
-			current_trigger.state = State.POSITIVE
+			current_trigger.state = State.CROSS_NEGATIVE
 
 			for entry in pending_entries:
 				del pending_entries[pending_entries.index(entry)]
@@ -506,9 +512,9 @@ def checkTime():
 def runSequence(shift):
 	''' Main trade plan sequence '''
 	onNewCycle(shift)
-	cancelInvalidStrands(shift)
-	getExtremeStrands()
-	getTrigger(shift)
+	
+	if (len(strands) > 0):
+		getTrigger(shift)
 
 	entrySetup(shift)
 
@@ -517,27 +523,22 @@ def getTrigger(shift):
 
 	global current_trigger
 
-	if (isCrossedLong(shift)):
-		if (current_trigger == None or current_trigger.direction == Direction.SHORT):
-			print("New trigger long!")
+	if (black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
 
-			if (is_down_time):
-				current_trigger = Trigger(Direction.LONG, tradable = False)
-			else:
-				current_trigger = Trigger(Direction.LONG)
+		if (black_sar.strandCount(VARIABLES['TICKETS'][0], shift + 1) >= VARIABLES['sar_size']):
+			current_trigger = Trigger(strands[-1].direction, strands[-1].start)
+		else:
+			current_trigger = Trigger(strands[-1].direction, strands[-1].start, tradable = False)
 
-			getMostRecentStrands(Direction.LONG)
+	if (not current_trigger == None and not current_trigger.tradable):
+		
+		if (current_trigger.direction == Direction.LONG):
+			if (hasCrossedAbove(shift)):
+				current_trigger.tradable = True
 
-	elif (isCrossedShort(shift)):
-		if (current_trigger == None or current_trigger.direction == Direction.LONG):
-			print("New trigger short!")
-
-			if (is_down_time):
-				current_trigger = Trigger(Direction.SHORT, tradable = False)
-			else:
-				current_trigger = Trigger(Direction.SHORT)
-
-			getMostRecentStrands(Direction.SHORT)
+		else:
+			if (hasCrossedBelow(shift)):
+				current_trigger.tradable = True
 
 def onNewCycle(shift):
 	''' 
@@ -545,221 +546,124 @@ def onNewCycle(shift):
 	a strand has started their new cycle.
 	'''
 
-	if (reg_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
-		
-		for strand in strands[::-1]:
-			if (strand.sar_type == SARType.REG and strand.end == 0):
-				strand.end = reg_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
-				print("End of last strand:", str(strand.end))
-				break
-
-		if (reg_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
-			strand = Strand(Direction.LONG, SARType.REG, reg_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
-
-			strands.append(strand)
-			long_strands.append(strand)
-		else:
-			strand = Strand(Direction.SHORT, SARType.REG, reg_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
-			
-			strands.append(strand)
-			short_strands.append(strand)
-
-		print("New REG Strand:", str(strand.direction), ":", str(strand.start))
-		
-
-	if (slow_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
-		
-		for strand in strands[::-1]:
-			if (strand.sar_type == SARType.SLOW and strand.end == 0):
-				strand.end = slow_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
-				print("End of last strand:", str(strand.end))
-				break
-
-		if (slow_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
-			strand = Strand(Direction.LONG, SARType.SLOW, slow_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
-
-			strands.append(strand)
-			long_strands.append(strand)
-		else:
-			strand = Strand(Direction.SHORT, SARType.SLOW, slow_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
-			
-			strands.append(strand)
-			short_strands.append(strand)
-
-		print("New SLOW Strand:", str(strand.direction), ":", str(strand.start))
-
-def cancelInvalidStrands(shift):
-	''' 
-	Cancel any short strands that are not wholly above (on rising black)
-	or long strands wholly below (on falling black) on new black cycle.
-	'''
-
-	global long_strands, short_strands
-
 	if (black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
-		
+
+		strands[-1].end = black_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
+		print("End of last strand:", str(strands[-1].end))
+
 		if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
-			for strand in getShortStrands():
-				if (black_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0] > strand.end):
-					print("passed rising:", str(strand.end))
-					strand.isPassed = True
-		
+			direction = Direction.LONG
 		else:
-			for strand in getLongStrands():
-				if (black_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0] < strand.end):
-					print("passed falling:", str(strand.end))
-					strand.isPassed = True
+			direction = Direction.SHORT
 
-def isCrossedShort(shift):
+		strand = Strand(direction, black_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
+		strands.append(strand)
+
+		print("New Strand:", str(strand.direction), str(strand.start))
+
+def hasCrossedBelow(shift):
 	''' Check if black sar has passed the current max strand on falling black '''
-	print(max_strand)
-	if (not max_strand == None):
-		print(max_strand.start)
-		if (black_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0] < max_strand.start and black_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
 	
-			strands[strands.index(max_strand)].isPassed = True
-			print("black para crossed long")
+	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
 
-			return True
+	if (low < current_trigger.start):
+		print("crossed black para below")
+		return True
 
 	return False
 
-def isCrossedLong(shift):
+def hasCrossedAbove(shift):
 	''' Check if black sar has passed the current min strand on rising black '''
-	print(min_strand)
-	if (not min_strand == None):
-		print(min_strand.start)
-		if (black_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0] > min_strand.start and black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
-			
-			strands[strands.index(min_strand)].isPassed = True
-			print("black para crossed short")
 
-			return True
+	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
+
+	if (high > current_trigger.start):
+		print("black para crossed above")
+		return True
 
 	return False
-
-def getExtremeStrands():
-	''' 
-	Get current short strand at the highest point
-	and current long strand at the lowest point
-	of all valid strands.
-	'''
-
-	global max_strand, min_strand
-	
-	max_strand = None
-	for i in getLongStrands():
-		if not max_strand == None:
-			if i.start > max_strand.start and not i.isPassed:
-				max_strand = i
-		elif not i.isPassed:
-			max_strand = i
-
-	min_strand = None
-	for j in getShortStrands():
-		if not min_strand == None:
-			if j.start < min_strand.start and not j.isPassed:
-				min_strand = j
-		elif not j.isPassed:
-			min_strand = j
-
-def getMostRecentStrands(direction):
-	''' 
-	Gets the most recent reg and slow sar strand
-	in specified direction and deletes all other strands.
-	'''
-
-	resetStrands(direction)
-	
-	direction_strands = [i for i in strands if i.direction == direction and not i.isPassed and not i.end == 0]
-	isFoundReg = False
-	isFoundSlow = False
-	for strand in direction_strands[::-1]:
-
-		if (strand.sar_type == SARType.REG):
-			if (isFoundReg):
-				del strands[strands.index(strand)]
-			else:
-				isFoundReg = True
-
-		elif (strand.sar_type == SARType.SLOW):
-			if (isFoundSlow):
-				del strands[strands.index(strand)]
-			else:
-				isFoundSlow = True
-
-def resetStrands(direction):
-	''' Resets all strands in specified direction to not passed '''
-
-	for strand in strands:
-		if (strand.direction == direction and strand.isPassed):
-			strand.isPassed = False
-
-def getLongStrands():
-	return [i for i in strands if i.direction == Direction.LONG and not i.isPassed and not i.end == 0]
-
-def getShortStrands():
-	return [i for i in strands if i.direction == Direction.SHORT and not i.isPassed and not i.end == 0]
 
 def entrySetup(shift):
 	''' Checks for swing sequence once trigger has been formed '''
 
 	if (not current_trigger == None and current_trigger.tradable):
-		if (current_trigger.state == State.POSITIVE):
-			if (crossNegative(shift, current_trigger.direction)):
-				current_trigger.state = State.NEGATIVE
 
-		elif (current_trigger.state == State.NEGATIVE):
+		if (current_trigger.state == State.SWING_ONE):
+			if (swingOne(shift, current_trigger.direction)):
+				current_trigger.state = State.SWING_TWO
 
-			result = crossPositive(shift, current_trigger.direction)
+		elif (current_trigger.state == State.SWING_TWO):
+			if (swingTwo(shift, current_trigger.direction)):
+				current_trigger.state = State.SWING_THREE
+
+		elif (current_trigger.state == State.SWING_THREE):
+			result = swingThree(shift, current_trigger.direction)
 			if (result == 1):
 				current_trigger.state = State.ENTERED
 				confirmation(shift)
 			elif (result == 0):
-				current_trigger.state = State.POSITIVE
+				current_trigger.state = State.CROSS_NEGATIVE
+		
+		elif (current_trigger.state == State.CROSS_NEGATIVE):
+			if (crossNegative(shift, current_trigger.direction)):
+				current_trigger.state = State.SWING_THREE
+				
+				entrySetup(shift)
 
-def crossNegative(shift, direction):
+
+def swingOne(shift, direction):
 	''' Checks for swing to first be in negative direction '''
 
-	print("crossNegative")
+	print("swingOne")
 
 	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
 	if (direction == Direction.LONG):
-		if (ch_idx < VARIABLES['cci_threshold']):
+		if (ch_idx >= VARIABLES['cci_t_cross']):
 			return True
 	
 	else:
-		if (ch_idx > VARIABLES['cci_threshold']):
+		if (ch_idx <= -VARIABLES['cci_t_cross']):
 			return True
 
 	return False
 
-def crossPositive(shift, direction, no_rsi = False):
-	''' Checks for swing to be in positive direction '''
+def swingTwo(shift, direction):
 
-	print("crossPositive")
+	print("swingTwo")
+
+	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+
+	if (direction == Direction.LONG):
+		if (ch_idx <= -VARIABLES['cci_ct_cross']):
+			return True
+	
+	else:
+		if (ch_idx >= VARIABLES['cci_ct_cross']):
+			return True
+
+	return False
+
+def swingThree(shift, direction):
+
+	print("swingThree")
 
 	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
 	if (direction == Direction.LONG):
-		if (ch_idx > VARIABLES['cci_threshold']):
-			
-			if (no_rsi):
-				return 1
-
-			if (str_idx > VARIABLES['rsi_threshold']):
-				if (hist >= VARIABLES['macd_threshold'] or isParaConfirmation(shift, Direction.LONG)):
+		if (ch_idx > VARIABLES['cci_entry_cross']):
+			if (str_idx > VARIABLES['rsi_threshold'] or hist > VARIABLES['macd_threshold']):
+				if (isParaConfirmation(shift, Direction.LONG)):
 					return 1
 			return 0
 		return -1
 	
 	else:
-		if (ch_idx < VARIABLES['cci_threshold']):
-			if (str_idx < VARIABLES['rsi_threshold']):
-				if (hist <= VARIABLES['macd_threshold'] or isParaConfirmation(shift, Direction.SHORT)):
+		if (ch_idx < VARIABLES['cci_entry_cross']):
+			if (str_idx < VARIABLES['rsi_threshold'] or hist < VARIABLES['macd_threshold']):
+				if (isParaConfirmation(shift, Direction.SHORT)):
 					return 1
 			return 0
 		return -1
@@ -772,6 +676,23 @@ def isParaConfirmation(shift, direction):
 	else:
 		return reg_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0] and slow_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
+def crossNegative(shift, direction):
+	''' Checks for swing to be in positive direction '''
+
+	print("crossNegative")
+
+	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+
+	if (direction == Direction.LONG):
+		if (ch_idx < VARIABLES['cci_entry_cross']):
+			return True
+	
+	else:
+		if (ch_idx > VARIABLES['cci_entry_cross']):
+			return True
+
+	return False
+
 def confirmation(shift):
 	''' Checks for overbought, oversold and confirm entry '''
 
@@ -781,13 +702,13 @@ def confirmation(shift):
 	
 	if (current_trigger.direction == Direction.LONG):
 		if (str_idx > VARIABLES['rsi_overbought']):
-			current_trigger.state = State.POSITIVE
+			current_trigger.state = State.CROSS_NEGATIVE
 		else:
 			pending_entries.append(current_trigger)
 	
 	else:
 		if (str_idx < VARIABLES['rsi_oversold']):
-			current_trigger.state = State.POSITIVE
+			current_trigger.state = State.CROSS_NEGATIVE
 		else:
 			pending_entries.append(current_trigger)
 

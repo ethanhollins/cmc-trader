@@ -76,6 +76,20 @@ class SAR(object):
 			return True
 		return False
 
+	def strandCount(self, pair, shift):
+		direction = None
+		count = 0
+		while True:
+			timestamp = self.utils.getTimestampFromOffset(pair, shift + count, 1)
+			self.utils.getMissingTimestamps(timestamp)
+
+			if direction == None:
+				direction = self.isRising(pair, shift + count, 1)[0]
+			elif not self.isRising(pair, shift + count, 1)[0] == direction:
+				return count
+
+			count += 1
+
 	def _addFillerData(self, pair, timestamp):
 		if (int(timestamp) - 60) in self.history[pair]:
 			self.history[pair][int(timestamp)] = self.history[pair][int(timestamp) - 60]

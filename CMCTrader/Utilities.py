@@ -294,6 +294,18 @@ class Utilities:
 						pos.closeprice = float(value[5])
 						self.closedPositions.append(pos)
 						del self.positions[self.positions.index(pos)]
+
+						if value[2] == 'Take Profit':
+							try:
+								self.plan.onTakeProfit(pos)
+							except AttributeError as e:
+								pass
+						elif value[2] == 'Stop Loss':
+							try:
+								self.plan.onStopLoss(pos)
+							except AttributeError as e:
+								pass
+
 			elif (value[2] == 'SE Order Sell Trade' or value[2] == 'SE Order Buy Trade' or
 				 value[2] == 'Limit Order Sell Trade' or value[2] == 'Limit Order Buy Trade'):
 				for pos in self.positions:
@@ -659,6 +671,8 @@ class Utilities:
 					self.startTime -= datetime.timedelta(days=1)
 				else:
 					self.endTime += datetime.timedelta(days=1)
+
+			print(str(self.startTime), str(self.endTime))
 		else:
 			self.startTime = None
 			self.endTime = None

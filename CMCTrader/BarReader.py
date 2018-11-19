@@ -266,6 +266,7 @@ class BarReader(object):
 			timestamps.sort(reverse=True)
 
 			fillValues = None
+			values = None
 			for timestamp in timestamps:
 				xOff = self.chartValues[pair][0] - self.chartValues[pair][1] * self._getBarOffset(timestamp)
 
@@ -365,7 +366,7 @@ class BarReader(object):
 				study.insertValues(pair, values['timestamp'], values['studies'][count])
 				count += 1
 		except:
-			self._insertValues(pair, self._addFillerData(pair, values['timestamp']))
+			self._insertValues(pair, self._getFillerData(pair, values['timestamp']))
 			return
 
 	def _getFillerData(self, pair, values, timestamp):
@@ -415,7 +416,7 @@ class BarReader(object):
 					if (values['hasLookedFwd']):
 						values['hasLookedFwd'] = False
 						values['hasLookedBack'] = False
-						return self._addFillerData(pair, values['timestamp'])
+						return self._getFillerData(pair, values['timestamp'])
 
 					return self._performBarInfoCapture(chart, canvas, pair, xOff + self.chartValues[pair][1], prevTimestamp, values = values)
 				
@@ -425,7 +426,7 @@ class BarReader(object):
 					if (values['hasLookedBack']):
 						values['hasLookedFwd'] = False
 						values['hasLookedBack'] = False
-						return self._addFillerData(pair, values['timestamp'])
+						return self._getillerData(pair, values['timestamp'])
 						
 
 					return self._performBarInfoCapture(chart, canvas, pair, xOff - self.chartValues[pair][1], prevTimestamp, values = values)
@@ -439,7 +440,7 @@ class BarReader(object):
 					if (values['hasLookedFwd']):
 						values['hasLookedFwd'] = False
 						values['hasLookedBack'] = False
-						return self._addFillerData(pair, values['timestamp'])
+						return self._getFillerData(pair, values['timestamp'])
 
 					return self._performBarInfoCapture(chart, canvas, pair, xOff + self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
 				else:
@@ -448,7 +449,7 @@ class BarReader(object):
 					if (values['hasLookedBack']):
 						values['hasLookedFwd'] = False
 						values['hasLookedBack'] = False
-						return self._addFillerData(pair, values['timestamp'])
+						return self._getFillerData(pair, values['timestamp'])
 
 					return self._performBarInfoCapture(chart, canvas, pair, xOff - self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
 

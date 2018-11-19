@@ -327,13 +327,13 @@ class Start(object):
 			if (not self.utils.isStopped):
 				try:
 					self.checkIfInApp()
-					# try:
-					if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
-						for pair in self.plan.VARIABLES['TICKETS']:
-							if (self.utils.isCurrentTimestamp(pair)):
-								self.plan.onLoop()
-					# except AttributeError as e:
-					# 	pass
+					try:
+						if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
+							for pair in self.plan.VARIABLES['TICKETS']:
+								if (self.utils.isCurrentTimestamp(pair)):
+									self.plan.onLoop()
+					except AttributeError as e:
+						pass
 
 					seconds = int(self.seconds_elem.text)
 					second_is_zero = False
@@ -346,10 +346,10 @@ class Start(object):
 						if (isUpdated):
 							missingTimestamps = self.utils.recoverMissingValues()
 							if (len(missingTimestamps) > 0):
-								# try:
-								self.plan.failsafe(missingTimestamps)
-								# except AttributeError as e:
-								# 	pass
+								try:
+									self.plan.failsafe(missingTimestamps)
+								except AttributeError as e:
+									pass
 							if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
 								if (self.isDowntime):
 									try:
@@ -358,10 +358,10 @@ class Start(object):
 										pass
 									self.isDowntime = False
 
-								# try:
-								self.plan.onNewBar()
-								# except AttributeError as e:
-								# 	pass
+								try:
+									self.plan.onNewBar()
+								except AttributeError as e:
+									pass
 								try:
 									for key in self.utils.newsTimes.copy():
 										self.plan.onNews(key, self.utils.newsTimes[key])
@@ -370,10 +370,10 @@ class Start(object):
 							else:
 								self.utils.setTradeTimes()
 
-								# try:
-								self.plan.onDownTime()
-								# except AttributeError as e:
-								# 	pass
+								try:
+									self.plan.onDownTime()
+								except AttributeError as e:
+									pass
 								if (not self.isDowntime):
 									try:
 										self.plan.onFinishTrading()
@@ -407,30 +407,40 @@ class Start(object):
 			print("Pair not found!")
 			pair = input("Enter pair: ")
 			
-		# ohlc = pickle.load(open("ohlc1411", "rb"))
-		# indicators = pickle.load(open("indicators1411", "rb"))
+		ohlc = pickle.load(open("ohlc1811", "rb"))
+		indicators = pickle.load(open("indicators1811", "rb"))
 
-		startDate = input("Start Date: ")
-		startTime = input("Start Time: ")
-		endDate = input("End Date: ")
-		endTime = input("End Time: ")
-		self.utils.backtestByTime(pair, startDate.strip(), startTime.strip(), endDate.strip(), endTime.strip())
+		# startDate = input("Start Date: ")
+		# startTime = input("Start Time: ")
+		# endDate = input("End Date: ")
+		# endTime = input("End Time: ")
+		# self.utils.backtestByTime(pair, startDate.strip(), startTime.strip(), endDate.strip(), endTime.strip())
 
-		ohlc = self.utils.ohlc[pair].copy()
+		# ohlc = self.utils.ohlc[pair].copy()
 		self.utils.ohlc[pair] = {}
-		indicators = {"overlays" : [], "studies" : []}
+		# indicators = {"overlays" : [], "studies" : []}
 		for i in range(len(self.utils.indicators['overlays'])):
-			indicators['overlays'].append(self.utils.indicators['overlays'][i].history[pair].copy()) 
+			# indicators['overlays'].append(self.utils.indicators['overlays'][i].history[pair].copy()) 
 			self.utils.indicators['overlays'][i].history[pair] = {}
 		for j in range(len(self.utils.indicators['studies'])):
-			indicators['studies'].append(self.utils.indicators['studies'][j].history[pair].copy())
+			# indicators['studies'].append(self.utils.indicators['studies'][j].history[pair].copy())
 			self.utils.indicators['studies'][j].history[pair] = {}
 		
-		pickle.dump(ohlc, open("ohlc1411", "wb"))
-		pickle.dump(indicators, open("indicators1411", "wb"))
+		# pickle.dump(ohlc, open("ohlc1811", "wb"))
+		# pickle.dump(indicators, open("indicators1811", "wb"))
 		
 		sortedTimestamps = [i[0] for i in sorted(ohlc.items(), key=lambda kv: kv[0], reverse=False)]
 		self.insertValuesByTimestamp(pair, sortedTimestamps[0], ohlc, indicators)
+
+		timestamp = sortedTimestamps[i]
+		time = self.utils.convertTimestampToTime(timestamp)
+
+		tz = pytz.timezone('Australia/Melbourne')
+		time = tz.localize(time)
+		tz = pytz.timezone('Europe/London')
+		londonTime = time.astimezone(tz)
+
+		self.utils.setTradeTimes(currentTime = londonTime)
 
 		skipTo = 0
 		for i in range(1, len(ohlc)):
@@ -445,10 +455,10 @@ class Start(object):
 			londonTime = time.astimezone(tz)
 
 			if (self.utils.isTradeTime(currentTime = londonTime)):
-				try:
-					self.plan.backtest()
-				except AttributeError as e:
-					pass
+				# try:
+				self.plan.backtest()
+				# except AttributeError as e:
+				# 	pass
 			else:
 				try:
 					self.plan.onDownTime()
@@ -499,9 +509,15 @@ class Start(object):
 	def insertValuesByTimestamp(self, pair, timestamp, ohlc, indicators):
 		self.utils.ohlc[pair][timestamp] = ohlc[timestamp]
 		for i in range(len(indicators['overlays'])):
-			self.utils.indicators['overlays'][i].history[pair][timestamp] = indicators['overlays'][i][timestamp]
+			try:
+				self.utils.indicators['overlays'][i].history[pair][timestamp] = indicators['overlays'][i][timestamp]
+			except:
+				self.utils.indicators['overlays'][i].history[pair][timestamp] = indicators['overlays'][i][timestamp - 60]	
 		for j in range(len(indicators['studies'])):
-			self.utils.indicators['studies'][j].history[pair][timestamp] = indicators['studies'][j][timestamp]
+			try:
+				self.utils.indicators['studies'][j].history[pair][timestamp] = indicators['studies'][j][timestamp]
+			except:
+				self.utils.indicators['studies'][j].history[pair][timestamp] = indicators['studies'][j][timestamp - 60]
 
 	def printIndicators(self, pair):
 		for overlay in self.utils.indicators['overlays']:
