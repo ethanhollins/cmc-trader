@@ -5,7 +5,7 @@ import datetime
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD],
 	'START_TIME' : '23:00',
-	'END_TIME' : '16:00',
+	'END_TIME' : '19:00',
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
 	'profit_limit' : 85,
@@ -18,13 +18,14 @@ VARIABLES = {
 	'breakeven_min_pips' : 2,
 	'CLOSING SEQUENCE' : None,
 	'no_more_trades_in_profit' : '15:00',
-	'no_more_trades' : '15:00',
+	'no_more_trades' : '18:00',
 	'set_breakeven' : '15:50',
 	'NEWS' : None,
 	'time_threshold_breakeven' : 1,
 	'time_threshold_no_trades' : 5,
 	'TRIGGER' : None,
 	'sar_size' : 25,
+	'num_paras_momentum' : 4,
 	'RSI' : None,
 	'rsi_overbought' : 75,
 	'rsi_oversold' : 25,
@@ -46,16 +47,11 @@ rsi = None
 cci = None
 macd = None
 
-is_down_time = True
-
 current_trigger = None
 re_entry_trigger = None
 
 strands = []
-long_strands = []
-short_strands = []
-max_strand = None
-min_strand = None
+position_strands = []
 
 pending_entries = []
 pending_breakevens = []
@@ -125,7 +121,6 @@ def onStartTrading():
 
 	global bank, stop_trading, no_new_trades
 	global is_profit_nnt, is_nnt, is_be
-	global is_down_time
 
 	if (utils.getBankSize() > VARIABLES['maximum_bank']):
 		bank = VARIABLES['maximum_bank']
@@ -140,13 +135,10 @@ def onStartTrading():
 	is_nnt = False
 	is_be = False
 
-	is_down_time = False
+	resetPositionStrands()
 
 def onFinishTrading():
 	''' Function called on trade end time '''
-
-	global is_down_time
-	is_down_time = True
 
 	print("onFinishTrading")
 
@@ -179,6 +171,8 @@ def onDownTime():
 	
 	if (isCompletedStrand()):
 		getTrigger(0)
+
+	report()
 
 def onLoop():
 	''' Function called on every program iteration '''
@@ -298,7 +292,11 @@ def handleStopAndReverse(pos):
 	else:
 		print("Entered")
 		pos.stopAndReverse(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
+		
 		is_position_breakeven = False
+
+		resetPositionStrands()
+		getPositionStrand()
 
 def handleRegularEntry(entry):
 	''' 
@@ -320,7 +318,11 @@ def handleRegularEntry(entry):
 			utils.buy(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
 		else:
 			utils.sell(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
+		
 		is_position_breakeven = False
+
+		resetPositionStrands()
+		getPositionStrand()
 
 def handleBreakeven():
 	''' 
@@ -368,6 +370,7 @@ def handleExits(shift):
 
 	if (is_exit):
 		pending_exits = []
+		resetPositionStrands()
 
 def onStopLoss(pos):
 	print("onStopLoss")
@@ -375,10 +378,10 @@ def onStopLoss(pos):
 	global re_entry_trigger
 
 	if (pos.direction == 'buy'):
-		re_entry_trigger = Trigger(Direction.LONG, 0)
+		re_entry_trigger = Trigger(Direction.LONG, 0, tradable = True)
 		re_entry_trigger.state = State.CROSS_NEGATIVE
 	else:
-		re_entry_trigger = Trigger(Direction.SHORT, 0)
+		re_entry_trigger = Trigger(Direction.SHORT, 0, tradable = True)
 		re_entry_trigger.state = State.CROSS_NEGATIVE
 
 def failsafe(timestamps):
@@ -488,6 +491,7 @@ def checkTime():
 	
 	if (london_time > end_time and not is_end_time):
 		is_endTime = True
+		print("End time: looking to exit")
 		for pos in utils.positions:
 			if (pos.direction == 'buy'):
 				pending_exits.append(Trigger(Direction.SHORT))
@@ -517,6 +521,8 @@ def runSequence(shift):
 	entrySetup(shift, current_trigger)
 	entrySetup(shift, re_entry_trigger, no_conf = True)
 
+	momentumEntry(shift)
+
 def getTrigger(shift):
 	''' Form trigger in direction of black cross '''
 
@@ -524,7 +530,7 @@ def getTrigger(shift):
 
 	if (black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
 
-		if (black_sar.strandCount(VARIABLES['TICKETS'][0], shift + 1) >= VARIABLES['sar_size']):
+		if (black_sar.strandCount(VARIABLES['TICKETS'][0], shift + 1) > VARIABLES['sar_size']):
 			current_trigger = Trigger(strands[-2].direction, strands[-2].start, tradable = True)
 		
 		else:
@@ -533,11 +539,11 @@ def getTrigger(shift):
 	if (not current_trigger == None and not current_trigger.tradable):
 		
 		if (current_trigger.direction == Direction.LONG):
-			if (hasCrossedAbove(shift)):
+			if (hasCrossedAbove(shift, current_trigger)):
 				current_trigger.tradable = True
 
 		else:
-			if (hasCrossedBelow(shift)):
+			if (hasCrossedBelow(shift, current_trigger)):
 				current_trigger.tradable = True
 
 def onNewCycle(shift):
@@ -561,6 +567,8 @@ def onNewCycle(shift):
 
 		print("New Strand:", str(strand.direction), str(strand.start))
 
+		getPositionStrand()
+
 def isCompletedStrand():
 	for strand in strands:
 		if (strand.is_completed):
@@ -568,23 +576,23 @@ def isCompletedStrand():
 
 	return False
 
-def hasCrossedBelow(shift):
+def hasCrossedBelow(shift, item):
 	''' Check if black sar has passed the current max strand on falling black '''
 	
 	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
 
-	if (low < current_trigger.start):
+	if (low < item.start):
 		print("crossed black para below")
 		return True
 
 	return False
 
-def hasCrossedAbove(shift):
+def hasCrossedAbove(shift, item):
 	''' Check if black sar has passed the current min strand on rising black '''
 
 	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
 
-	if (high > current_trigger.start):
+	if (high > item.start):
 		print("black para crossed above")
 		return True
 
@@ -714,18 +722,95 @@ def confirmation(shift, trigger):
 	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 	
 	if (trigger.direction == Direction.LONG):
-		if (str_idx > VARIABLES['rsi_overbought']):
+		if (str_idx >= VARIABLES['rsi_overbought']):
 			trigger.state = State.CROSS_NEGATIVE
 		else:
 			pending_entries.append(trigger)
 			re_entry_trigger = None
 	
 	else:
-		if (str_idx < VARIABLES['rsi_oversold']):
+		if (str_idx <= VARIABLES['rsi_oversold']):
 			trigger.state = State.CROSS_NEGATIVE
 		else:
 			pending_entries.append(trigger)
 			re_entry_trigger = None
+
+def resetPositionStrands():
+	global position_strands
+	position_strands = []
+
+def getPositionStrand():
+	for pos in utils.positions:
+		if (pos.direction == 'buy'):
+			if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
+				position_strands.append(strands[-1])
+
+		else:
+			if (black_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
+				position_strands.append(strands[-1])
+
+def momentumEntry(shift):
+	global re_entry_trigger
+
+	if (len(position_strands) >= VARIABLES['num_paras_momentum']):
+		if (position_strands[-1].direction == Direction.LONG):
+			min_strand = None
+
+			for strand in position_strands[-VARIABLES['num_paras_momentum']:]:
+				if (min_strand == None):
+					min_strand = strand
+				elif (strand.start < min_strand.start):
+					min_strand = strand
+
+			if (hasCrossedBelow(shift, min_strand)):
+				if (not isObos(shift, Direction.SHORT)):
+					print("Entering on momentum entry short!")
+					
+					entry = Trigger(Direction.SHORT, 0, tradable = True)
+					pending_entries.append(entry)
+					re_entry_trigger = None
+
+				else:
+					print("Oversold on momentum entry")
+
+		else:
+			max_strand = None
+
+			for strand in position_strands[-VARIABLES['num_paras_momentum']:]:
+				if (max_strand == None):
+					max_strand = strand
+				elif (strand.start > max_strand.start):
+					max_strand = strand
+
+			if (hasCrossedAbove(shift, max_strand)):
+				if (not isObos(shift, Direction.LONG)):
+					print("Entering on momentum entry long!")
+					
+					entry = Trigger(Direction.LONG, 0, tradable = True)
+					pending_entries.append(entry)
+					re_entry_trigger = None
+
+				else:
+					print("Overbought on momentum entry")
+
+def isObos(shift, direction):
+
+	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+
+	if (direction == Direction.LONG):
+
+		if (str_idx >= VARIABLES['rsi_overbought']):
+			return True
+		else:
+			return False
+
+	else:
+
+		if (str_idx <= VARIABLES['rsi_oversold']):
+			return True
+		else:
+			return False
+
 
 def report():
 	''' Prints report for debugging '''

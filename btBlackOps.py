@@ -5,7 +5,7 @@ import datetime
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD],
 	'START_TIME' : '23:00',
-	'END_TIME' : '16:00',
+	'END_TIME' : '19:00',
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
 	'profit_limit' : 85,
@@ -18,7 +18,7 @@ VARIABLES = {
 	'breakeven_min_pips' : 2,
 	'CLOSING SEQUENCE' : None,
 	'no_more_trades_in_profit' : '15:00',
-	'no_more_trades' : '15:00',
+	'no_more_trades' : '18:00',
 	'set_breakeven' : '15:50',
 	'NEWS' : None,
 	'time_threshold_breakeven' : 1,
