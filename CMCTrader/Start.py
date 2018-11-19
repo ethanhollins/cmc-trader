@@ -359,7 +359,7 @@ class Start(object):
 									self.isDowntime = False
 
 								# try:
-									self.plan.onNewBar()
+								self.plan.onNewBar()
 								# except AttributeError as e:
 								# 	pass
 								try:
