@@ -672,7 +672,6 @@ class Utilities:
 				else:
 					self.endTime += datetime.timedelta(days=1)
 
-			print(str(self.startTime), str(self.endTime))
 		else:
 			self.startTime = None
 			self.endTime = None
