@@ -9,7 +9,7 @@ VARIABLES = {
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
 	'profit_limit' : 85,
-	'maximum_bank' : 500,
+	'maximum_bank' : 2000,
 	'PLAN' : None,
 	'stoprange' : 17,
 	'breakeven_point' : 34,
