@@ -174,6 +174,11 @@ def onDownTime():
 	print("onDownTime")
 	ausTime = utils.printTime(utils.getAustralianTime())
 
+	onNewCycle(0)
+	
+	if (isCompletedStrand()):
+		getTrigger(0)
+
 def onLoop():
 	''' Function called on every program iteration '''
 
