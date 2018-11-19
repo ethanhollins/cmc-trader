@@ -102,6 +102,7 @@ class Strand(object):
 	def __init__(self, direction, start):
 		self.direction = direction
 		self.start = start
+		self.is_completed = False
 
 def init(utilities):
 	''' Initialize utilities and indicators '''
@@ -546,6 +547,9 @@ def onNewCycle(shift):
 	'''
 
 	if (black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
+
+		if (len(strands) > 0):
+			strands[-1].is_completed = True
 
 		if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			direction = Direction.SHORT
