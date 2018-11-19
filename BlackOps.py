@@ -164,7 +164,7 @@ def onNewBar():
 	utils.printTime(utils.getAustralianTime())
 
 	runSequence(0)
-	handleExits()
+	handleExits(0)
 
 	report()
 
@@ -348,7 +348,7 @@ def handleBreakeven():
 				if (pos.apply()):
 					del pending_breakevens[pending_breakevens.index(pos)]
 
-def handleExits():
+def handleExits(shift):
 
 	global pending_exits
 
