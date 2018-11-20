@@ -364,7 +364,6 @@ class BarReader(object):
 				values['ohlc'][i] = float(values['ohlc'][i])
 
 			self.utils.ohlc[pair][values['timestamp']] = values['ohlc']
-			print(values['ohlc'])
 
 			count = 0
 			for overlay in self.utils.indicators['overlays']:
