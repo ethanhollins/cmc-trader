@@ -297,7 +297,7 @@ def handleStopAndReverse(pos):
 		is_position_breakeven = False
 
 		resetPositionStrands()
-		getPositionStrand()
+		getPositionStrand(shift)
 		utils.restartCMC()
 
 def handleRegularEntry(entry):
@@ -324,7 +324,7 @@ def handleRegularEntry(entry):
 		is_position_breakeven = False
 
 		resetPositionStrands()
-		getPositionStrand()
+		getPositionStrand(shift)
 		utils.restartCMC()
 
 def handleBreakeven():
@@ -570,7 +570,7 @@ def onNewCycle(shift):
 
 		print("New Strand:", str(strand.direction), str(strand.start))
 
-		getPositionStrand()
+		getPositionStrand(shift)
 
 def isCompletedStrand():
 	for strand in strands:
@@ -793,7 +793,7 @@ def resetPositionStrands():
 	global position_strands
 	position_strands = []
 
-def getPositionStrand():
+def getPositionStrand(shift):
 	for pos in utils.positions:
 		if (pos.direction == 'buy'):
 			if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
