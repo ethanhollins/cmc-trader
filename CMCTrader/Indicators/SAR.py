@@ -32,7 +32,6 @@ class SAR(object):
 			values[0] = ''.join(filter(whitelist.__contains__, values[0]))
 
 			self.history[pair][int(timestamp)] = float(values[0])
-			print(self.history[pair])
 		except:
 			self._addFillerData(pair, timestamp)
 			
