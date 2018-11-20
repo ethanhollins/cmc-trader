@@ -297,7 +297,7 @@ def handleStopAndReverse(pos):
 		is_position_breakeven = False
 
 		resetPositionStrands()
-		getPositionStrand(shift)
+		getPositionStrand(0)
 		utils.restartCMC()
 
 def handleRegularEntry(entry):
@@ -324,7 +324,7 @@ def handleRegularEntry(entry):
 		is_position_breakeven = False
 
 		resetPositionStrands()
-		getPositionStrand(shift)
+		getPositionStrand(0)
 		utils.restartCMC()
 
 def handleBreakeven():
@@ -618,6 +618,9 @@ def entrySetup(shift, trigger, no_conf = False):
 			result = swingThree(shift, trigger.direction, no_conf)
 			if (result == 1):
 				trigger.state = State.HIT_PARA
+
+				entrySetup(shift, trigger)
+			
 			elif (result == 0):
 				trigger.state = State.CROSS_NEGATIVE
 		
