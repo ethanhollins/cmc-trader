@@ -1,5 +1,3 @@
-import re
-
 VALUE_WIDTH = 123
 VALUE_HEIGHT = 24
 VALUE_OFFSET = 27
@@ -29,14 +27,21 @@ class ADXR(object):
 		return regions
 
 	def insertValues(self, pair, timestamp, values):
+		whitelist = set('0123456789.-')
+
 		try:
 			for i in range(self.valueCount):
-				values[i] = str(values[i]).replace("D", "0")
-				values[i] = re.sub("[^0-9]", "", values[i])
-				if "." not in str(values[i]):
-					values[i] = str(values[i])[:len(str(values[i])) - 5] + '.' + str(values[i])[len(str(values[i])) - 5:]
+				values[i] = str(values[i])
+				values[i] = values[i].replace("D", "0")
+				values[i] = ''.join(filter(whitelist.__contains__, values[i]))
+
+				if "." not in values[i]:
+					values[i] = values[i][:len(values[i]) - 5] + '.' + values[i][len(values[i]) - 5:]
+				
 				values[i] = float(values[i])
+
 			self.history[pair][int(timestamp)] = values
+
 		except:
 			self._addFillerData(pair, timestamp)
 

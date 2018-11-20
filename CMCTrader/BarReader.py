@@ -354,8 +354,17 @@ class BarReader(object):
 
 	def _insertValues(self, pair, values):
 		try:
-			self.utils.ohlc[pair][values['timestamp']] = [float(str(i).replace("D", "0")) for i in values['ohlc']]
-		
+			whitelist = set('0123456789.-')
+
+			for i in range(len(values['ohlc'])):
+				values['ohlc'][i] = str(values['ohlc'][i])
+				values['ohlc'][i] = values['ohlc'][i].replace("D", "0")
+				values['ohlc'][i] = ''.join(filter(whitelist.__contains__, values['ohlc'][i]))
+
+				values['ohlc'][i] = float(values['ohlc'][i])
+
+			self.utils.ohlc[pair][values['timestamp']] = values['ohlc']
+			
 			count = 0
 			for overlay in self.utils.indicators['overlays']:
 				overlay.insertValues(pair, values['timestamp'], values['overlays'][count])
@@ -366,6 +375,7 @@ class BarReader(object):
 				study.insertValues(pair, values['timestamp'], values['studies'][count])
 				count += 1
 		except:
+			print("Filling data!")
 			self._insertValues(pair, self._getFillerData(pair, values))
 			return
 

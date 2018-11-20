@@ -4,12 +4,12 @@ import datetime
 
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD],
-	'START_TIME' : '23:00',
+	'START_TIME' : '1:30',
 	'END_TIME' : '19:00',
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
 	'profit_limit' : 85,
-	'maximum_bank' : 2000,
+	'maximum_bank' : 500,
 	'PLAN' : None,
 	'stoprange' : 17,
 	'breakeven_point' : 34,
@@ -17,14 +17,14 @@ VARIABLES = {
 	'rounding' : 100,
 	'breakeven_min_pips' : 2,
 	'CLOSING SEQUENCE' : None,
-	'no_more_trades_in_profit' : '15:00',
+	'no_more_trades_in_profit' : '16:00',
 	'no_more_trades' : '18:00',
 	'set_breakeven' : '15:50',
 	'NEWS' : None,
 	'time_threshold_breakeven' : 1,
 	'time_threshold_no_trades' : 5,
 	'TRIGGER' : None,
-	'sar_size' : 25,
+	'sar_size' : 30,
 	'num_paras_momentum' : 4,
 	'RSI' : None,
 	'rsi_overbought' : 75,
@@ -81,7 +81,8 @@ class State(Enum):
 	SWING_TWO = 2
 	SWING_THREE = 3
 	CROSS_NEGATIVE = 4
-	ENTERED = 5
+	HIT_PARA = 5
+	ENTERED = 6
 
 class Trigger(object):
 	def __init__(self, direction, start, tradable = False):
@@ -505,12 +506,12 @@ def checkTime():
 		no_new_trades = True
 		is_nnt = True
 	
-	# elif (london_time > profit_nnt_time and not is_profit_nnt and not is_nnt and not is_be):
-	# 	print("No more trades in profit")
-	# 	print("Total profit:", str(utils.getTotalProfit()))
-	# 	if (utils.getTotalProfit() >= VARIABLES['breakeven_point']):
-	# 		is_profit_nnt = True
-	# 		no_new_trades = True
+	elif (london_time > profit_nnt_time and not is_profit_nnt and not is_nnt and not is_end_time):
+		print("No more trades in profit")
+		print("Total profit:", str(utils.getTotalProfit()))
+		if (utils.getTotalProfit() >= VARIABLES['breakeven_point']):
+			is_profit_nnt = True
+			no_new_trades = True
 
 
 def runSequence(shift):
@@ -616,8 +617,7 @@ def entrySetup(shift, trigger, no_conf = False):
 		elif (trigger.state == State.SWING_THREE):
 			result = swingThree(shift, trigger.direction, no_conf)
 			if (result == 1):
-				trigger.state = State.ENTERED
-				confirmation(shift, trigger)
+				trigger.state = State.HIT_PARA
 			elif (result == 0):
 				trigger.state = State.CROSS_NEGATIVE
 		
@@ -625,6 +625,17 @@ def entrySetup(shift, trigger, no_conf = False):
 			if (crossNegative(shift, trigger.direction)):
 				trigger.state = State.SWING_THREE
 				
+				entrySetup(shift, trigger)
+
+		elif (trigger.state == State.HIT_PARA):
+			result = paraHit(shift, trigger.direction, no_conf)
+
+			if (result == 1):
+				trigger.state = State.ENTERED
+				confirmation(shift, trigger)
+			elif (result == 0):
+				trigger.state = State.CROSS_NEGATIVE
+
 				entrySetup(shift, trigger)
 
 
@@ -666,8 +677,6 @@ def swingThree(shift, direction, no_conf):
 	print("swingThree")
 
 	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
-	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
-	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
 	if (direction == Direction.LONG):
 		if (ch_idx > VARIABLES['cci_entry_cross']):
@@ -675,27 +684,70 @@ def swingThree(shift, direction, no_conf):
 			if (no_conf):
 				return 1
 
-			if (str_idx > VARIABLES['rsi_threshold'] or hist > VARIABLES['macd_threshold']):
-				if (isParaConfirmation(shift, Direction.LONG)):
-					return 1
-			return 0
+			if (swingConfirmation(shift, direction)):
+				return 1
+			else:
+				return 0
+
 		return -1
 	
 	else:
 		if (ch_idx < VARIABLES['cci_entry_cross']):
-			if (str_idx < VARIABLES['rsi_threshold'] or hist < VARIABLES['macd_threshold']):
-				if (isParaConfirmation(shift, Direction.SHORT)):
-					return 1
-			return 0
+
+			if (no_conf):
+				return 1
+
+			if (swingConfirmation(shift, direction)):
+				return 1
+			else:
+				return 0
+
 		return -1
 
-def isParaConfirmation(shift, direction):
+def swingConfirmation(shift, direction):
+	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+
+	if (direction == Direction.LONG):
+
+		if (str_idx > VARIABLES['rsi_threshold'] or hist > VARIABLES['macd_threshold']):
+			if (isRegParaConfirmation(shift, direction)):
+				return True
+		return False
+	
+	else:
+
+		if (str_idx < VARIABLES['rsi_threshold'] or hist < VARIABLES['macd_threshold']):
+			if (isRegParaConfirmation(shift, direction)):
+				return True
+		return False
+
+def isRegParaConfirmation(shift, direction):
 	''' Finds if both sar are in correct direction for confirmation '''
 
 	if (direction == Direction.LONG):
-		return reg_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0] and slow_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+		return reg_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
 	else:
-		return reg_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0] and slow_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
+		return reg_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
+
+def paraHit(shift, direction, no_conf):
+	if (no_conf):
+		return 1
+
+	if (isSlowParaConfirmation(shift, direction)):
+		if (swingConfirmation(shift, direction)):
+			return 1
+		else:
+			return 0
+
+	return -1
+
+def isSlowParaConfirmation(shift, direction):
+
+	if (direction == Direction.LONG):
+		return slow_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+	else:
+		return slow_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 def crossNegative(shift, direction):
 	''' Checks for swing to be in positive direction '''

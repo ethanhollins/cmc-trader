@@ -27,8 +27,14 @@ class RSI(object):
 		return regions
 
 	def insertValues(self, pair, timestamp, values):
+		whitelist = set('0123456789.-')
+
 		try:
-			self.history[pair][int(timestamp)] = float(str(values[0]).strip('%'))
+			values[0] = str(values[0])
+			values[0] = values[0].replace("D", "0")
+			values[0] = ''.join(filter(whitelist.__contains__, values[i]))
+
+			self.history[pair][int(timestamp)] = float(values[0])
 		except:
 			self._addFillerData(pair, timestamp)
 
