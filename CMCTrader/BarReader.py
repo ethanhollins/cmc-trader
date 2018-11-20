@@ -354,7 +354,7 @@ class BarReader(object):
 
 	def _insertValues(self, pair, values):
 		try:
-			self.utils.ohlc[pair][values['timestamp']] = [float(i.replace("D", "0")) for i in values['ohlc']]
+			self.utils.ohlc[pair][values['timestamp']] = [float(str(i).replace("D", "0")) for i in values['ohlc']]
 		
 			count = 0
 			for overlay in self.utils.indicators['overlays']:

@@ -31,7 +31,7 @@ class CCI(object):
 	def insertValues(self, pair, timestamp, values):
 		try:
 			for i in range(self.valueCount):
-				values[i] = values[i].replace("D", "0")
+				values[i] = str(values[i]).replace("D", "0")
 				isNegative = False
 				if (values[i].startswith('-')):
 					isNegative = True

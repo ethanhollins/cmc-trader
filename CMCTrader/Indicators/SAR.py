@@ -25,7 +25,7 @@ class SAR(object):
 
 	def insertValues(self, pair, timestamp, values):
 		try:
-			self.history[pair][int(timestamp)] = float(values[0].replace("D", "0"))
+			self.history[pair][int(timestamp)] = float(str(values[0]).replace("D", "0"))
 		except:
 			self._addFillerData(pair, timestamp)
 			

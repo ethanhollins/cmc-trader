@@ -28,7 +28,7 @@ class RSI(object):
 
 	def insertValues(self, pair, timestamp, values):
 		try:
-			self.history[pair][int(timestamp)] = float(values[0].strip('%'))
+			self.history[pair][int(timestamp)] = float(str(values[0]).strip('%'))
 		except:
 			self._addFillerData(pair, timestamp)
 

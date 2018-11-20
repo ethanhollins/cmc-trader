@@ -31,7 +31,7 @@ class MACD(object):
 			for i in range(self.valueCount):
 				if "." not in str(values[i]):
 					values[i] = str(values[i])[:len(str(values[i])) - 5] + '.' + str(values[i])[len(str(values[i])) - 5:]
-				values[i] = float(values[i].replace("D", "0"))
+				values[i] = float(str(values[i]).replace("D", "0"))
 
 			self.history[pair][int(timestamp)] = values
 		except:
