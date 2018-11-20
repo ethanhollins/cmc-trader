@@ -32,7 +32,7 @@ class RSI(object):
 		try:
 			values[0] = str(values[0])
 			values[0] = values[0].replace("D", "0")
-			values[0] = ''.join(filter(whitelist.__contains__, values[i]))
+			values[0] = ''.join(filter(whitelist.__contains__, values[0]))
 
 			self.history[pair][int(timestamp)] = float(values[0])
 		except:
