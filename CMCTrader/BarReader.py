@@ -353,31 +353,31 @@ class BarReader(object):
 
 
 	def _insertValues(self, pair, values):
-		try:
-			whitelist = set('0123456789.-')
+		# try:
+		whitelist = set('0123456789.-')
 
-			for i in range(len(values['ohlc'])):
-				values['ohlc'][i] = str(values['ohlc'][i])
-				values['ohlc'][i] = values['ohlc'][i].replace("D", "0")
-				values['ohlc'][i] = ''.join(filter(whitelist.__contains__, values['ohlc'][i]))
+		for i in range(len(values['ohlc'])):
+			values['ohlc'][i] = str(values['ohlc'][i])
+			values['ohlc'][i] = values['ohlc'][i].replace("D", "0")
+			values['ohlc'][i] = ''.join(filter(whitelist.__contains__, values['ohlc'][i]))
 
-				values['ohlc'][i] = float(values['ohlc'][i])
+			values['ohlc'][i] = float(values['ohlc'][i])
 
-			self.utils.ohlc[pair][values['timestamp']] = values['ohlc']
-			
-			count = 0
-			for overlay in self.utils.indicators['overlays']:
-				overlay.insertValues(pair, values['timestamp'], values['overlays'][count])
-				count += 1
+		self.utils.ohlc[pair][values['timestamp']] = values['ohlc']
+		
+		count = 0
+		for overlay in self.utils.indicators['overlays']:
+			overlay.insertValues(pair, values['timestamp'], values['overlays'][count])
+			count += 1
 
-			count = 0
-			for study in self.utils.indicators['studies']:
-				study.insertValues(pair, values['timestamp'], values['studies'][count])
-				count += 1
-		except:
-			print("Filling data!")
-			self._insertValues(pair, self._getFillerData(pair, values))
-			return
+		count = 0
+		for study in self.utils.indicators['studies']:
+			study.insertValues(pair, values['timestamp'], values['studies'][count])
+			count += 1
+		# except:
+		# 	print("Filling data!")
+		# 	self._insertValues(pair, self._getFillerData(pair, values))
+		# 	return
 
 	def _getFillerData(self, pair, values):
 		for i in range(1, len(self.utils.ohlc[pair])):
