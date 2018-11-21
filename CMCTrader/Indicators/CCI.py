@@ -43,6 +43,7 @@ class CCI(object):
 			self.history[pair][int(timestamp)] = values
 
 		except:
+			print("Attempting to fill data")
 			self._addFillerData(pair, timestamp)
 
 	def getCurrent(self, pair):
@@ -61,4 +62,5 @@ class CCI(object):
 		if (int(timestamp) - 60) in self.history[pair]:
 			self.history[pair][int(timestamp)] = self.history[pair][int(timestamp) - 60]
 		else:
+			print("Error filling cci data")
 			return
