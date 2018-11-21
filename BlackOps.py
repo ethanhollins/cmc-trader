@@ -807,7 +807,7 @@ def getPositionStrand(shift):
 				position_strands.append(strands[-1])
 
 def momentumEntry(shift):
-	global re_entry_trigger
+	global re_entry_trigger, position_strands
 
 	if (len(position_strands) >= VARIABLES['num_paras_momentum']):
 		if (position_strands[-1].direction == Direction.LONG):
@@ -829,6 +829,8 @@ def momentumEntry(shift):
 
 				else:
 					print("Oversold on momentum entry")
+				
+				resetPositionStrands()
 
 		else:
 			max_strand = None
@@ -849,6 +851,8 @@ def momentumEntry(shift):
 
 				else:
 					print("Overbought on momentum entry")
+
+				resetPositionStrands()
 
 def isObos(shift, direction):
 

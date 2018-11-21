@@ -36,6 +36,8 @@ class DecimalEncoder(json.JSONEncoder):
 				return int(o)
 		return super(DecimalEncoder, self).default(o)
 
+CMC_WEBSITE = 'https://platform.cmcmarkets.com/'
+
 class Utilities:
 
 	def __init__(self, driver, plan, name, tickets, tAUDUSD):
