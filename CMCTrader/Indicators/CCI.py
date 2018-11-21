@@ -29,22 +29,22 @@ class CCI(object):
 	def insertValues(self, pair, timestamp, values):
 		whitelist = set('0123456789.-')
 
-		try:
-			for i in range(self.valueCount):
-				values[i] = str(values[i])
-				values[i] = values[i].replace("D", "0")
-				values[i] = ''.join(filter(whitelist.__contains__, values[i]))
+		# try:
+		for i in range(self.valueCount):
+			values[i] = str(values[i])
+			values[i] = values[i].replace("D", "0")
+			values[i] = ''.join(filter(whitelist.__contains__, values[i]))
 
-				if "." not in values[i]:
-					values[i] = values[i][:len(values[i]) - 5] + '.' + values[i][len(values[i]) - 5:]
-				
-				values[i] = float(values[i])
+			if "." not in values[i]:
+				values[i] = values[i][:len(values[i]) - 5] + '.' + values[i][len(values[i]) - 5:]
+			
+			values[i] = float(values[i])
 
-			self.history[pair][int(timestamp)] = values
+		self.history[pair][int(timestamp)] = values
 
-		except:
-			print("Attempting to fill data")
-			self._addFillerData(pair, timestamp)
+		# except:
+		# 	print("Attempting to fill data")
+		# 	self._addFillerData(pair, timestamp)
 
 	def getCurrent(self, pair):
 		timestamp = self.utils.getTimestampFromOffset(pair, 0, 1)
