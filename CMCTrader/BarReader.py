@@ -358,9 +358,11 @@ class BarReader(object):
 
 		for i in range(len(values['ohlc'])):
 			values['ohlc'][i] = str(values['ohlc'][i])
+			print(values['ohlc'][i])
 			values['ohlc'][i] = values['ohlc'][i].replace("D", "0")
 			values['ohlc'][i] = ''.join(filter(whitelist.__contains__, values['ohlc'][i]))
 
+			print(values['ohlc'][i])
 			values['ohlc'][i] = float(values['ohlc'][i])
 
 		self.utils.ohlc[pair][values['timestamp']] = values['ohlc']
