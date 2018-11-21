@@ -32,12 +32,14 @@ class CCI(object):
 		# try:
 		for i in range(self.valueCount):
 			values[i] = str(values[i])
+			print(values[i])
 			values[i] = values[i].replace("D", "0")
 			values[i] = ''.join(filter(whitelist.__contains__, values[i]))
 
 			if "." not in values[i]:
 				values[i] = values[i][:len(values[i]) - 5] + '.' + values[i][len(values[i]) - 5:]
 			
+			print(values[i])
 			values[i] = float(values[i])
 
 		self.history[pair][int(timestamp)] = values
