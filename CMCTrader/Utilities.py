@@ -555,7 +555,8 @@ class Utilities:
 				if (currentTimestamp in ohlcTimestamps):
 					pass
 				else:
-					missingTimestamps.append(currentTimestamp)
+					if (currentTimestamp > currentTime - (60 * 50)):
+						missingTimestamps.append(currentTimestamp)
 
 				currentTimestamp += 60
 
@@ -579,7 +580,8 @@ class Utilities:
 					if (currentTimestamp in ohlcTimestamps):
 						pass
 					else:
-						missingTimestamps.append(currentTimestamp)
+						if (currentTimestamp > currentTime - (60 * 50)):
+							missingTimestamps.append(currentTimestamp)
 
 					currentTimestamp += 60
 

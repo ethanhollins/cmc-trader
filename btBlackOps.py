@@ -277,7 +277,7 @@ def getTrigger(shift):
 		
 		if (black_sar.strandCount(VARIABLES['TICKETS'][0], shift + 1) >= VARIABLES['sar_size']):
 			current_trigger = Trigger(strands[-2].direction, strands[-2].start, tradable = True)
-		
+			
 		else:
 			current_trigger = Trigger(strands[-2].direction, strands[-2].start)
 
