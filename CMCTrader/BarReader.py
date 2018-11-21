@@ -354,15 +354,15 @@ class BarReader(object):
 
 	def _insertValues(self, pair, values):
 		# try:
+		print(values)
+
 		whitelist = set('0123456789.-')
 
 		for i in range(len(values['ohlc'])):
 			values['ohlc'][i] = str(values['ohlc'][i])
-			print(values['ohlc'][i])
 			values['ohlc'][i] = values['ohlc'][i].replace("D", "0")
 			values['ohlc'][i] = ''.join(filter(whitelist.__contains__, values['ohlc'][i]))
 
-			print(values['ohlc'][i])
 			values['ohlc'][i] = float(values['ohlc'][i])
 
 		self.utils.ohlc[pair][values['timestamp']] = values['ohlc']
@@ -438,7 +438,7 @@ class BarReader(object):
 					if (values['hasLookedBack']):
 						values['hasLookedFwd'] = False
 						values['hasLookedBack'] = False
-						return self._getillerData(pair, values)
+						return self._getFillerData(pair, values)
 						
 
 					return self._performBarInfoCapture(chart, canvas, pair, xOff - self.chartValues[pair][1], prevTimestamp, values = values)
