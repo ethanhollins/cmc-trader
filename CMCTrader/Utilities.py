@@ -21,6 +21,7 @@ from CMCTrader.HistoryLog import HistoryLog
 from CMCTrader.PositionLog import PositionLog
 from CMCTrader.OrderLog import OrderLog
 from CMCTrader.BarReader import BarReader
+from CMCTrader.Backtester import Backtester
 
 from CMCTrader.Indicators.SMA import SMA
 from CMCTrader.Indicators.SAR import SAR
@@ -40,6 +41,7 @@ class Utilities:
 		self.tAUDUSD = tAUDUSD
 
 		self.user_id = json.loads(user_info)['user_id']
+		self.plan_name = json.loads(user_info)['user_program']
 
 		self._initVARIABLES()
 
@@ -47,6 +49,7 @@ class Utilities:
 		self.positionLog = PositionLog(self.driver)
 		self.orderLog = OrderLog(self.driver)
 		self.barReader = BarReader(self, self.driver)
+		self.backtester = Backtester(self, self.plan)
 
 		self.positions = []
 		self.closedPositions = []
@@ -57,6 +60,7 @@ class Utilities:
 		self.newsTimes = {}
 
 		self.isStopped = False
+		self.backtesting = False
 		self.manualEntry = False
 		self.manualChartReading = False
 
@@ -74,20 +78,34 @@ class Utilities:
 		self.barReader.reinit()
 
 	def _initVARIABLES(self):
-		if name in self.dynamodbClient.list_tables()['TableNames']:
-			print("Updating table", name+"...")
-			result = db.getItems(self.user_id, 'user_variables')
+		result = db.getItems(self.user_id, 'user_variables')
 
+		if (result['user_variables'] == None):
+			db_vars = {}
+		else:
 			db_vars = json.loads(result['user_variables'])
+			if (self.plan_name in db_vars):
+				db_vars = db_vars[self.plan_name]
+			else:
+				db_vars = {}
 
-			set_current, set_past = set(self.plan.VARIABLES.keys()), set(db_vars.keys())
-			intersect = set_current.intersection(set_past)
+		set_current, set_past = set(self.plan.VARIABLES.keys()), set(db_vars.keys())
+		intersect = set_current.intersection(set_past)
 
-			for i in set_past - intersect:
-				del db_vars[i]
+		for i in set_past - intersect:
+			del db_vars[i]
 
-			for i in set_current - intersect:
-				db_vars[i] = self.plan.VARIABLES[i]
+		for i in set_current - intersect:
+			db_vars[i] = self.plan.VARIABLES[i]
+
+		changed = set(i for i in intersect if db_vars[i] != self.plan.VARIABLES[i])
+		
+		for i in changed:
+			self.plan.VARIABLES[i] = type(self.plan.VARIABLES[i])(db_vars[i])
+
+		update_dict = { 'user_variables' : json.dumps({self.plan_name : db_vars}) }
+		
+		db.updateItems(self.user_id, update_dict)
 
 	def _initOHLC(self):
 		temp = {}
@@ -256,6 +274,11 @@ class Utilities:
 		return self.positionLog.positionExists(pos)
 
 	def _marketOrder(self, direction, ticket, pair, lotsize, sl, tp):
+		if (self.backtesting):
+			pos = Position(utils = self, ticket = ticket, orderID = None, pair = pair, ordertype = 'market', direction = direction)
+			self.backtester.addPosition(pos)
+			return pos
+
 		ticket.makeVisible()
 
 		if (direction == 'buy'):
@@ -281,7 +304,7 @@ class Utilities:
 			print("ERROR: unable to fullfil order, shutting down CMCTrader!")
 			sys.exit()
 
-		pos = Position(utils = self, ticket = ticket, orderID = orderID, pair = pair, ordertype = 'stopentry', direction = direction)
+		pos = Position(utils = self, ticket = ticket, orderID = orderID, pair = pair, ordertype = 'market', direction = direction)
 
 		positionModifyBtn = None
 
@@ -425,7 +448,7 @@ class Utilities:
 						pass
 					self._limitOrder(direction, ticket, pair, lotsize, entry, sl, tp)
 
-		pos = Position(utils = self, ticket = ticket, orderID = orderID, pair = pair, ordertype = 'stopentry', direction = direction)
+		pos = Position(utils = self, ticket = ticket, orderID = orderID, pair = pair, ordertype = 'limit', direction = direction)
 
 		orderModifyBtn = None
 
@@ -776,3 +799,46 @@ class Utilities:
 
 	def restartCMC(self):
 		self.driver.get(CMC_WEBSITE);
+
+	def updateRecovery(self):
+		values = {}
+
+		values['timestamp'] = self.getCurrentTimestamp()
+		values['ohlc'] = self.ohlc
+		values['indicators'] = { 'overlays' : [], 'studies' : [] }
+
+		for i in range(len(self.indicators['overlays'])):
+			values['indicators']['overlays'].append(self.indicators['overlays'][i].history.copy()) 
+		for j in range(len(self.indicators['studies'])):
+			values['indicators']['studies'].append(self.indicators['studies'][j].history.copy())
+
+		print(values)
+
+		with open('recover.json', 'w') as f:
+			json.dump(values, f)
+
+	def getRecovery(self):
+		try:
+			with open('recover.json', 'r') as f:
+				values = json.load(f)
+		except:
+			return
+
+		if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 30):
+			for pair in values['ohlc']:
+				values['ohlc'][pair] = {int(k):v for k,v in values['ohlc'][pair].items()}
+
+			for overlay in values['indicators']['overlays']:
+				overlay[pair] = {int(k):v for k,v in overlay[pair].items()}
+
+			for study in values['indicators']['studies']:
+				study[pair] = {int(k):v for k,v in study[pair].items()}
+
+			print(values['indicators'])
+
+			self.backtester.backtest(values['ohlc'], values['indicators'])
+
+			try:
+				self.plan.onRecovery()
+			except AttributeError as e:
+				pass

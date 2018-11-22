@@ -43,12 +43,11 @@ class Start(object):
 		print(user_info)
 
 		self.PATH = PATH
-		self.plan_name = json.loads(user_info)['user_program']
+		self.user_info = user_info
 		self.username = json.loads(user_info)['account_username']
 		self.password = json.loads(user_info)['account_password']
 		self.account_name = json.loads(user_info)['account_name']
 		self.account_id = json.loads(user_info)['account_id']
-		print(self.username, self.password, self.account_name, self.account_id)
 
 		self.initDriver()
 
@@ -132,9 +131,13 @@ class Start(object):
 
 		self.progressBar(0, 'Logging in')
 
-		self.driver.find_element_by_css_selector("input[name='username']").send_keys(str(self.username))
+		elem_username = self.driver.find_element_by_css_selector("input[name='username']")
+		elem_password = self.driver.find_element_by_css_selector("input[type='password']")
 
-		self.driver.find_element_by_css_selector("input[type='password']").send_keys(str(self.password))
+		elem_username.clear()
+		elem_username.send_keys(self.username)
+		elem_password.clear()
+		elem_password.send_keys(self.password)
 
 		self.driver.find_element_by_css_selector("input[type='submit']").click()
 
@@ -251,7 +254,7 @@ class Start(object):
 
 		self.tAUDUSD = self.initTicketBtns(Constants.AUDUSD)
 
-		self.utils = Utilities(self.driver, self.plan, self.plan_name, self.tickets, self.tAUDUSD)
+		self.utils = Utilities(self.driver, self.plan, self.user_info, self.tickets, self.tAUDUSD)
 
 		print("\nTrading plan is LIVE...\n-----------------------\n")
 		try:
@@ -266,6 +269,9 @@ class Start(object):
 		)
 
 		self.isDowntime = True
+		
+		self.utils.getRecovery()
+
 		self.functionCalls()
 		
 	def reSetup(self):
@@ -283,7 +289,7 @@ class Start(object):
 		self.tAUDUSD = self.initTicketBtns(Constants.AUDUSD)
 
 		if (not hasattr(self, 'utils')):
-			self.utils = Utilities(self.driver, self.plan, self.plan_name, self.tickets, self.tAUDUSD)
+			self.utils = Utilities(self.driver, self.plan, self.user_info, self.tickets, self.tAUDUSD)
 		else:
 			self.utils.setTickets(self.tickets)
 			self.utils.setAUDUSDTicket(self.tAUDUSD)
@@ -384,8 +390,9 @@ class Start(object):
 										# for pos in closedPositions:
 										self.utils.closedPositions = []
 									self.isDowntime = True
-									
-
+							
+							self.utils.updateRecovery()
+					
 					elif (seconds != 0):
 						second_is_zero = False
 

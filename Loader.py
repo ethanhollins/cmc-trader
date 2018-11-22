@@ -35,7 +35,6 @@ if __name__ == '__main__':
 	table = dynamodb.Table('users')
 
 	for user_id in data['traders']:
-		print(user_id)
 		try:
 			response = table.get_item(
 					Key = {
@@ -51,8 +50,6 @@ if __name__ == '__main__':
 		user_info = json.dumps(item, indent=4, cls=DecimalEncoder)
 		isrunning = json.loads(user_info)['user_isrunning']
 		plan_name = json.loads(user_info)['user_program']
-		print(isrunning)
-		print(plan_name)
 
 		if (isrunning):
 			path = getPlanPath(plan_name)

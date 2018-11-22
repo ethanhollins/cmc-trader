@@ -1,6 +1,7 @@
 import boto3
 import decimal
 from botocore.exceptions import ClientError
+import json
 
 dynamodb = boto3.resource('dynamodb', region_name='ap-southeast-2')
 dynamodbClient = boto3.client('dynamodb', region_name='ap-southeast-2')
@@ -25,7 +26,7 @@ def getItems(user_id, items):
 					)
 	except ClientError as e:
 		print(e.response['Error']['Message'])
-		continue
+		return None
 
 	row = response['Item']
 	user_info = json.dumps(row, indent=4, cls=DecimalEncoder)
@@ -52,16 +53,16 @@ def getItems(user_id, items):
 
 def updateItems(user_id, items):
 	try:
-		for key, value in items:
+		for key in items:
 			response = table_users.update_item(
 							Key = {
 								'user_id' : int(user_id)
 							},
 							UpdateExpression = "set "+key+"=:i",
 							ExpressionAttributeValues = {
-								':i' : value
+								':i' : items[key]
 							}
 						)
 	except ClientError as e:
 		print(e.response['Error']['Message'])
-		continue
+		return

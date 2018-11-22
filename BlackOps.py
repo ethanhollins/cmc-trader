@@ -164,6 +164,8 @@ def onNewBar():
 
 	report()
 
+	updateRecovery()
+
 def onDownTime():
 	''' Function called outside of trading time '''
 
@@ -176,6 +178,8 @@ def onDownTime():
 		getTrigger(0)
 
 	report()
+
+	updateRecovery()
 
 def onLoop():
 	''' Function called on every program iteration '''
