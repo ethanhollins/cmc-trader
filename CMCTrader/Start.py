@@ -417,27 +417,30 @@ class Start(object):
 			
 		print("")
 
-		ohlc = pickle.load(open("ohlc1811", "rb"))
-		indicators = pickle.load(open("indicators1811", "rb"))
+		# ohlc = pickle.load(open("ohlc1811", "rb"))
+		# indicators = pickle.load(open("indicators1811", "rb"))
 
-		# startDate = input("Start Date: ")
-		# startTime = input("Start Time: ")
-		# endDate = input("End Date: ")
-		# endTime = input("End Time: ")
-		# self.utils.backtestByTime(pair, startDate.strip(), startTime.strip(), endDate.strip(), endTime.strip())
+		startDate = input("Start Date: ")
+		startTime = input("Start Time: ")
+		endDate = input("End Date: ")
+		endTime = input("End Time: ")
+		self.utils.backtestByTime(pair, startDate.strip(), startTime.strip(), endDate.strip(), endTime.strip())
 
-		# ohlc = self.utils.ohlc[pair].copy()
+		print(self.utils.ohlc[pair])
+		print(self.utils.indicators)
+
+		ohlc = self.utils.ohlc[pair].copy()
 		self.utils.ohlc[pair] = {}
-		# indicators = {"overlays" : [], "studies" : []}
+		indicators = {"overlays" : [], "studies" : []}
 		for i in range(len(self.utils.indicators['overlays'])):
-			# indicators['overlays'].append(self.utils.indicators['overlays'][i].history[pair].copy()) 
+			indicators['overlays'].append(self.utils.indicators['overlays'][i].history[pair].copy()) 
 			self.utils.indicators['overlays'][i].history[pair] = {}
 		for j in range(len(self.utils.indicators['studies'])):
-			# indicators['studies'].append(self.utils.indicators['studies'][j].history[pair].copy())
+			indicators['studies'].append(self.utils.indicators['studies'][j].history[pair].copy())
 			self.utils.indicators['studies'][j].history[pair] = {}
 		
-		# pickle.dump(ohlc, open("ohlc1811", "wb"))
-		# pickle.dump(indicators, open("indicators1811", "wb"))
+		pickle.dump(ohlc, open("ohlc2211", "wb"))
+		pickle.dump(indicators, open("indicators2211", "wb"))
 		
 		sortedTimestamps = [i[0] for i in sorted(ohlc.items(), key=lambda kv: kv[0], reverse=False)]
 		self.insertValuesByTimestamp(pair, sortedTimestamps[0], ohlc, indicators)

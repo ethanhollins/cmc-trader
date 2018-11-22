@@ -10,6 +10,7 @@ import pytz
 import math
 import uuid
 import json
+import os
 
 import boto3
 import decimal
@@ -59,7 +60,7 @@ class Utilities:
 
 		self.newsTimes = {}
 
-		self.isStopped = False
+		self.isStopped = True
 		self.backtesting = False
 		self.manualEntry = False
 		self.manualChartReading = False
@@ -818,27 +819,27 @@ class Utilities:
 			json.dump(values, f)
 
 	def getRecovery(self):
-		try:
+		if (os.path.exists('recover.json')):
 			with open('recover.json', 'r') as f:
 				values = json.load(f)
-		except:
-			return
 
-		if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 30):
-			for pair in values['ohlc']:
-				values['ohlc'][pair] = {int(k):v for k,v in values['ohlc'][pair].items()}
+			if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 30):
+				for pair in values['ohlc']:
+					values['ohlc'][pair] = {int(k):v for k,v in values['ohlc'][pair].items()}
 
-			for overlay in values['indicators']['overlays']:
-				overlay[pair] = {int(k):v for k,v in overlay[pair].items()}
+				for overlay in values['indicators']['overlays']:
+					overlay[pair] = {int(k):v for k,v in overlay[pair].items()}
 
-			for study in values['indicators']['studies']:
-				study[pair] = {int(k):v for k,v in study[pair].items()}
+				for study in values['indicators']['studies']:
+					study[pair] = {int(k):v for k,v in study[pair].items()}
 
-			print(values['indicators'])
+				print(values['indicators'])
 
-			self.backtester.backtest(values['ohlc'], values['indicators'])
+				self.backtester.backtest(values['ohlc'], values['indicators'])
 
-			try:
-				self.plan.onRecovery()
-			except AttributeError as e:
-				pass
+				try:
+					self.plan.onRecovery()
+				except AttributeError as e:
+					pass
+			else:
+				os.remove('recover.json')
