@@ -7,3 +7,4 @@ ohlc*
 *.PNG
 testdrivers.py
 *.stackdump
+app.json
