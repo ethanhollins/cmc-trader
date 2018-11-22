@@ -5,8 +5,9 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-import selenium.webdriver.support.ui as ui
 from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import WebDriverException
+import selenium.webdriver.support.ui as ui
 
 import sys
 sys.path.insert(0, './Indicators')
@@ -39,6 +40,8 @@ class Start(object):
 	def __init__(self, PATH, user_info):
 		self.initConsole()
 		
+		print(user_info)
+
 		self.PATH = PATH
 		self.plan_name = json.loads(user_info)['user_program']
 		self.username = json.loads(user_info)['account_username']
@@ -149,7 +152,11 @@ class Start(object):
 		while 'loader' not in self.driver.current_url:
 			if 'accountOptionsSelection' in self.driver.current_url and not accountSelected:
 				account_type_btn = self.driver.find_element(By.XPATH, "//button[text() = '"+str(self.account_name)+"']")
-				account_type_btn.click()
+				
+				try:
+					account_type_btn.click()
+				except WebDriverException as e:
+					pass
 
 				wait = ui.WebDriverWait(self.driver, 10)
 				wait.until(EC.presence_of_element_located(

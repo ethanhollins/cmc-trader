@@ -12,8 +12,10 @@ import uuid
 import json
 
 import boto3
+import decimal
 from botocore.exceptions import ClientError
 
+from CMCTrader import DBManager as db
 from CMCTrader.Position import Position
 from CMCTrader.HistoryLog import HistoryLog
 from CMCTrader.PositionLog import PositionLog
@@ -27,28 +29,19 @@ from CMCTrader.Indicators.CCI import CCI
 from CMCTrader.Indicators.MACD import MACD
 from CMCTrader.Indicators.ADXR import ADXR
 
-class DecimalEncoder(json.JSONEncoder):
-	def default(self, o):
-		if isinstance(o, decimal.Decimal):
-			if abs(o) % 1 > 0:
-				return float(o)
-			else:
-				return int(o)
-		return super(DecimalEncoder, self).default(o)
-
 CMC_WEBSITE = 'https://platform.cmcmarkets.com/'
 
 class Utilities:
 
-	def __init__(self, driver, plan, name, tickets, tAUDUSD):
+	def __init__(self, driver, plan, user_info, tickets, tAUDUSD):
 		self.driver = driver
 		self.plan = plan
 		self.tickets = tickets
 		self.tAUDUSD = tAUDUSD
 
-		# self.dynamodb = boto3.resource('dynamodb', region_name='ap-southeast-2')
-		# self.dynamodbClient = boto3.client('dynamodb', region_name='ap-southeast-2')
-		# self._initVARIABLES(name)
+		self.user_id = json.loads(user_info)['user_id']
+
+		self._initVARIABLES()
 
 		self.historyLog = HistoryLog(self.driver)
 		self.positionLog = PositionLog(self.driver)
@@ -80,82 +73,21 @@ class Utilities:
 		self.orderLog.reinit()
 		self.barReader.reinit()
 
-	def _initVARIABLES(self, name):
+	def _initVARIABLES(self):
 		if name in self.dynamodbClient.list_tables()['TableNames']:
 			print("Updating table", name+"...")
-			self.table = self.dynamodb.Table(name)
-			try:
-				response = self.table.get_item(
-						Key = {
-							'name' : 'VARIABLES'
-						}
-					)
-			except ClientError as e:
-				print(e.response['Error']['Message'])
-				return
+			result = db.getItems(self.user_id, 'user_variables')
 
-			item = response['Item']
-			json_str = json.dumps(item, indent=4, cls=DecimalEncoder)
-			dbVars = json.loads(json_str)['vars']
-			dbVars = json.loads(dbVars)
+			db_vars = json.loads(result['user_variables'])
 
-			setCurrent, setPast = set(self.plan.VARIABLES.keys()), set(dbVars.keys())
-			intersect = setCurrent.intersection(setPast)
+			set_current, set_past = set(self.plan.VARIABLES.keys()), set(db_vars.keys())
+			intersect = set_current.intersection(set_past)
 
-			for i in setPast - intersect:
-				del dbVars[i]
+			for i in set_past - intersect:
+				del db_vars[i]
 
-			for i in setCurrent - intersect:
-				dbVars[i] = self.plan.VARIABLES[i]
-
-			response = self.table.update_item(
-				Key = {
-					'name' : 'VARIABLES'
-				},
-				UpdateExpression = "set vars=:v",
-				ExpressionAttributeValues = {
-					':v' : json.dumps(dbVars)
-				}
-			)
-		else:
-			self._createTable(name)
-
-	def _createTable(self, name):
-		print("Creating new table", name+"...")
-		self.table = self.dynamodb.create_table(
-				TableName = name,
-				KeySchema = [
-					{
-						'AttributeName' : 'name',
-						'KeyType' : 'HASH' #Partition key
-					}
-				],
-				AttributeDefinitions = [
-					{
-						'AttributeName' : 'name',
-						'AttributeType' : 'S'
-					}
-				],
-				ProvisionedThroughput = {
-					'ReadCapacityUnits' : 1,
-					'WriteCapacityUnits' : 1
-				}
-			)
-
-		while not self.dynamodbClient.describe_table(TableName=name)['Table']['TableStatus'] == 'ACTIVE':
-			time.sleep(0.5)
-
-		self.table.put_item(
-				Item = {
-					'name' : 'VARIABLES',
-					'vars' : json.dumps(self.plan.VARIABLES),
-				}
-			)
-		self.table.put_item(
-				Item = {
-					'name' : 'CMD',
-				}
-			)
+			for i in set_current - intersect:
+				db_vars[i] = self.plan.VARIABLES[i]
 
 	def _initOHLC(self):
 		temp = {}

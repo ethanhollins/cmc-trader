@@ -1,7 +1,10 @@
 from os import path
 import json
-import boto3
 import threading
+
+import boto3
+import decimal
+from botocore.exceptions import ClientError
 
 from CMCTrader.Start import Start
 
@@ -14,6 +17,13 @@ class DecimalEncoder(json.JSONEncoder):
 				return int(o)
 		return super(DecimalEncoder, self).default(o)
 
+def threaded_client(path, user_info):
+	username = json.loads(user_info)['user_username']
+	print("Starting", str(username) + "...")
+	task = Start
+	t = threading.Thread(target=task, args=[path, user_info])
+	t.start()
+
 def getPlanPath(name):
 	return '\\'.join(path.realpath(__file__).split('\\')[0:-1]) + "\\" + name + ".py"
 
@@ -21,13 +31,13 @@ if __name__ == '__main__':
 	with open('app.json') as f:
 		data = json.load(f)
 
-
 	dynamodb = boto3.resource('dynamodb', region_name='ap-southeast-2')
 	table = dynamodb.Table('users')
 
 	for user_id in data['traders']:
+		print(user_id)
 		try:
-			response = self.table.get_item(
+			response = table.get_item(
 					Key = {
 						'user_id' : int(user_id)
 					}
@@ -38,7 +48,7 @@ if __name__ == '__main__':
 			continue
 
 		item = response['Item']
-		user_info = json_dumps(item, indent=4, cls=DecimalEncoder)
+		user_info = json.dumps(item, indent=4, cls=DecimalEncoder)
 		isrunning = json.loads(user_info)['user_isrunning']
 		plan_name = json.loads(user_info)['user_program']
 		print(isrunning)
@@ -50,12 +60,3 @@ if __name__ == '__main__':
 			threaded_client(path, user_info)
 		else:
 			continue
-	
-	
-
-def threaded_client(path, user_info):
-	username = json.loads(user_info)['user_username']
-	print("Starting", str(username) + "...")
-	task = Start
-	t = threading.Thread(target=task, args=[path, user_info])
-	t.start()
