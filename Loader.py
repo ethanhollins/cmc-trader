@@ -1,6 +1,7 @@
 from os import path
 import json
 import boto3
+import threading
 
 from CMCTrader.Start import Start
 
@@ -32,20 +33,29 @@ if __name__ == '__main__':
 					}
 				)
 		except ClientError as e:
-			print("Could not find trader:", str(user_id))
+			print("Could not find user:", str(user_id))
 			print(e.response['Error']['Message'])
 			continue
 
 		item = response['Item']
-		json_str = json_dumps(item, indent=4, cls=DecimalEncoder)
-		isrunning = json.loads(json_str)['user_isrunning']
-		plan_name = json.loads(json_str)['user_program']
+		user_info = json_dumps(item, indent=4, cls=DecimalEncoder)
+		isrunning = json.loads(user_info)['user_isrunning']
+		plan_name = json.loads(user_info)['user_program']
 		print(isrunning)
 		print(plan_name)
 
+		if (isrunning):
+			path = getPlanPath(plan_name)
 
-	name = input("Enter plan name: ")
-	path = getPlanPath(name)
-	Start(path, name)
+			threaded_client(path, user_info)
+		else:
+			continue
+	
+	
 
-def threaded_client()
+def threaded_client(path, user_info):
+	username = json.loads(user_info)['user_username']
+	print("Starting", str(username) + "...")
+	task = Start
+	t = threading.Thread(target=task, args=[path, user_info])
+	t.start()
