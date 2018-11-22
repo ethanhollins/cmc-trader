@@ -43,6 +43,7 @@ utils = None
 reg_sar = None
 slow_sar = None
 black_sar = None
+brown_sar = None
 rsi = None
 cci = None
 macd = None
@@ -105,15 +106,16 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global reg_sar, slow_sar, black_sar, rsi, cci, macd
+	global reg_sar, slow_sar, black_sar, brown_sar, rsi, cci, macd
 
 	utils = utilities
 	reg_sar = utils.SAR(1)
 	black_sar = utils.SAR(2)
 	slow_sar = utils.SAR(3)
-	rsi = utils.RSI(4, 1)
-	cci = utils.CCI(5, 1)
-	macd = utils.MACD(6, 1)
+	brown_sar = utils.SAR(4)
+	rsi = utils.RSI(5, 1)
+	cci = utils.CCI(6, 1)
+	macd = utils.MACD(7, 1)
 
 def onStartTrading():
 	''' Function called on trade start time '''
@@ -619,7 +621,7 @@ def entrySetup(shift, trigger, no_conf = False):
 			if (result == 1):
 				trigger.state = State.HIT_PARA
 
-				entrySetup(shift, trigger)
+				entrySetup(shift, trigger, no_conf = no_conf)
 			
 			elif (result == 0):
 				trigger.state = State.CROSS_NEGATIVE
@@ -628,7 +630,7 @@ def entrySetup(shift, trigger, no_conf = False):
 			if (crossNegative(shift, trigger.direction)):
 				trigger.state = State.SWING_THREE
 				
-				entrySetup(shift, trigger)
+				entrySetup(shift, trigger, no_conf = no_conf)
 
 		elif (trigger.state == State.HIT_PARA):
 			result = paraHit(shift, trigger.direction, no_conf)
@@ -639,7 +641,7 @@ def entrySetup(shift, trigger, no_conf = False):
 			elif (result == 0):
 				trigger.state = State.CROSS_NEGATIVE
 
-				entrySetup(shift, trigger)
+				entrySetup(shift, trigger, no_conf = no_conf)
 
 
 def swingOne(shift, direction):
@@ -737,7 +739,7 @@ def paraHit(shift, direction, no_conf):
 	if (no_conf):
 		return 1
 
-	if (isSlowParaConfirmation(shift, direction)):
+	if (isGateKeepParaConfirmation(shift, direction)):
 		if (swingConfirmation(shift, direction)):
 			return 1
 		else:
@@ -745,12 +747,12 @@ def paraHit(shift, direction, no_conf):
 
 	return -1
 
-def isSlowParaConfirmation(shift, direction):
+def isGateKeepParaConfirmation(shift, direction):
 
 	if (direction == Direction.LONG):
-		return slow_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+		return slow_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0] and brown_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
 	else:
-		return slow_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
+		return slow_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0] and brown_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 def crossNegative(shift, direction):
 	''' Checks for swing to be in positive direction '''
@@ -807,7 +809,12 @@ def getPositionStrand(shift):
 				position_strands.append(strands[-1])
 
 def momentumEntry(shift):
-	global re_entry_trigger, position_strands
+	global re_entry_trigger, position_strands, current_trigger
+
+	strands_str = ""
+	for i in position_strands:
+		strands_str += str(i.direction), str(i.start) + ", "	
+	print(strands_str)
 
 	if (len(position_strands) >= VARIABLES['num_paras_momentum']):
 		if (position_strands[-1].direction == Direction.LONG):
@@ -819,6 +826,8 @@ def momentumEntry(shift):
 				elif (strand.start < min_strand.start):
 					min_strand = strand
 
+			print("min strand:", min_strand.start)
+
 			if (hasCrossedBelow(shift, min_strand)):
 				if (not isObos(shift, Direction.SHORT)):
 					print("Entering on momentum entry short!")
@@ -829,6 +838,9 @@ def momentumEntry(shift):
 
 				else:
 					print("Oversold on momentum entry")
+
+					current_trigger = Trigger(Direction.SHORT, 0, tradable = True)
+					current_trigger.state = State.CROSS_NEGATIVE
 				
 				resetPositionStrands()
 
@@ -841,6 +853,8 @@ def momentumEntry(shift):
 				elif (strand.start > max_strand.start):
 					max_strand = strand
 
+			print("min strand:", max_strand.start)
+
 			if (hasCrossedAbove(shift, max_strand)):
 				if (not isObos(shift, Direction.LONG)):
 					print("Entering on momentum entry long!")
@@ -851,6 +865,9 @@ def momentumEntry(shift):
 
 				else:
 					print("Overbought on momentum entry")
+
+					current_trigger = Trigger(Direction.LONG, 0, tradable = True)
+					current_trigger.state = State.CROSS_NEGATIVE
 
 				resetPositionStrands()
 
