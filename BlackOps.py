@@ -811,10 +811,9 @@ def getPositionStrand(shift):
 def momentumEntry(shift):
 	global re_entry_trigger, position_strands, current_trigger
 
-	strands_str = ""
+	print(position_strands)
 	for i in position_strands:
-		strands_str += str(i.direction), str(i.start) + ", "	
-	print(strands_str)
+		print(str(i.direction), str(i.start))
 
 	if (len(position_strands) >= VARIABLES['num_paras_momentum']):
 		if (position_strands[-1].direction == Direction.LONG):
