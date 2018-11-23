@@ -60,7 +60,7 @@ class Utilities:
 
 		self.newsTimes = {}
 
-		self.isStopped = True
+		self.isStopped = False
 		self.backtesting = False
 		self.manualEntry = False
 		self.manualChartReading = False
@@ -812,8 +812,6 @@ class Utilities:
 			values['indicators']['overlays'].append(self.indicators['overlays'][i].history.copy()) 
 		for j in range(len(self.indicators['studies'])):
 			values['indicators']['studies'].append(self.indicators['studies'][j].history.copy())
-
-		print(values)
 
 		with open('recover.json', 'w') as f:
 			json.dump(values, f)
