@@ -914,3 +914,9 @@ def report():
 		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit())
 
 	print("--|\n")
+
+# def onRecovery():
+# 	global pending_entries
+
+# 	if (len(pending_entries) > 0):
+# 		if (not pending_entries[-1].direction == )
