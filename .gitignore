@@ -7,4 +7,8 @@ ohlc*
 *.PNG
 testdrivers.py
 *.stackdump
+<<<<<<< HEAD
 app.json
+=======
+*.json
+>>>>>>> user-management

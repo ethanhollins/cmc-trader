@@ -4,12 +4,12 @@ import datetime
 
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD],
-	'START_TIME' : '23:00',
+	'START_TIME' : '1:30',
 	'END_TIME' : '19:00',
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
 	'profit_limit' : 85,
-	'maximum_bank' : 1000,
+	'maximum_bank' : 500,
 	'PLAN' : None,
 	'stoprange' : 17,
 	'breakeven_point' : 34,
@@ -17,14 +17,15 @@ VARIABLES = {
 	'rounding' : 100,
 	'breakeven_min_pips' : 2,
 	'CLOSING SEQUENCE' : None,
-	'no_more_trades_in_profit' : '15:00',
+	'no_more_trades_in_profit' : '16:00',
 	'no_more_trades' : '18:00',
 	'set_breakeven' : '15:50',
 	'NEWS' : None,
 	'time_threshold_breakeven' : 1,
 	'time_threshold_no_trades' : 5,
 	'TRIGGER' : None,
-	'sar_size' : 25,
+	'sar_size' : 30,
+	'num_paras_momentum' : 4,
 	'RSI' : None,
 	'rsi_overbought' : 75,
 	'rsi_oversold' : 25,
@@ -42,6 +43,7 @@ utils = None
 reg_sar = None
 slow_sar = None
 black_sar = None
+brown_sar = None
 rsi = None
 cci = None
 macd = None
@@ -50,13 +52,11 @@ current_trigger = None
 re_entry_trigger = None
 
 strands = []
-long_strands = []
-short_strands = []
-max_strand = None
-min_strand = None
+position_strands = []
 
 pending_entries = []
 pending_breakevens = []
+pending_exits = []
 
 is_position_breakeven = False
 
@@ -69,6 +69,7 @@ no_new_trades = False
 is_profit_nnt = False
 is_nnt = False
 is_be = False
+is_end_time = False
 
 bank = 0
 

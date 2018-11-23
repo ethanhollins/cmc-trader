@@ -9,49 +9,59 @@ VARIABLES = {
 }
 utils = None
 
-sar1 = None
-sar2 = None
-sar3 = None
+reg_sar = None
+slow_sar = None
+black_sar = None
+rsi = None
 cci = None
 macd = None
-rsi = None
-pos = None
+
+pending_entries = []
+entered = []
+is_init = True
+
+bought = False
+sold = False
 
 def init(utilities):
 	print("Hello init World!")
 	global utils
+	global reg_sar, slow_sar, black_sar, rsi, cci, macd
+
 	utils = utilities
-	
-	global sar1
-	sar1 = utils.SAR(1)
-	
-	global sar2
-	sar2 = utils.SAR(2)
-
-	global sar3
-	sar3 = utils.SAR(3)
-	
-	global cci
-	cci = utils.CCI(4, 2)
-
-	global sma3
-	sma3 = utils.CCI(5, 1)
-	
-	global macd
+	reg_sar = utils.SAR(1)
+	black_sar = utils.SAR(2)
+	slow_sar = utils.SAR(3)
+	rsi = utils.RSI(4, 1)
+	cci = utils.CCI(5, 1)
 	macd = utils.MACD(6, 1)
 
-	global rsi
-	rsi = utils.RSI(7, 1)
+	pending_entries.append('buy')
+	entered.append('buy')
 
+def onLoop():
+	global bought, sold
 
-	print(utils.getPositionAmount("GBPUSD"))
-	global pos
-	pos = utils.buy(400)
+	for entry in pending_entries:
+		if entry == 'buy' and not bought:
+			pos = utils.buy(400, sl = 100)
+			pos.quickExit()
+			bought = True
+		elif not sold:
+			pos = utils.sell(400, sl = 200)
+			sold = True
 
 def onNewBar():
 	print("onNewBar")
-	pos.breakeven()
-	pos.quickExit()
+	global is_init
+
+	if (is_init):
+		pending_entries.append('sell')
+		entered.append('sell')
+		is_init = False
+
+	print(pending_entries)
+	print(entered)
 	# pos = utils.buy(1000, ordertype = 'stopentry', entry = 1.4, sl = 300, tp = 100)
 	# pos.close()
 	# print(sar1.get(Constants.GBPUSD, 0, 10))
@@ -65,6 +75,11 @@ def onNewBar():
 	# pos.apply()
 	# pos.close()
 	# print(pos.closeprice)
+
+def onRecovery():
+	print("onRecovery")
+	global pending_entries
+	pending_entries = []
 
 def onDownTime():
 	print("onDownTime")

@@ -10,15 +10,19 @@ import pytz
 import math
 import uuid
 import json
+import os
 
 import boto3
+import decimal
 from botocore.exceptions import ClientError
 
+from CMCTrader import DBManager as db
 from CMCTrader.Position import Position
 from CMCTrader.HistoryLog import HistoryLog
 from CMCTrader.PositionLog import PositionLog
 from CMCTrader.OrderLog import OrderLog
 from CMCTrader.BarReader import BarReader
+from CMCTrader.Backtester import Backtester
 
 from CMCTrader.Indicators.SMA import SMA
 from CMCTrader.Indicators.SAR import SAR
@@ -27,33 +31,26 @@ from CMCTrader.Indicators.CCI import CCI
 from CMCTrader.Indicators.MACD import MACD
 from CMCTrader.Indicators.ADXR import ADXR
 
-class DecimalEncoder(json.JSONEncoder):
-	def default(self, o):
-		if isinstance(o, decimal.Decimal):
-			if abs(o) % 1 > 0:
-				return float(o)
-			else:
-				return int(o)
-		return super(DecimalEncoder, self).default(o)
-
 CMC_WEBSITE = 'https://platform.cmcmarkets.com/'
 
 class Utilities:
 
-	def __init__(self, driver, plan, name, tickets, tAUDUSD):
+	def __init__(self, driver, plan, user_info, tickets, tAUDUSD):
 		self.driver = driver
 		self.plan = plan
 		self.tickets = tickets
 		self.tAUDUSD = tAUDUSD
 
-		# self.dynamodb = boto3.resource('dynamodb', region_name='ap-southeast-2')
-		# self.dynamodbClient = boto3.client('dynamodb', region_name='ap-southeast-2')
-		# self._initVARIABLES(name)
+		self.user_id = json.loads(user_info)['user_id']
+		self.plan_name = json.loads(user_info)['user_program']
+
+		self._initVARIABLES()
 
 		self.historyLog = HistoryLog(self.driver)
 		self.positionLog = PositionLog(self.driver)
 		self.orderLog = OrderLog(self.driver)
 		self.barReader = BarReader(self, self.driver)
+		self.backtester = Backtester(self, self.plan)
 
 		self.positions = []
 		self.closedPositions = []
@@ -63,7 +60,8 @@ class Utilities:
 
 		self.newsTimes = {}
 
-		self.isStopped = False
+		self.isStopped = True
+		self.backtesting = False
 		self.manualEntry = False
 		self.manualChartReading = False
 
@@ -80,82 +78,35 @@ class Utilities:
 		self.orderLog.reinit()
 		self.barReader.reinit()
 
-	def _initVARIABLES(self, name):
-		if name in self.dynamodbClient.list_tables()['TableNames']:
-			print("Updating table", name+"...")
-			self.table = self.dynamodb.Table(name)
-			try:
-				response = self.table.get_item(
-						Key = {
-							'name' : 'VARIABLES'
-						}
-					)
-			except ClientError as e:
-				print(e.response['Error']['Message'])
-				return
+	def _initVARIABLES(self):
+		result = db.getItems(self.user_id, 'user_variables')
 
-			item = response['Item']
-			json_str = json.dumps(item, indent=4, cls=DecimalEncoder)
-			dbVars = json.loads(json_str)['vars']
-			dbVars = json.loads(dbVars)
-
-			setCurrent, setPast = set(self.plan.VARIABLES.keys()), set(dbVars.keys())
-			intersect = setCurrent.intersection(setPast)
-
-			for i in setPast - intersect:
-				del dbVars[i]
-
-			for i in setCurrent - intersect:
-				dbVars[i] = self.plan.VARIABLES[i]
-
-			response = self.table.update_item(
-				Key = {
-					'name' : 'VARIABLES'
-				},
-				UpdateExpression = "set vars=:v",
-				ExpressionAttributeValues = {
-					':v' : json.dumps(dbVars)
-				}
-			)
+		if (result['user_variables'] == None):
+			db_vars = {}
 		else:
-			self._createTable(name)
+			db_vars = json.loads(result['user_variables'])
+			if (self.plan_name in db_vars):
+				db_vars = db_vars[self.plan_name]
+			else:
+				db_vars = {}
 
-	def _createTable(self, name):
-		print("Creating new table", name+"...")
-		self.table = self.dynamodb.create_table(
-				TableName = name,
-				KeySchema = [
-					{
-						'AttributeName' : 'name',
-						'KeyType' : 'HASH' #Partition key
-					}
-				],
-				AttributeDefinitions = [
-					{
-						'AttributeName' : 'name',
-						'AttributeType' : 'S'
-					}
-				],
-				ProvisionedThroughput = {
-					'ReadCapacityUnits' : 1,
-					'WriteCapacityUnits' : 1
-				}
-			)
+		set_current, set_past = set(self.plan.VARIABLES.keys()), set(db_vars.keys())
+		intersect = set_current.intersection(set_past)
 
-		while not self.dynamodbClient.describe_table(TableName=name)['Table']['TableStatus'] == 'ACTIVE':
-			time.sleep(0.5)
+		for i in set_past - intersect:
+			del db_vars[i]
 
-		self.table.put_item(
-				Item = {
-					'name' : 'VARIABLES',
-					'vars' : json.dumps(self.plan.VARIABLES),
-				}
-			)
-		self.table.put_item(
-				Item = {
-					'name' : 'CMD',
-				}
-			)
+		for i in set_current - intersect:
+			db_vars[i] = self.plan.VARIABLES[i]
+
+		changed = set(i for i in intersect if db_vars[i] != self.plan.VARIABLES[i])
+		
+		for i in changed:
+			self.plan.VARIABLES[i] = type(self.plan.VARIABLES[i])(db_vars[i])
+
+		update_dict = { 'user_variables' : json.dumps({self.plan_name : db_vars}) }
+		
+		db.updateItems(self.user_id, update_dict)
 
 	def _initOHLC(self):
 		temp = {}
@@ -324,6 +275,11 @@ class Utilities:
 		return self.positionLog.positionExists(pos)
 
 	def _marketOrder(self, direction, ticket, pair, lotsize, sl, tp):
+		if (self.backtesting):
+			pos = Position(utils = self, ticket = ticket, orderID = None, pair = pair, ordertype = 'market', direction = direction)
+			self.backtester.addPosition(pos)
+			return pos
+
 		ticket.makeVisible()
 
 		if (direction == 'buy'):
@@ -349,7 +305,7 @@ class Utilities:
 			print("ERROR: unable to fullfil order, shutting down CMCTrader!")
 			sys.exit()
 
-		pos = Position(utils = self, ticket = ticket, orderID = orderID, pair = pair, ordertype = 'stopentry', direction = direction)
+		pos = Position(utils = self, ticket = ticket, orderID = orderID, pair = pair, ordertype = 'market', direction = direction)
 
 		positionModifyBtn = None
 
@@ -493,7 +449,7 @@ class Utilities:
 						pass
 					self._limitOrder(direction, ticket, pair, lotsize, entry, sl, tp)
 
-		pos = Position(utils = self, ticket = ticket, orderID = orderID, pair = pair, ordertype = 'stopentry', direction = direction)
+		pos = Position(utils = self, ticket = ticket, orderID = orderID, pair = pair, ordertype = 'limit', direction = direction)
 
 		orderModifyBtn = None
 
@@ -844,3 +800,46 @@ class Utilities:
 
 	def restartCMC(self):
 		self.driver.get(CMC_WEBSITE);
+
+	def updateRecovery(self):
+		values = {}
+
+		values['timestamp'] = self.getCurrentTimestamp()
+		values['ohlc'] = self.ohlc
+		values['indicators'] = { 'overlays' : [], 'studies' : [] }
+
+		for i in range(len(self.indicators['overlays'])):
+			values['indicators']['overlays'].append(self.indicators['overlays'][i].history.copy()) 
+		for j in range(len(self.indicators['studies'])):
+			values['indicators']['studies'].append(self.indicators['studies'][j].history.copy())
+
+		print(values)
+
+		with open('recover.json', 'w') as f:
+			json.dump(values, f)
+
+	def getRecovery(self):
+		if (os.path.exists('recover.json')):
+			with open('recover.json', 'r') as f:
+				values = json.load(f)
+
+			if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 30):
+				for pair in values['ohlc']:
+					values['ohlc'][pair] = {int(k):v for k,v in values['ohlc'][pair].items()}
+
+				for overlay in values['indicators']['overlays']:
+					overlay[pair] = {int(k):v for k,v in overlay[pair].items()}
+
+				for study in values['indicators']['studies']:
+					study[pair] = {int(k):v for k,v in study[pair].items()}
+
+				print(values['indicators'])
+
+				self.backtester.backtest(values['ohlc'], values['indicators'])
+
+				try:
+					self.plan.onRecovery()
+				except AttributeError as e:
+					pass
+			else:
+				os.remove('recover.json')

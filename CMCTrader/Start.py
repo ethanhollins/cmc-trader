@@ -5,8 +5,9 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-import selenium.webdriver.support.ui as ui
 from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import WebDriverException
+import selenium.webdriver.support.ui as ui
 
 import sys
 sys.path.insert(0, './Indicators')
@@ -17,6 +18,8 @@ import datetime
 import pytz
 import traceback
 import pickle
+import json
+import base64
 
 from CMCTrader.Ticket import Ticket
 from CMCTrader.HistoryLog import HistoryLog
@@ -26,7 +29,6 @@ from CMCTrader.Utilities import Utilities
 from CMCTrader import Constants
 from CMCTrader import RetrieveTicketElements
 
-import base64
 
 CMC_WEBSITE = 'https://platform.cmcmarkets.com/'
 
@@ -35,11 +37,17 @@ test = True
 
 class Start(object):
 
-	def __init__(self, PATH, NAME):
+	def __init__(self, PATH, user_info):
 		self.initConsole()
 		
+		print(user_info)
+
 		self.PATH = PATH
-		self.NAME = NAME
+		self.user_info = user_info
+		self.username = json.loads(user_info)['account_username']
+		self.password = json.loads(user_info)['account_password']
+		self.account_name = json.loads(user_info)['account_name']
+		self.account_id = json.loads(user_info)['account_id']
 
 		self.initDriver()
 
@@ -86,7 +94,7 @@ class Start(object):
 		
 	def initMainProgram(self):
 		try:
-			self.login('','')
+			self.login()
 
 			self.tickets = {}
 			self.threads = []
@@ -99,45 +107,37 @@ class Start(object):
 	def reinitMainProgram(self):
 		self.isTrading = False
 		try:
-			# self.login(self.username, self.password)
-			self.login("", "")
+			self.login()
 			self.tickets = {}
 			self.reSetup()
 		except Exception as e:
 			tb = traceback.format_exc()
 			self.handleError(e, tb)
 
-	def login(self, username, password):
+	def login(self):
 		startTime = time.time()
 		while 'login' not in self.driver.current_url:
 			if 'error' in self.driver.current_url:
 				self.driver.get(CMC_WEBSITE);
-				self.login(username, password)
+				self.login()
 				return
 			elapsedTime = time.time() - startTime
 			if (elapsedTime > 30.0):
 				print("Login page took too long to load, refreshing page...")
 				self.driver.get(CMC_WEBSITE);
-				self.login(username, password)
+				self.login()
 				return
 			pass
 
-		# if (username == '' or password == ''):
-		# 	print("\n-----------------------------------------------------\n")
-		# 	self.username = input("Enter Email: ")
-		# 	self.password = input("\nEnter Password: ")
-		# 	print("\n-----------------------------------------------------\n")
-		# else:
-		# 	self.username = username
-		# 	self.password = password
-
 		self.progressBar(0, 'Logging in')
 
-		self.driver.find_element_by_css_selector("input[name='username']").send_keys("lennyh@iprimus.com.au")
+		elem_username = self.driver.find_element_by_css_selector("input[name='username']")
+		elem_password = self.driver.find_element_by_css_selector("input[type='password']")
 
-		password = 'teddyh00'
-
-		self.driver.find_element_by_css_selector("input[type='password']").send_keys(password.strip())
+		elem_username.clear()
+		elem_username.send_keys(self.username)
+		elem_password.clear()
+		elem_password.send_keys(self.password)
 
 		self.driver.find_element_by_css_selector("input[type='submit']").click()
 
@@ -146,7 +146,7 @@ class Start(object):
 			elapsedTime = time.time() - startTime
 			if (elapsedTime > 4.0):
 				print("Incorrect username or password, please try again")
-				self.login('','')
+				self.login()
 				return
 			pass
 
@@ -154,24 +154,28 @@ class Start(object):
 		accountSelected = False
 		while 'loader' not in self.driver.current_url:
 			if 'accountOptionsSelection' in self.driver.current_url and not accountSelected:
-				account_type_btn = self.driver.find_element(By.XPATH, "//button[text() = 'Corporate']") #Corporate
-				account_type_btn.click()
+				account_type_btn = self.driver.find_element(By.XPATH, "//button[text() = '"+str(self.account_name)+"']")
+				
+				try:
+					account_type_btn.click()
+				except WebDriverException as e:
+					pass
 
 				wait = ui.WebDriverWait(self.driver, 10)
 				wait.until(EC.presence_of_element_located(
-					(By.XPATH, "//div[@id='13011253']") #13011253
+					(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
 				))
 
-				account_btn = self.driver.find_element(By.XPATH, "//div[@id='13011253']") #13011253
+				account_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
 				account_btn.click()
 				accountSelected = True
 			elif 'login' in self.driver.current_url:
 				print("Unable to login, trying again.")
-				self.login(username, password)
+				self.login()
 				return
 			elif 'error' in self.driver.current_url:
 				self.driver.get(CMC_WEBSITE);
-				self.login(username, password)
+				self.login()
 				return
 
 		self.progressBar(50, 'Logging in')
@@ -179,11 +183,11 @@ class Start(object):
 		while 'app' not in self.driver.current_url:
 			if 'login' in self.driver.current_url:
 				print("Unable to login, try again.")
-				self.login(username, password)
+				self.login()
 				return
 			elif 'error' in self.driver.current_url:
 				self.driver.get(CMC_WEBSITE);
-				self.login(username, password)
+				self.login()
 				return
 			pass
 
@@ -250,7 +254,7 @@ class Start(object):
 
 		self.tAUDUSD = self.initTicketBtns(Constants.AUDUSD)
 
-		self.utils = Utilities(self.driver, self.plan, self.NAME, self.tickets, self.tAUDUSD)
+		self.utils = Utilities(self.driver, self.plan, self.user_info, self.tickets, self.tAUDUSD)
 
 		print("\nTrading plan is LIVE...\n-----------------------\n")
 		try:
@@ -265,6 +269,9 @@ class Start(object):
 		)
 
 		self.isDowntime = True
+		
+		self.utils.getRecovery()
+
 		self.functionCalls()
 		
 	def reSetup(self):
@@ -282,7 +289,7 @@ class Start(object):
 		self.tAUDUSD = self.initTicketBtns(Constants.AUDUSD)
 
 		if (not hasattr(self, 'utils')):
-			self.utils = Utilities(self.driver, self.plan, self.NAME, self.tickets, self.tAUDUSD)
+			self.utils = Utilities(self.driver, self.plan, self.user_info, self.tickets, self.tAUDUSD)
 		else:
 			self.utils.setTickets(self.tickets)
 			self.utils.setAUDUSDTicket(self.tAUDUSD)
@@ -383,8 +390,9 @@ class Start(object):
 										# for pos in closedPositions:
 										self.utils.closedPositions = []
 									self.isDowntime = True
-									
-
+							
+							self.utils.updateRecovery()
+					
 					elif (seconds != 0):
 						second_is_zero = False
 
@@ -409,27 +417,30 @@ class Start(object):
 			
 		print("")
 
-		ohlc = pickle.load(open("ohlc1811", "rb"))
-		indicators = pickle.load(open("indicators1811", "rb"))
+		# ohlc = pickle.load(open("ohlc1811", "rb"))
+		# indicators = pickle.load(open("indicators1811", "rb"))
 
-		# startDate = input("Start Date: ")
-		# startTime = input("Start Time: ")
-		# endDate = input("End Date: ")
-		# endTime = input("End Time: ")
-		# self.utils.backtestByTime(pair, startDate.strip(), startTime.strip(), endDate.strip(), endTime.strip())
+		startDate = input("Start Date: ")
+		startTime = input("Start Time: ")
+		endDate = input("End Date: ")
+		endTime = input("End Time: ")
+		self.utils.backtestByTime(pair, startDate.strip(), startTime.strip(), endDate.strip(), endTime.strip())
 
-		# ohlc = self.utils.ohlc[pair].copy()
+		print(self.utils.ohlc[pair])
+		print(self.utils.indicators)
+
+		ohlc = self.utils.ohlc[pair].copy()
 		self.utils.ohlc[pair] = {}
-		# indicators = {"overlays" : [], "studies" : []}
+		indicators = {"overlays" : [], "studies" : []}
 		for i in range(len(self.utils.indicators['overlays'])):
-			# indicators['overlays'].append(self.utils.indicators['overlays'][i].history[pair].copy()) 
+			indicators['overlays'].append(self.utils.indicators['overlays'][i].history[pair].copy()) 
 			self.utils.indicators['overlays'][i].history[pair] = {}
 		for j in range(len(self.utils.indicators['studies'])):
-			# indicators['studies'].append(self.utils.indicators['studies'][j].history[pair].copy())
+			indicators['studies'].append(self.utils.indicators['studies'][j].history[pair].copy())
 			self.utils.indicators['studies'][j].history[pair] = {}
 		
-		# pickle.dump(ohlc, open("ohlc1811", "wb"))
-		# pickle.dump(indicators, open("indicators1811", "wb"))
+		pickle.dump(ohlc, open("ohlc2211", "wb"))
+		pickle.dump(indicators, open("indicators2211", "wb"))
 		
 		sortedTimestamps = [i[0] for i in sorted(ohlc.items(), key=lambda kv: kv[0], reverse=False)]
 		self.insertValuesByTimestamp(pair, sortedTimestamps[0], ohlc, indicators)

@@ -312,15 +312,15 @@ class BarReader(object):
 
 			xOff += self.chartValues[pair][1]
 
-		prevTimestamp = endTimestamp + 60
+		timestamp = endTimestamp
 		isCompleted = False
 
 		while (not (isCompleted)):
-			values = self._performBarInfoCapture(chart, canvas, pair, xOff, prevTimestamp)
+			values = self._performBarInfoCapture(chart, canvas, pair, xOff, None, exactTimestamp = timestamp)
 
 			self._insertValues(pair, values)
 
-			prevTimestamp = values['timestamp']
+			timestamp -= 60
 			xOff = values['x'] - self.chartValues[pair][1]
 
 			if (xOff < 340):
@@ -348,11 +348,14 @@ class BarReader(object):
 
 					xOff += self.chartValues[pair][1]
 
-			isCompleted = prevTimestamp < startTimestamp
+			isCompleted = timestamp < startTimestamp
 
 
 
 	def _insertValues(self, pair, values):
+		if (values['filled']):
+			return
+
 		try:
 			whitelist = set('0123456789.-')
 
@@ -379,26 +382,26 @@ class BarReader(object):
 			self._insertValues(pair, self._getFillerData(pair, values))
 			return
 
-	def _getFillerData(self, pair, values):
+	def _getFillerData(self, pair, values, timestamp):
 		for i in range(1, len(self.utils.ohlc[pair])):
-			newTimestamp = int(values['timestamp']) - 60 * i
-			if (newTimestamp) in self.utils.ohlc[pair]:
-				values['ohlc'] = self.utils.ohlc[pair][newTimestamp]
+			newTimestamp = int(timestamp) - 60 * i
+			if newTimestamp in self.utils.ohlc[pair]:
+				self.utils.ohlc[pair][timestamp] = self.utils.ohlc[pair][newTimestamp]
 
 				for overlay in self.utils.indicators['overlays']:
-					values['overlays'].append(overlay.history[pair][newTimestamp])
+					overlay.history[pair][timestamp] = overlay.history[pair][newTimestamp]
 
 				for study in self.utils.indicators['studies']:
-					values['studies'].append(study.history[pair][newTimestamp])
-
-				return values
-		return None
+					study.history[pair][timestamp] = study.history[pair][newTimestamp]
+		
+		values['filled'] = True
+		return values
 
 	def _performBarInfoCapture(self, chart, canvas, pair, xOff, prevTimestamp, exactTimestamp = None, values = None):
 		start_time = time.time()
 
 		if (values == None):
-			values = {'timestamp':None, 'x': xOff, 'ohlc':[], 'overlays':[], 'studies':[], 'hasLookedFwd' : False, 'hasLookedBack' : False}
+			values = {'timestamp':None, 'x': xOff, 'ohlc':[], 'overlays':[], 'studies':[], 'hasLookedFwd' : False, 'hasLookedBack' : False, 'filled' : False}
 		else:
 			values['x'] = xOff
 			values['ohlc'] = []
@@ -426,7 +429,7 @@ class BarReader(object):
 					if (values['hasLookedFwd']):
 						values['hasLookedFwd'] = False
 						values['hasLookedBack'] = False
-						return self._getFillerData(pair, values)
+						return self._getFillerData(pair)
 
 					return self._performBarInfoCapture(chart, canvas, pair, xOff + self.chartValues[pair][1], prevTimestamp, values = values)
 				
@@ -436,8 +439,7 @@ class BarReader(object):
 					if (values['hasLookedBack']):
 						values['hasLookedFwd'] = False
 						values['hasLookedBack'] = False
-						return self._getFillerData(pair, values)
-						
+						return self._getFillerData(pair)
 
 					return self._performBarInfoCapture(chart, canvas, pair, xOff - self.chartValues[pair][1], prevTimestamp, values = values)
 
@@ -450,7 +452,7 @@ class BarReader(object):
 					if (values['hasLookedFwd']):
 						values['hasLookedFwd'] = False
 						values['hasLookedBack'] = False
-						return self._getFillerData(pair, values)
+						return self._getFillerData(pair, values, exactTimestamp)
 
 					return self._performBarInfoCapture(chart, canvas, pair, xOff + self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
 				else:
@@ -459,7 +461,7 @@ class BarReader(object):
 					if (values['hasLookedBack']):
 						values['hasLookedFwd'] = False
 						values['hasLookedBack'] = False
-						return self._getFillerData(pair, values)
+						return self._getFillerData(pair, values, exactTimestamp)
 
 					return self._performBarInfoCapture(chart, canvas, pair, xOff - self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
 
