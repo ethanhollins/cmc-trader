@@ -4,6 +4,68 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import time
 
+from CMCTrader.Backtester import Backtester
+
+def stopandreverse_redirect_backtest(func):
+	def wrapper(self, lotsize, sl = 0, tp = 0):
+		if (not self.utils.backtester.isNotBacktesting()):
+			if (self.direction == 'buy'):
+				newPos = self.utils.sell(int(self.lotsize + lotsize), pairs = [self.pair], sl = sl, tp = tp)
+			elif (self.direction == 'sell'):
+				newPos = self.utils.buy(int(self.lotsize + lotsize), pairs = [self.pair], sl = sl, tp = tp)
+
+			self.closeprice = self.utils.getBid(self.pair)
+			self.closeTime = self.utils.getAustralianTime()
+
+			self.utils.closedPositions.append(self)
+			del self.utils.positions[self.utils.positions.index(self)]
+		else:
+			return func(self, lotsize, sl = 0, tp = 0)
+	return wrapper
+
+def close_redirect_backtest(func):
+	def wrapper(*args, **kwargs):
+		self = args[0]
+		if (not self.utils.backtester.isNotBacktesting()):
+
+			self.closeTime = self.utils.getAustralianTime()
+
+			self.utils.closedPositions.append(self)
+			del self.utils.positions[self.utils.positions.index(self)]
+		else:
+			return func(*args, **kwargs)
+	return wrapper
+
+def breakeven_redirect_backtest(func):
+	def wrapper(*args, **kwargs):
+		self = args[0]
+		if (not self.utils.backtester.isNotBacktesting()):
+
+			if (self.direction == 'buy'):
+				if (self.utils.getBid(self.pair) > self.entryprice):
+					self.sl = self.entryprice
+				elif (self.utils.getBid(self.pair) < self.entryprice):
+					self.tp = self.entryprice
+
+			elif (self.direction == 'sell'):
+				if (self.utils.getAsk(self.pair) < self.entryprice):
+					self.sl = self.entryprice
+				elif (self.utils.getAsk(self.pair) > self.entryprice):
+					self.tp = self.entryprice
+
+		else:
+			return func(*args, **kwargs)
+	return wrapper
+
+def profit_redirect_backtest(func):
+	def wrapper(*args, **kwargs):
+		self = args[0]
+		if (not self.utils.backtester.isNotBacktesting()):			
+			return 0
+		else:
+			return func(*args, **kwargs)
+	return wrapper
+
 class Position(object):
 
 	def __init__(self, utils, ticket, orderID, pair, ordertype, direction):
@@ -18,6 +80,7 @@ class Position(object):
 		self.modifyBtn = None
 		self.openTime = None
 		self.closeTime = None
+		
 		self.lotsize = 0
 		self.sl = 0
 		self.tp = 0
@@ -29,6 +92,7 @@ class Position(object):
 		self.modifyTicket = None
 		self.modifyTicketElements = None
 
+	@stopandreverse_redirect_backtest
 	def stopAndReverse(self, lotsize, sl = 0, tp = 0):
 		newPos = None
 		if (self.direction == 'buy'):
@@ -49,6 +113,7 @@ class Position(object):
 
 		return newPos
 
+	@Backtester.redirect_backtest
 	def modifyPositionSize(self, newSize):
 		self.ticket.makeVisible()
 
@@ -134,6 +199,7 @@ class Position(object):
 				self.modifyTicket
 			)
 
+	@Backtester.redirect_backtest
 	def modifySL(self, stopLoss):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -146,6 +212,7 @@ class Position(object):
 			)
 		print("Modified stoploss to " + str(stopLoss) + ".")
 
+	@Backtester.redirect_backtest
 	def removeSL(self):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -156,6 +223,7 @@ class Position(object):
 
 		print("Removed stoploss.")
 
+	@Backtester.redirect_backtest
 	def modifyTP(self, takeProfit):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -168,6 +236,7 @@ class Position(object):
 			)
 		print("Modified take profit to " + str(takeProfit) + ".")
 
+	@Backtester.redirect_backtest
 	def removeTP(self):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -177,6 +246,7 @@ class Position(object):
 		self._getTakeProfitCloseElem().click()
 		print("Removed take profit.")
 
+	@breakeven_redirect_backtest
 	def breakeven(self):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -213,6 +283,7 @@ class Position(object):
 
 		print("Set position to breakeven.")
 
+	@Backtester.redirect_backtest
 	def breakevenSL(self):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -235,7 +306,7 @@ class Position(object):
 
 		print("Set position breakeven stoploss.")
 
-
+	@Backtester.redirect_backtest
 	def breakevenTP(self):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -258,6 +329,7 @@ class Position(object):
 
 		print("Set position breakeven take profit.")
 
+	@Backtester.bool_redirect_backtest
 	def apply(self):
 		if self.modifyTicket is None:
 			return True
@@ -298,6 +370,7 @@ class Position(object):
 			print("Position modifications applied")
 			return True
 
+	@close_redirect_backtest
 	def close(self):
 		if (not self.utils.positionExists(self)):
 			self.utils.updatePositions()
@@ -356,6 +429,7 @@ class Position(object):
 			)
 		return "New" in html or "Amend" in html
 
+	@close_redirect_backtest
 	def quickExit(self):
 		if (self.utils.positionExists(self)):
 			if (self.utils.getPositionAmount(self.pair) > 1):
@@ -393,12 +467,17 @@ class Position(object):
 
 		print("Position closed (" + str(self.closeTime) + ") at " + str(self.closeprice))
 
+	@profit_redirect_backtest
 	def getProfit(self):
 		if (float(self.closeprice) == 0):
 			if (self.direction == 'buy'):
+				print(str(self.utils.getBid(self.pair)), str(float(self.entryprice)))
+
 				profit = self.utils.getBid(self.pair) - float(self.entryprice)
 				profit = self.utils.convertToPips(profit)
 			else:
+				print(str(self.utils.getAsk(self.pair)), str(float(self.entryprice)))
+
 				profit = float(self.entryprice) - self.utils.getAsk(self.pair)
 				profit = self.utils.convertToPips(profit)
 		else:

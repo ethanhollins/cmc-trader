@@ -324,7 +324,7 @@ class BarReader(object):
 			xOff = values['x'] - self.chartValues[pair][1]
 
 			if (xOff < 340):
-				time = self.utils.convertTimestampToTime(prevTimestamp)
+				time = self.utils.convertTimestampToTime(timestamp)
 				print("Please move", str(time.hour)+":"+str(time.minute)+":"+str(time.second), "to start of chart!")
 				input("Press enter once completed...")
 				print("Commencing...")
@@ -334,16 +334,16 @@ class BarReader(object):
 					img = self._getImage(chart, canvas, xOff, 300)
 					
 					try:
-						temp = self._getBarTimestamp(img, date = self.utils.convertTimestampToTime(prevTimestamp))
+						temp = self._getBarTimestamp(img, date = self.utils.convertTimestampToTime(timestamp))
 					except:
-						time = self.utils.convertTimestampToTime(prevTimestamp)
+						time = self.utils.convertTimestampToTime(timestamp)
 						print("ERROR: Couldn't find", str(time.hour)+":"+str(time.minute)+":"+str(time.second), "please re-adjust chart!")
 						input("Press enter once completed...")
 						print("Commencing...")
 						xOff = self.chartValues[pair][0]
 						pass
 					
-					if (temp == prevTimestamp):
+					if (temp == timestamp):
 						break
 
 					xOff += self.chartValues[pair][1]
@@ -384,7 +384,7 @@ class BarReader(object):
 
 	def _getFillerData(self, pair, values, timestamp):
 		for i in range(1, len(self.utils.ohlc[pair])):
-			newTimestamp = int(timestamp) - 60 * i
+			newTimestamp = int(timestamp) + 60 * i
 			if newTimestamp in self.utils.ohlc[pair]:
 				self.utils.ohlc[pair][timestamp] = self.utils.ohlc[pair][newTimestamp]
 
@@ -415,7 +415,7 @@ class BarReader(object):
 		cropped_image = img.crop(TIMESTAMP_CROP)
 		timestamp = performOCR(cropped_image)
 		if (prevTimestamp == None):
-			values['timestamp'] = self._convertRawTimestamp(timestamp)
+			values['timestamp'] = self._convertRawTimestamp(timestamp, timestampDate = self.utils.convertTimestampToTime(exactTimestamp))
 		else:
 			values['timestamp'] = self._convertRawTimestamp(timestamp, timestampDate = self.utils.convertTimestampToTime(prevTimestamp - 60))
 

@@ -1,4 +1,5 @@
 from CMCTrader import Constants
+from CMCTrader.Backtester import Backtester
 from enum import Enum
 import datetime
 
@@ -34,6 +35,7 @@ VARIABLES = {
 	'cci_t_cross' : 80,
 	'cci_ct_cross' : 50,
 	'cci_entry_cross' : 0,
+	'cci_obos' : 70,
 	'MACD' : None,
 	'macd_threshold' : 0
 }
@@ -83,7 +85,8 @@ class State(Enum):
 	SWING_THREE = 3
 	CROSS_NEGATIVE = 4
 	HIT_PARA = 5
-	ENTERED = 6
+	OBOS = 6
+	ENTERED = 7
 
 class Trigger(object):
 	def __init__(self, direction, start, tradable = False):
@@ -91,6 +94,7 @@ class Trigger(object):
 		self.start = start
 		self.state = State.SWING_ONE
 		self.tradable = tradable
+		self.last_obos = 0
 
 class SARType(Enum):
 	REG = 1
@@ -170,10 +174,10 @@ def onDownTime():
 	print("onDownTime")
 	ausTime = utils.printTime(utils.getAustralianTime())
 
-	onNewCycle(0)
+	# onNewCycle(0)
 	
-	if (isCompletedStrand()):
-		getTrigger(0)
+	# if (isCompletedStrand()):
+	# 	getTrigger(0)
 
 	report()
 
@@ -217,8 +221,7 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				else:
 					print("Attempting position enter long: stop and reverse")
-					handleStopAndReverse(pos)
-					del pending_entries[pending_entries.index(entry)]
+					handleStopAndReverse(pos, entry)
 
 			else:
 
@@ -235,7 +238,6 @@ def handleEntries():
 				else:
 					print("Attempting position enter long: regular")
 					handleRegularEntry(entry)
-					del pending_entries[pending_entries.index(entry)]
 
 		else:
 
@@ -257,8 +259,7 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				else:
 					print("Attempting position enter short: stop and reverse")
-					handleStopAndReverse(pos)
-					del pending_entries[pending_entries.index(entry)]
+					handleStopAndReverse(pos, entry)
 
 			else:
 
@@ -274,10 +275,9 @@ def handleEntries():
 				else:
 					print("Attempting position enter short: regular")
 					handleRegularEntry(entry)
-					del pending_entries[pending_entries.index(entry)]
 
-
-def handleStopAndReverse(pos):
+@Backtester.skip_on_recover
+def handleStopAndReverse(pos, entry):
 	''' 
 	Handle stop and reverse entries 
 	and check if tradable conditions are met.
@@ -302,6 +302,9 @@ def handleStopAndReverse(pos):
 		getPositionStrand(0)
 		utils.restartCMC()
 
+	del pending_entries[pending_entries.index(entry)]
+
+@Backtester.skip_on_recover
 def handleRegularEntry(entry):
 	''' 
 	Handle regular entries 
@@ -329,6 +332,9 @@ def handleRegularEntry(entry):
 		getPositionStrand(0)
 		utils.restartCMC()
 
+	del pending_entries[pending_entries.index(entry)]
+
+@Backtester.skip_on_recover
 def handleBreakeven():
 	''' 
 	Handle all pending breakevens
@@ -352,6 +358,7 @@ def handleBreakeven():
 				if (pos.apply()):
 					del pending_breakevens[pending_breakevens.index(pos)]
 
+@Backtester.skip_on_recover
 def handleExits(shift):
 
 	global pending_exits
@@ -368,7 +375,7 @@ def handleExits(shift):
 					pos.quickExit()
 
 		else:
-			if (ch_idx < VARIABLES['cci_entry_cross']):
+			if (ch_idx > VARIABLES['cci_entry_cross']):
 				is_exit = True
 				for pos in utils.positions:
 					pos.quickExit()
@@ -472,8 +479,6 @@ def checkTime():
 	nnt_time = utils.createLondonTime(london_time.year, london_time.month, london_time.day, int(parts[0]), int(parts[1]), 0)
 	parts = VARIABLES['set_breakeven'].split(':')
 	be_time = utils.createLondonTime(london_time.year, london_time.month, london_time.day, int(parts[0]), int(parts[1]), 0)
-	parts = VARIABLES['END_TIME'].split(':')
-	end_time = utils.createLondonTime(london_time.year, london_time.month, london_time.day, int(parts[0]), int(parts[1]), 0)
 
 	if (london_time.hour < utils.endTime.hour and london_time.hour >= 0):
 		pass
@@ -481,7 +486,6 @@ def checkTime():
 		profit_nnt_time += datetime.timedelta(days=1)
 		nnt_time += datetime.timedelta(days=1)
 		be_time += datetime.timedelta(days=1)
-		end_time += datetime.timedelta(days=1)
 
 	# if (london_time > be_time and not is_be):
 	# 	print("Set breakeven")
@@ -493,15 +497,15 @@ def checkTime():
 	# 				pending_breakevens.append(pos)
 	# 		else:
 	# 			pending_breakevens.append(pos)
-	
-	if (london_time > end_time and not is_end_time):
+	print(str(london_time), str(utils.endTime))
+	if (london_time > utils.endTime and not is_end_time):
 		is_endTime = True
 		print("End time: looking to exit")
 		for pos in utils.positions:
 			if (pos.direction == 'buy'):
-				pending_exits.append(Trigger(Direction.SHORT))
+				pending_exits.append(Trigger(Direction.LONG, 0))
 			else:
-				pending_exits.append(Trigger(Direction.LONG))
+				pending_exits.append(Trigger(Direction.SHORT, 0))
 
 	elif (london_time > nnt_time and not is_nnt and not is_end_time):
 		print("No more trades")
@@ -643,6 +647,11 @@ def entrySetup(shift, trigger, no_conf = False):
 
 				entrySetup(shift, trigger, no_conf = no_conf)
 
+		elif (trigger.state == State.OBOS):
+			if (onOBOS(shift, trigger)):
+				trigger.state = State.ENTERED
+				confirmation(shift, trigger)
+
 
 def swingOne(shift, direction):
 	''' Checks for swing to first be in negative direction '''
@@ -771,6 +780,31 @@ def crossNegative(shift, direction):
 
 	return False
 
+def onOBOS(shift, trigger):
+
+	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+
+	if (trigger.direction == Direction.LONG):
+
+		if (str_idx < VARIABLES['rsi_overbought']):
+			if (str_idx > trigger.last_obos and ch_idx > -VARIABLES['cci_obos']):
+				return True
+
+		else:
+			trigger.last_obos = str_idx
+			return False
+
+	else:
+
+		if (str_idx > VARIABLES['rsi_oversold']):
+			if (str_idx < trigger.last_obos and ch_idx < VARIABLES['cci_obos']):
+				return True
+
+		else:
+			trigger.last_obos = str_idx
+			return False
+
 def confirmation(shift, trigger):
 	''' Checks for overbought, oversold and confirm entry '''
 
@@ -782,14 +816,16 @@ def confirmation(shift, trigger):
 	
 	if (trigger.direction == Direction.LONG):
 		if (str_idx >= VARIABLES['rsi_overbought']):
-			trigger.state = State.CROSS_NEGATIVE
+			trigger.state = State.OBOS
+			current_trigger.last_obos = str_idx
 		else:
 			pending_entries.append(trigger)
 			re_entry_trigger = None
 	
 	else:
 		if (str_idx <= VARIABLES['rsi_oversold']):
-			trigger.state = State.CROSS_NEGATIVE
+			trigger.state = State.OBOS
+			current_trigger.last_obos = str_idx
 		else:
 			pending_entries.append(trigger)
 			re_entry_trigger = None
@@ -799,9 +835,12 @@ def resetPositionStrands():
 	position_strands = []
 
 def getPositionStrand(shift):
+	print("getPositionStrand")
 	for pos in utils.positions:
 		if (pos.direction == 'buy'):
+			print("get buy strand")
 			if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
+				print("add strand")
 				position_strands.append(strands[-1])
 
 		else:
@@ -816,7 +855,7 @@ def momentumEntry(shift):
 		print(str(i.direction), str(i.start))
 
 	if (len(position_strands) >= VARIABLES['num_paras_momentum']):
-		if (position_strands[-1].direction == Direction.LONG):
+		if (position_strands[-1].direction == Direction.SHORT):
 			min_strand = None
 
 			for strand in position_strands[-VARIABLES['num_paras_momentum']:]:
@@ -839,7 +878,8 @@ def momentumEntry(shift):
 					print("Oversold on momentum entry")
 
 					current_trigger = Trigger(Direction.SHORT, 0, tradable = True)
-					current_trigger.state = State.CROSS_NEGATIVE
+					current_trigger.state = State.OBOS
+					current_trigger.last_obos = str_idx
 				
 				resetPositionStrands()
 
@@ -852,7 +892,7 @@ def momentumEntry(shift):
 				elif (strand.start > max_strand.start):
 					max_strand = strand
 
-			print("min strand:", max_strand.start)
+			print("max strand:", max_strand.start)
 
 			if (hasCrossedAbove(shift, max_strand)):
 				if (not isObos(shift, Direction.LONG)):
@@ -866,7 +906,8 @@ def momentumEntry(shift):
 					print("Overbought on momentum entry")
 
 					current_trigger = Trigger(Direction.LONG, 0, tradable = True)
-					current_trigger.state = State.CROSS_NEGATIVE
+					current_trigger.state = State.OBOS
+					current_trigger.last_obos = str_idx
 
 				resetPositionStrands()
 
@@ -914,8 +955,13 @@ def report():
 
 	print("--|\n")
 
-# def onRecovery():
-# 	global pending_entries
+def onBacktestFinish():
+	global pending_entries
 
-# 	if (len(pending_entries) > 0):
-# 		if (not pending_entries[-1].direction == )
+	if (len(pending_entries) > 0):
+		entry = pending_entries[-1]
+
+		re_entry_trigger = Trigger(entry.direction, entry.start, tradable = True)
+		re_entry_trigger.state = State.CROSS_NEGATIVE
+
+		pending_entries = []

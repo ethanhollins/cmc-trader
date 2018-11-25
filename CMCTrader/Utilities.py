@@ -61,7 +61,6 @@ class Utilities:
 		self.newsTimes = {}
 
 		self.isStopped = False
-		self.backtesting = False
 		self.manualEntry = False
 		self.manualChartReading = False
 
@@ -274,12 +273,8 @@ class Utilities:
 	def positionExists(self, pos):
 		return self.positionLog.positionExists(pos)
 
+	@Backtester.market_redirect_backtest
 	def _marketOrder(self, direction, ticket, pair, lotsize, sl, tp):
-		if (self.backtesting):
-			pos = Position(utils = self, ticket = ticket, orderID = None, pair = pair, ordertype = 'market', direction = direction)
-			self.backtester.addPosition(pos)
-			return pos
-
 		ticket.makeVisible()
 
 		if (direction == 'buy'):
@@ -478,9 +473,11 @@ class Utilities:
 	def getAUDPrice(self):
 		return float(self.tAUDUSD.getBidPrice())
 
+	@Backtester.price_redirect_backtest
 	def getBid(self, pair):
 		return float(self.tickets[pair].getBidPrice())
 
+	@Backtester.price_redirect_backtest
 	def getAsk(self, pair):
 		return float(self.tickets[pair].getAskPrice())
 
@@ -494,6 +491,7 @@ class Utilities:
 	def getMissingValues(self, pair, shift, amount):
 		self.barReader.getBarInfo(pair, shift, amount)
 
+	@Backtester.skip_on_backtest
 	def recoverMissingValues(self):
 		allMissingTimestamps = {}
 		for pair in self.tickets:
@@ -522,27 +520,27 @@ class Utilities:
 
 		return allMissingTimestamps
 
+	@Backtester.skip_on_backtest
 	def getMissingTimestamps(self, timestamp):
-		if (not self.manualChartReading):
-			for pair in self.tickets:
-				oldestTimestamp = timestamp
-				currentTime = self.getCurrentTimestamp()
+		for pair in self.tickets:
+			oldestTimestamp = timestamp
+			currentTime = self.getCurrentTimestamp()
 
-				ohlcTimestamps = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)]
+			ohlcTimestamps = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)]
 
-				currentTimestamp = oldestTimestamp
-				missingTimestamps = []
-				while (currentTimestamp < currentTime):
-					if (currentTimestamp in ohlcTimestamps):
-						pass
-					else:
-						if (currentTimestamp > currentTime - (60 * 50)):
-							missingTimestamps.append(currentTimestamp)
+			currentTimestamp = oldestTimestamp
+			missingTimestamps = []
+			while (currentTimestamp < currentTime):
+				if (currentTimestamp in ohlcTimestamps):
+					pass
+				else:
+					if (currentTimestamp > currentTime - (60 * 50)):
+						missingTimestamps.append(currentTimestamp)
 
-					currentTimestamp += 60
+				currentTimestamp += 60
 
-				if (len(missingTimestamps) > 0):
-					self.barReader.getBarInfoByTimestamp(pair, missingTimestamps)
+			if (len(missingTimestamps) > 0):
+				self.barReader.getBarInfoByTimestamp(pair, missingTimestamps)
 
 
 	def backtestByTime(self, pair, startDate, startTime, endDate, endTime):
@@ -567,10 +565,12 @@ class Utilities:
 
 		return int((now - then).total_seconds())
 
+	@Backtester.australian_time_redirect_backtest
 	def getAustralianTime(self):
 		tz = pytz.timezone('Australia/Melbourne')
 		return datetime.datetime.now(tz = tz)
 
+	@Backtester.london_time_redirect_backtest
 	def getLondonTime(self):
 		tz = pytz.timezone('Europe/London')
 		return datetime.datetime.now(tz = tz)
@@ -798,6 +798,7 @@ class Utilities:
 	def setAUDUSDTicket(self, tAUDUSD):
 		self.tAUDUSD = tAUDUSD
 
+	@Backtester.redirect_backtest
 	def restartCMC(self):
 		self.driver.get(CMC_WEBSITE);
 
@@ -831,13 +832,11 @@ class Utilities:
 				for study in values['indicators']['studies']:
 					study[pair] = {int(k):v for k,v in study[pair].items()}
 
-				print(values['indicators'])
 
-				self.backtester.backtest(values['ohlc'], values['indicators'])
+				self.backtester.recover(values['ohlc'], values['indicators'])
 
-				try:
-					self.plan.onRecovery()
-				except AttributeError as e:
-					pass
 			else:
 				os.remove('recover.json')
+
+	def createPosition(self, utils, ticket, orderID, pair, ordertype, direction):
+		return Position(utils, ticket, orderID, pair, ordertype, direction)

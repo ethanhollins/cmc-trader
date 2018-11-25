@@ -299,12 +299,6 @@ class Start(object):
 			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="s"]\');'
 		)
 
-
-		# task = self.recoverData
-		# recoveryThread = threading.Thread(target = task)
-		# recoveryThread.start()
-		# recoveryThread.join()
-
 		self.recoverData()
 		self.functionCalls()
 
@@ -326,7 +320,6 @@ class Start(object):
 
 	def functionCalls(self):
 		self.isTrading = True
-		# self.utils.isStopped = True
 		
 		self.utils.setTradeTimes()
 
@@ -381,6 +374,7 @@ class Start(object):
 									self.plan.onDownTime()
 								except AttributeError as e:
 									pass
+									
 								if (not self.isDowntime):
 									try:
 										self.plan.onFinishTrading()
@@ -407,7 +401,8 @@ class Start(object):
 					self.handleError(e, tb)
 			else:
 				if (self.utils.manualChartReading):
-					self.manualChartReading()
+					self.utils.backtester.manual()
+					# self.manualChartReading()
 
 	def manualChartReading(self):
 		pair = input("Enter pair: ")
