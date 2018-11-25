@@ -179,6 +179,8 @@ def onDownTime():
 	# if (isCompletedStrand()):
 	# 	getTrigger(0)
 
+	print(utils.ohlc)
+
 	report()
 
 def onLoop():
