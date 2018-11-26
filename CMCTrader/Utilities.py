@@ -46,7 +46,6 @@ class Utilities:
 
 		self._initVARIABLES()
 
-		self.historyLog = HistoryLog(self.driver, self)
 		self.positionLog = PositionLog(self.driver)
 		self.orderLog = OrderLog(self.driver)
 		self.barReader = BarReader(self, self.driver)
@@ -69,6 +68,7 @@ class Utilities:
 		self.startTime = None
 		self.endTime = None
 
+		self.historyLog = HistoryLog(self.driver, self)
 		self._startPrompt()
 
 	def reinit(self):
