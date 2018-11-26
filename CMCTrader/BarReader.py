@@ -384,7 +384,7 @@ class BarReader(object):
 
 	def _getFillerData(self, pair, values, timestamp):
 		for i in range(1, len(self.utils.ohlc[pair])):
-			newTimestamp = int(timestamp) + 60 * i
+			newTimestamp = int(timestamp) - 60 * i
 			if newTimestamp in self.utils.ohlc[pair]:
 				self.utils.ohlc[pair][timestamp] = self.utils.ohlc[pair][newTimestamp]
 
@@ -414,6 +414,10 @@ class BarReader(object):
 
 		cropped_image = img.crop(TIMESTAMP_CROP)
 		timestamp = performOCR(cropped_image)
+
+		if (exactTimestamp == None):
+			exactTimestamp = timestamp
+
 		if (prevTimestamp == None):
 			values['timestamp'] = self._convertRawTimestamp(timestamp, timestampDate = self.utils.convertTimestampToTime(exactTimestamp))
 		else:

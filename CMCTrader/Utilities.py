@@ -77,6 +77,12 @@ class Utilities:
 		self.orderLog.reinit()
 		self.barReader.reinit()
 
+	def _initOHLC(self):
+		temp = {}
+		for key in self.tickets:
+			temp[key] = {}
+		return temp
+
 	def _initVARIABLES(self):
 		result = db.getItems(self.user_id, 'user_variables')
 
@@ -85,33 +91,28 @@ class Utilities:
 		else:
 			db_vars = json.loads(result['user_variables'])
 			if (self.plan_name in db_vars):
-				db_vars = db_vars[self.plan_name]
+				plan_vars = db_vars[self.plan_name]
 			else:
-				db_vars = {}
+				plan_vars = {}
 
-		set_current, set_past = set(self.plan.VARIABLES.keys()), set(db_vars.keys())
+		set_current, set_past = set(self.plan.VARIABLES.keys()), set(plan_vars.keys())
 		intersect = set_current.intersection(set_past)
 
 		for i in set_past - intersect:
-			del db_vars[i]
+			del plan_vars[i]
 
 		for i in set_current - intersect:
-			db_vars[i] = self.plan.VARIABLES[i]
+			plan_vars[i] = self.plan.VARIABLES[i]
 
-		changed = set(i for i in intersect if db_vars[i] != self.plan.VARIABLES[i])
+		changed = set(i for i in intersect if plan_vars[i] != self.plan.VARIABLES[i])
 		
 		for i in changed:
-			self.plan.VARIABLES[i] = type(self.plan.VARIABLES[i])(db_vars[i])
+			self.plan.VARIABLES[i] = type(self.plan.VARIABLES[i])(plan_vars[i])
 
-		update_dict = { 'user_variables' : json.dumps({self.plan_name : db_vars}) }
+		db_vars[self.plan_name] = plan_vars
+		update_dict = { 'user_variables' : json.dumps(db_vars) }
 		
 		db.updateItems(self.user_id, update_dict)
-
-	def _initOHLC(self):
-		temp = {}
-		for key in self.tickets:
-			temp[key] = {}
-		return temp
 
 	def _startPrompt(self):
 		task = self._prompt
@@ -489,6 +490,7 @@ class Utilities:
 		return True
 	
 	def getMissingValues(self, pair, shift, amount):
+		print("getMissingValues")
 		self.barReader.getBarInfo(pair, shift, amount)
 
 	@Backtester.skip_on_backtest
