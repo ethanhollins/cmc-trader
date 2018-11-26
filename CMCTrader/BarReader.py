@@ -418,7 +418,7 @@ class BarReader(object):
 			values['timestamp'] = self._convertRawTimestamp(timestamp)
 		else:
 			values['timestamp'] = self._convertRawTimestamp(timestamp, timestampDate = self.utils.convertTimestampToTime(exactTimestamp))
-		
+
 			if (not values['timestamp'] == exactTimestamp):
 
 				if (exactTimestamp > values['timestamp']):
@@ -429,7 +429,7 @@ class BarReader(object):
 						values['hasLookedBack'] = False
 						return self._getFillerData(pair, values, exactTimestamp)
 
-					return self._performBarInfoCapture(chart, canvas, pair, xOff + self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
+					return self._performBarInfoCapture(chart, canvas, pair, xOff + self.chartValues[pair][1], exactTimestamp = exactTimestamp, values = values)
 				else:
 					values['hasLookedFwd'] = True
 
@@ -438,7 +438,7 @@ class BarReader(object):
 						values['hasLookedBack'] = False
 						return self._getFillerData(pair, values, exactTimestamp)
 
-					return self._performBarInfoCapture(chart, canvas, pair, xOff - self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
+					return self._performBarInfoCapture(chart, canvas, pair, xOff - self.chartValues[pair][1], exactTimestamp = exactTimestamp, values = values)
 
 		cropped_images['ohlc'] = []
 		for i in range(4):
