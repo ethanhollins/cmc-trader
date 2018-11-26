@@ -242,7 +242,7 @@ class BarReader(object):
 
 				if (fillValues == None):
 					print(str(prevTimestamp), str(xOff))
-					values = self._performBarInfoCapture(chart, canvas, pair, xOff, prevTimestamp, reverse = False)
+					values = self._performBarInfoCapture(chart, canvas, pair, xOff, p)
 					self._insertValues(pair, values)
 
 					prevTimestamp = values['timestamp']
@@ -276,7 +276,7 @@ class BarReader(object):
 					xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
 
 				if (fillValues == None):
-					values = self._performBarInfoCapture(chart, canvas, pair, xOff, None, exactTimestamp = timestamp)
+					values = self._performBarInfoCapture(chart, canvas, pair, xOff, exactTimestamp = timestamp)
 					self._insertValues(pair, values)
 				else:
 					self._insertValues(pair, fillValues)
@@ -316,7 +316,7 @@ class BarReader(object):
 		isCompleted = False
 
 		while (not (isCompleted)):
-			values = self._performBarInfoCapture(chart, canvas, pair, xOff, None, exactTimestamp = timestamp)
+			values = self._performBarInfoCapture(chart, canvas, pair, xOff, exactTimestamp = timestamp)
 
 			self._insertValues(pair, values)
 
@@ -397,7 +397,7 @@ class BarReader(object):
 		values['filled'] = True
 		return values
 
-	def _performBarInfoCapture(self, chart, canvas, pair, xOff, prevTimestamp, exactTimestamp = None, values = None):
+	def _performBarInfoCapture(self, chart, canvas, pair, xOff, exactTimestamp = None, values = None):
 		start_time = time.time()
 
 		if (values == None):
@@ -416,58 +416,30 @@ class BarReader(object):
 		timestamp = performOCR(cropped_image)
 
 		if (exactTimestamp == None):
-			exactTimestamp = timestamp
-
-		if (prevTimestamp == None):
-			values['timestamp'] = self._convertRawTimestamp(timestamp, timestampDate = self.utils.convertTimestampToTime(exactTimestamp))
+			values['timestamp'] = self._convertRawTimestamp(timestamp)
 		else:
-			values['timestamp'] = self._convertRawTimestamp(timestamp, timestampDate = self.utils.convertTimestampToTime(prevTimestamp - 60))
+			values['timestamp'] = self._convertRawTimestamp(timestamp, timestampDate = self.utils.convertTimestampToTime(exactTimestamp))
 
-		if (not prevTimestamp == None):
-			if (not values['timestamp'] == prevTimestamp - 60):
-				
-				if (prevTimestamp - 60 > values['timestamp']):
+		if (not values['timestamp'] == exactTimestamp):
 
-					values['hasLookedBack'] = True
+			if (exactTimestamp > values['timestamp']):
+				values['hasLookedBack'] = True
 
-					if (values['hasLookedFwd']):
-						values['hasLookedFwd'] = False
-						values['hasLookedBack'] = False
-						return self._getFillerData(pair)
+				if (values['hasLookedFwd']):
+					values['hasLookedFwd'] = False
+					values['hasLookedBack'] = False
+					return self._getFillerData(pair, values, exactTimestamp)
 
-					return self._performBarInfoCapture(chart, canvas, pair, xOff + self.chartValues[pair][1], prevTimestamp, values = values)
-				
-				else:
-					values['hasLookedFwd'] = True
+				return self._performBarInfoCapture(chart, canvas, pair, xOff + self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
+			else:
+				values['hasLookedFwd'] = True
 
-					if (values['hasLookedBack']):
-						values['hasLookedFwd'] = False
-						values['hasLookedBack'] = False
-						return self._getFillerData(pair)
+				if (values['hasLookedBack']):
+					values['hasLookedFwd'] = False
+					values['hasLookedBack'] = False
+					return self._getFillerData(pair, values, exactTimestamp)
 
-					return self._performBarInfoCapture(chart, canvas, pair, xOff - self.chartValues[pair][1], prevTimestamp, values = values)
-
-		if (not exactTimestamp == None):
-			if (not values['timestamp'] == exactTimestamp):
-
-				if (exactTimestamp > values['timestamp']):
-					values['hasLookedBack'] = True
-
-					if (values['hasLookedFwd']):
-						values['hasLookedFwd'] = False
-						values['hasLookedBack'] = False
-						return self._getFillerData(pair, values, exactTimestamp)
-
-					return self._performBarInfoCapture(chart, canvas, pair, xOff + self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
-				else:
-					values['hasLookedFwd'] = True
-
-					if (values['hasLookedBack']):
-						values['hasLookedFwd'] = False
-						values['hasLookedBack'] = False
-						return self._getFillerData(pair, values, exactTimestamp)
-
-					return self._performBarInfoCapture(chart, canvas, pair, xOff - self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
+				return self._performBarInfoCapture(chart, canvas, pair, xOff - self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
 
 		cropped_images['ohlc'] = []
 		for i in range(4):
