@@ -305,7 +305,7 @@ class Utilities:
 				 		pos.entryprice = self.properties[5]
 				 		pos.isPending = False
 
-	def checkPosition(self, pos):
+	# def checkPosition(self, pos):
 		
 
 	def getPositionAmount(self, pair):
