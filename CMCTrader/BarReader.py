@@ -222,39 +222,38 @@ class BarReader(object):
 		else:
 			return False
 
-	def getBarInfo(self, pair, shift, amount):
-		chart = self.chartDict[pair]
-		canvas = self.canvasDict[pair]
+	# def getBarInfo(self, pair, shift, amount):
+	# 	chart = self.chartDict[pair]
+	# 	canvas = self.canvasDict[pair]
 
-		xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
+	# 	xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
 
-		fillValues = None
-		if (self._isCurrentBar(chart, canvas, xOff)):
-			prevTimestamp = None
+	# 	fillValues = None
+	# 	if (self._isCurrentBar(chart, canvas, xOff)):
 
-			xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
+	# 		xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
 
-			for i in range(amount):
-				if (xOff < 340):
-					print("BarReader: Tested too far back, filling remaining timestamps.")
-					fillValues = values
-					xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
+	# 		for i in range(amount):
+	# 			if (xOff < 340):
+	# 				print("BarReader: Tested too far back, filling remaining timestamps.")
+	# 				fillValues = values
+	# 				xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
 
-				if (fillValues == None):
-					print(str(prevTimestamp), str(xOff))
-					values = self._performBarInfoCapture(chart, canvas, pair, xOff)
-					self._insertValues(pair, values)
+	# 			if (fillValues == None):
+	# 				print(str(prevTimestamp), str(xOff))
+	# 				values = self._performBarInfoCapture(chart, canvas, pair, xOff)
+	# 				self._insertValues(pair, values)
 
-					prevTimestamp = values['timestamp']
-					xOff = values['x'] - self.chartValues[pair][1]
-				else:
-					self._insertValues(pair, fillValues)
+	# 				prevTimestamp = values['timestamp']
+	# 				xOff = values['x'] - self.chartValues[pair][1]
+	# 			else:
+	# 				self._insertValues(pair, fillValues)
 
-			return True
-		else:
-			return False
+	# 		return True
+	# 	else:
+	# 		return False
 
-		print("done")
+	# 	print("done")
 
 	def getBarInfoByTimestamp(self, pair, timestamps):
 		chart = self.chartDict[pair]
@@ -419,27 +418,27 @@ class BarReader(object):
 			values['timestamp'] = self._convertRawTimestamp(timestamp)
 		else:
 			values['timestamp'] = self._convertRawTimestamp(timestamp, timestampDate = self.utils.convertTimestampToTime(exactTimestamp))
+		
+			if (not values['timestamp'] == exactTimestamp):
 
-		if (not values['timestamp'] == exactTimestamp):
+				if (exactTimestamp > values['timestamp']):
+					values['hasLookedBack'] = True
 
-			if (exactTimestamp > values['timestamp']):
-				values['hasLookedBack'] = True
+					if (values['hasLookedFwd']):
+						values['hasLookedFwd'] = False
+						values['hasLookedBack'] = False
+						return self._getFillerData(pair, values, exactTimestamp)
 
-				if (values['hasLookedFwd']):
-					values['hasLookedFwd'] = False
-					values['hasLookedBack'] = False
-					return self._getFillerData(pair, values, exactTimestamp)
+					return self._performBarInfoCapture(chart, canvas, pair, xOff + self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
+				else:
+					values['hasLookedFwd'] = True
 
-				return self._performBarInfoCapture(chart, canvas, pair, xOff + self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
-			else:
-				values['hasLookedFwd'] = True
+					if (values['hasLookedBack']):
+						values['hasLookedFwd'] = False
+						values['hasLookedBack'] = False
+						return self._getFillerData(pair, values, exactTimestamp)
 
-				if (values['hasLookedBack']):
-					values['hasLookedFwd'] = False
-					values['hasLookedBack'] = False
-					return self._getFillerData(pair, values, exactTimestamp)
-
-				return self._performBarInfoCapture(chart, canvas, pair, xOff - self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
+					return self._performBarInfoCapture(chart, canvas, pair, xOff - self.chartValues[pair][1], None, exactTimestamp = exactTimestamp, values = values)
 
 		cropped_images['ohlc'] = []
 		for i in range(4):
