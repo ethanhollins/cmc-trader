@@ -215,7 +215,7 @@ class BarReader(object):
 		xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
 
 		if (self._isCurrentBar(chart, canvas, xOff)):
-			values = self._performBarInfoCapture(chart, canvas, pair, xOff, None)
+			values = self._performBarInfoCapture(chart, canvas, pair, xOff)
 
 			self._insertValues(pair, values)
 			return True
@@ -242,7 +242,7 @@ class BarReader(object):
 
 				if (fillValues == None):
 					print(str(prevTimestamp), str(xOff))
-					values = self._performBarInfoCapture(chart, canvas, pair, xOff, p)
+					values = self._performBarInfoCapture(chart, canvas, pair, xOff)
 					self._insertValues(pair, values)
 
 					prevTimestamp = values['timestamp']
