@@ -166,6 +166,11 @@ class Start(object):
 					(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
 				))
 
+				wait = ui.WebDriverWait(self.driver, 10)
+				wait.until(EC.element_to_be_clickable(
+					(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
+				))
+
 				account_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
 				account_btn.click()
 				accountSelected = True
