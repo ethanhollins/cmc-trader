@@ -222,7 +222,7 @@ class Backtester(object):
 		except AttributeError as e:
 			pass
 
-		self.backtesting = False
+		state = State.NONE
 
 	def recover(self, ohlc, indicators):
 		global state, pair, current_timestamp
@@ -261,7 +261,7 @@ class Backtester(object):
 		except AttributeError as e:
 			pass
 
-		self.backtesting = False
+		state = State.NONE
 
 	def getAustralianTime(self, timestamp):
 		time = self.utils.convertTimestampToTime(timestamp)
