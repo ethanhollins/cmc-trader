@@ -493,7 +493,7 @@ class Utilities:
 		print("getMissingValues")
 		self.barReader.getBarInfo(pair, shift, amount)
 
-	@Backtester.skip_on_backtest
+	@Backtester.dict_redirect_backtest
 	def recoverMissingValues(self):
 		allMissingTimestamps = {}
 		for pair in self.tickets:

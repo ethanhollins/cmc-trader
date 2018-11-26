@@ -47,6 +47,14 @@ class Backtester(object):
 				return func(*args, **kwargs)
 		return wrapper
 
+	def dict_redirect_backtest(func):
+		def wrapper(*args, **kwargs):
+			if (not state == State.NONE):
+				return {}
+			else:
+				return func(*args, **kwargs)
+		return wrapper
+
 	def market_redirect_backtest(func):
 		def wrapper(*args, **kwargs):
 			self = args[0]

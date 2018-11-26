@@ -90,7 +90,7 @@ class Start(object):
 
 		self.driver = webdriver.Chrome(self.getChromeDriverPath(), chrome_options=options)
 		self.driver.get(CMC_WEBSITE)
-		self.driver.implicitly_wait(10)
+		self.driver.implicitly_wait(1)
 		
 	def initMainProgram(self):
 		try:
@@ -170,6 +170,8 @@ class Start(object):
 				wait.until(EC.element_to_be_clickable(
 					(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
 				))
+
+				self.driver.implicitly_wait(1)
 
 				account_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
 				account_btn.click()
