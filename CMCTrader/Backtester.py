@@ -237,12 +237,16 @@ class Backtester(object):
 			sorted_timestamps = [i[0] for i in sorted(ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)]
 
 			position_logs = self.getPositionLogs(sorted_timestamps[0])
+			print(position_logs)
 
 			for timestamp in sorted_timestamps:
 				current_timestamp = timestamp
 				
-				if (len(position_logs) > 0 and position_logs[0][1] < timestamp):
-					self.updatePosition(position_logs[0])
+				if (len(position_logs) > 0):
+					for log in position_logs:
+						if log[1] < timestamp:
+							self.updatePosition(position_logs[0])
+							del position_logs[position_logs.index(log)]
 
 				self.insertValuesByTimestamp(timestamp, pair, ohlc, indicators)
 
@@ -371,7 +375,7 @@ class Backtester(object):
 	def updatePosition(self, i):
 
 		if i[2] == 'Buy Trade':
-			pos = self.utils.createPosition(utils = self.utils, ticket = self.utils.tickets[i[3]], orderID = i[0], pair = i[3], ordertype = 'market', direction = 'sell')
+			pos = self.utils.createPosition(utils = self.utils, ticket = self.utils.tickets[i[3]], orderID = i[0], pair = i[3], ordertype = 'market', direction = 'buy')
 			pos.entryprice = float(i[5])
 			pos.lotsize = int(i[4])
 			pos.sl = float(i[6])
