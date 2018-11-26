@@ -248,36 +248,36 @@ class Utilities:
 		listenedTypes = ['Buy Trade', 'Sell Trade', 'Close Trade', 'Take Profit', 'Stop Loss', 'SE Order Sell Trade', 'SE Order Buy Trade', 'Limit Order Buy Trade', 'Limit Order Sell Trade']
 		history = self.historyLog.updateHistory(listenedTypes)
 		for value in history:
-			if value[2] == 'Buy Trade':
-				position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
+			# if value[2] == 'Buy Trade':
+			# 	position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
 
-				if not value[0] in position_id_list:
-					pos = self.createPosition(utils = self, ticket = self.tickets[value[3]], orderID = value[0], pair = value[3], ordertype = 'market', direction = 'buy')
-					pos.entryprice = float(value[5])
-					pos.lotsize = int(value[4])
-					pos.sl = float(value[6])
-					pos.tp = float(value[7])
-					self.positions.append(pos)
+			# 	if not value[0] in position_id_list:
+			# 		pos = self.createPosition(utils = self, ticket = self.tickets[value[3]], orderID = value[0], pair = value[3], ordertype = 'market', direction = 'buy')
+			# 		pos.entryprice = float(value[5])
+			# 		pos.lotsize = int(value[4])
+			# 		pos.sl = float(value[6])
+			# 		pos.tp = float(value[7])
+			# 		self.positions.append(pos)
 
-			elif value[2] == 'Sell Trade':
-				position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
+			# elif value[2] == 'Sell Trade':
+			# 	position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
 
-				if not value[0] in position_id_list:
-					pos = self.createPosition(utils = self, ticket = self.tickets[value[3]], orderID = value[0], pair = value[3], ordertype = 'market', direction = 'sell')
-					pos.entryprice = float(value[5])
-					pos.lotsize = int(value[4])
-					pos.sl = float(value[6])
-					pos.tp = float(value[7])
-					self.positions.append(pos)
+			# 	if not value[0] in position_id_list:
+			# 		pos = self.createPosition(utils = self, ticket = self.tickets[value[3]], orderID = value[0], pair = value[3], ordertype = 'market', direction = 'sell')
+			# 		pos.entryprice = float(value[5])
+			# 		pos.lotsize = int(value[4])
+			# 		pos.sl = float(value[6])
+			# 		pos.tp = float(value[7])
+			# 		self.positions.append(pos)
 
-			elif value[2] == 'Close Trade':
-				for pos in self.positions:
-					if i[8] == pos.orderID:
-						del self.positions[self.positions.index(pos)]
-						pos.closeprice = float(i[5])
-						self.closedPositions.append(pos)
+			# elif value[2] == 'Close Trade':
+			# 	for pos in self.positions:
+			# 		if value[8] == pos.orderID:
+			# 			del self.positions[self.positions.index(pos)]
+			# 			pos.closeprice = float(value[5])
+			# 			self.closedPositions.append(pos)
 
-			elif value[2] == 'Take Profit' or value[2] == 'Stop Loss':
+			if value[2] == 'Take Profit' or value[2] == 'Stop Loss':
 				for pos in self.positions:
 					if value[0] == pos.orderID:
 						print(str(pos.orderID), str(value[2]))

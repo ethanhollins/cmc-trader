@@ -171,7 +171,7 @@ class Start(object):
 					(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
 				))
 
-				self.driver.implicitly_wait(1)
+				self.driver.implicitly_wait(2)
 
 				account_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
 				account_btn.click()
