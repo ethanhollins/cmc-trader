@@ -313,11 +313,14 @@ class Start(object):
 		try:
 			missingTimestamps = self.utils.recoverMissingValues()
 
-			try:
-				if (len(missingTimestamps) > 0):
-					self.plan.failsafe(missingTimestamps)
-			except AttributeError as e:
-				pass
+			# try:
+			# 	if (len(missingTimestamps) > 0):
+			# 		self.plan.failsafe(missingTimestamps)
+			# except AttributeError as e:
+			# 	pass
+			if (len(missingTimestamps) > 0):
+				values = self.formatForRecover(missingTimestamps)
+				self.utils.backtester.recover(values['ohlc'], values['indicators'])
 
 		except StaleElementReferenceException as e:
 			self.handleLostConnection()
@@ -351,12 +354,16 @@ class Start(object):
 						isUpdated = self.utils.updateValues()
 						
 						if (isUpdated):
+
 							missingTimestamps = self.utils.recoverMissingValues()
 							if (len(missingTimestamps) > 0):
-								try:
-									self.plan.failsafe(missingTimestamps)
-								except AttributeError as e:
-									pass
+								# try:
+								# 	self.plan.failsafe(missingTimestamps)
+								# except AttributeError as e:
+								# 	pass
+								values = self.formatForRecover(missingTimestamps)
+								self.utils.backtester.recover(values['ohlc'], values['indicators'])
+
 							if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
 								if (self.isDowntime):
 									try:
@@ -409,175 +416,115 @@ class Start(object):
 			else:
 				if (self.utils.manualChartReading):
 					self.utils.backtester.manual()
-					# self.manualChartReading()
 
-	def manualChartReading(self):
-		pair = input("Enter pair: ")
-		while (pair not in self.tickets.keys()):
-			print("Pair not found!")
-			pair = input("Enter pair: ")
-			
-		print("")
+	def formatForRecover(self, missing_timestamps):
+		values = {}
 
-		# ohlc = pickle.load(open("ohlc1811", "rb"))
-		# indicators = pickle.load(open("indicators1811", "rb"))
+		values['ohlc'] = {}
+		values['indicators'] = { 'overlays' : [], 'studies' : [] }
 
-		startDate = input("Start Date: ")
-		startTime = input("Start Time: ")
-		endDate = input("End Date: ")
-		endTime = input("End Time: ")
-		self.utils.backtestByTime(pair, startDate.strip(), startTime.strip(), endDate.strip(), endTime.strip())
+		for pair in self.utils.ohlc:
+			values['ohlc'][pair] = []
+			for timestamp in missing_timestamps:
+				values['ohlc'][pair].append(self.utils.ohlc[pair][timestamp])
 
-		print(self.utils.ohlc[pair])
-		print(self.utils.indicators)
+		for overlay in range(len(self.utils.indicators['overlays'])):
+			for pair in overlay.history:
+				values['indicators']['overlays'].append({ pair : [] })
 
-		ohlc = self.utils.ohlc[pair].copy()
-		self.utils.ohlc[pair] = {}
-		indicators = {"overlays" : [], "studies" : []}
-		for i in range(len(self.utils.indicators['overlays'])):
-			indicators['overlays'].append(self.utils.indicators['overlays'][i].history[pair].copy()) 
-			self.utils.indicators['overlays'][i].history[pair] = {}
-		for j in range(len(self.utils.indicators['studies'])):
-			indicators['studies'].append(self.utils.indicators['studies'][j].history[pair].copy())
-			self.utils.indicators['studies'][j].history[pair] = {}
-		
-		pickle.dump(ohlc, open("ohlc2211", "wb"))
-		pickle.dump(indicators, open("indicators2211", "wb"))
-		
-		sortedTimestamps = [i[0] for i in sorted(ohlc.items(), key=lambda kv: kv[0], reverse=False)]
-		self.insertValuesByTimestamp(pair, sortedTimestamps[0], ohlc, indicators)
+				for timestamp in missing_timestamps:
+					values['indicators']['overlays'][pair].append(overlay.history[pair][timestamp])
 
-		timestamp = sortedTimestamps[i]
-		time = self.utils.convertTimestampToTime(timestamp)
+		for study in range(len(self.utils.indicators['studies'])):
+			for pair in study.history:
+				values['indicators']['studies'].append({ pair : [] })
 
-		tz = pytz.timezone('Australia/Melbourne')
-		time = tz.localize(time)
-		tz = pytz.timezone('Europe/London')
-		londonTime = time.astimezone(tz)
+				for timestamp in missing_timestamps:
+					values['indicators']['studies'][pair].append(study.history[pair][timestamp])
 
-		self.utils.setTradeTimes(currentTime = londonTime)
-
-		skipTo = 0
-		for i in range(1, len(ohlc)):
-			timestamp = sortedTimestamps[i]
-			time = self.utils.convertTimestampToTime(timestamp)
-			print("Bar:", str(time.hour)+":"+str(time.minute)+":"+str(time.second))
-			self.insertValuesByTimestamp(pair, timestamp, ohlc, indicators)
-			
-			tz = pytz.timezone('Australia/Melbourne')
-			time = tz.localize(time)
-			tz = pytz.timezone('Europe/London')
-			londonTime = time.astimezone(tz)
-
-			if (self.utils.isTradeTime(currentTime = londonTime)):
-				# try:
-				self.plan.backtest()
-				# except AttributeError as e:
-				# 	pass
-			else:
-				try:
-					self.plan.onDownTime()
-				except AttributeError as e:
-					pass
-
-			if (skipTo > i):
-				continue
-			else:
-				skipTo = 0
-
-			cmd = input("\nPress enter for next, or enter command: ")
-			while not cmd == '':
-				if cmd == 'show all':
-					print("OHLC:", str(self.utils.ohlc[pair])+"\n")
-					self.printIndicators(pair)
-				elif cmd == 'show current':
-					print("OHLC:", str(list(self.utils.ohlc[pair].values())[0])+"\n")
-					self.printCurrent(pair)
-				elif cmd == 'ohlc':
-					print("OHLC:", str(self.utils.ohlc[pair])+"\n")
-				elif cmd == 'indicators':
-					self.printIndicators(pair)
-				elif cmd.startswith('show indicator'):
-					try:
-						self.printIndicatorByIndex(int(cmd.split(' ')[2]), pair)
-					except:
-						print("Could not complete command.")
-				elif cmd.startswith('show timestamp'):
-					self.getValuesByTime(cmd.split(' ')[2:4], pair)
-				elif cmd.startswith('skip'):
-					try:
-						skipTo = int(cmd.split(' ')[1])
-						break
-					except:
-						print("Could not complete command.")
-				else:
-					print("Could not recognise command.")
-
-				cmd = input("\nPress enter for next, or enter command: ")
-			print("\n")
+		return values
 
 
-		print("Done!")
-		input("Press enter to exit...")
-		sys.exit()
+			# if (skipTo > i):
+			# 	continue
+			# else:
+			# 	skipTo = 0
 
-	def insertValuesByTimestamp(self, pair, timestamp, ohlc, indicators):
-		self.utils.ohlc[pair][timestamp] = ohlc[timestamp]
-		for i in range(len(indicators['overlays'])):
-			try:
-				self.utils.indicators['overlays'][i].history[pair][timestamp] = indicators['overlays'][i][timestamp]
-			except:
-				self.utils.indicators['overlays'][i].history[pair][timestamp] = indicators['overlays'][i][timestamp - 60]	
-		for j in range(len(indicators['studies'])):
-			try:
-				self.utils.indicators['studies'][j].history[pair][timestamp] = indicators['studies'][j][timestamp]
-			except:
-				self.utils.indicators['studies'][j].history[pair][timestamp] = indicators['studies'][j][timestamp - 60]
+			# cmd = input("\nPress enter for next, or enter command: ")
+			# while not cmd == '':
+			# 	if cmd == 'show all':
+			# 		print("OHLC:", str(self.utils.ohlc[pair])+"\n")
+			# 		self.printIndicators(pair)
+			# 	elif cmd == 'show current':
+			# 		print("OHLC:", str(list(self.utils.ohlc[pair].values())[0])+"\n")
+			# 		self.printCurrent(pair)
+			# 	elif cmd == 'ohlc':
+			# 		print("OHLC:", str(self.utils.ohlc[pair])+"\n")
+			# 	elif cmd == 'indicators':
+			# 		self.printIndicators(pair)
+			# 	elif cmd.startswith('show indicator'):
+			# 		try:
+			# 			self.printIndicatorByIndex(int(cmd.split(' ')[2]), pair)
+			# 		except:
+			# 			print("Could not complete command.")
+			# 	elif cmd.startswith('show timestamp'):
+			# 		self.getValuesByTime(cmd.split(' ')[2:4], pair)
+			# 	elif cmd.startswith('skip'):
+			# 		try:
+			# 			skipTo = int(cmd.split(' ')[1])
+			# 			break
+			# 		except:
+			# 			print("Could not complete command.")
+			# 	else:
+			# 		print("Could not recognise command.")
 
-	def printIndicators(self, pair):
-		for overlay in self.utils.indicators['overlays']:
-			print(str(overlay.type)+":\n", str(overlay.history[pair])+"\n")
-		for study in self.utils.indicators['studies']:
-			print(str(study.type)+":\n", str(study.history[pair])+"\n")
+			# 	cmd = input("\nPress enter for next, or enter command: ")
+			# print("\n")
 
-	def printCurrent(self, pair):
-		for overlay in self.utils.indicators['overlays']:
-			print(str(overlay.type)+":\n", str(overlay.getCurrent(pair))+"\n")
-		for study in self.utils.indicators['studies']:
-			print(str(study.type)+":\n", str(study.getCurrent(pair))+"\n")
+	# def printIndicators(self, pair):
+	# 	for overlay in self.utils.indicators['overlays']:
+	# 		print(str(overlay.type)+":\n", str(overlay.history[pair])+"\n")
+	# 	for study in self.utils.indicators['studies']:
+	# 		print(str(study.type)+":\n", str(study.history[pair])+"\n")
 
-	def printIndicatorByIndex(self, index, pair):
-		if (index < len(self.utils.indicators['overlays'])):
-			indicator = self.utils.indicators['overlays'][index]
-			print(str(indicator.type)+":\n", str(indicator.history[pair])+"\n")
-			return
-		elif (index < len(self.utils.indicators['overlays']) + len(self.utils.indicators['studies'])):
-			indicator = self.utils.indicators['studies'][index - len(self.utils.indicators['overlays'])]
-			print(str(indicator.type)+":\n", str(indicator.history[pair])+"\n")
-			return
-		print("Could not find indicator at index", index)
+	# def printCurrent(self, pair):
+	# 	for overlay in self.utils.indicators['overlays']:
+	# 		print(str(overlay.type)+":\n", str(overlay.getCurrent(pair))+"\n")
+	# 	for study in self.utils.indicators['studies']:
+	# 		print(str(study.type)+":\n", str(study.getCurrent(pair))+"\n")
 
-	def getValuesByTime(self, raw, pair):
-		try:
-			time = raw[0]
-			hour = int(time.split(':')[0])
-			minute = int(time.split(':')[1])
-			date = raw[1]
-			day = int(date.split('/')[0])
-			month = int(date.split('/')[1])
-			timestamp = self.utils.convertTimeToTimestamp(day, month, hour, minute)
-		except:
-			print("Could not complete command.")
-			return
-		try:
-			print("OHLC:", str(self.utils.ohlc[pair][timestamp])+"\n")
-			for overlay in self.utils.indicators['overlays']:
-				print(str(overlay.type)+":\n", str(overlay.history[pair][timestamp])+"\n")
-			for study in self.utils.indicators['studies']:
-				print(str(study.type)+":\n", str(study.history[pair][timestamp])+"\n")
-		except:
-			print("Could not find saved data at that time.")
-			return
+	# def printIndicatorByIndex(self, index, pair):
+	# 	if (index < len(self.utils.indicators['overlays'])):
+	# 		indicator = self.utils.indicators['overlays'][index]
+	# 		print(str(indicator.type)+":\n", str(indicator.history[pair])+"\n")
+	# 		return
+	# 	elif (index < len(self.utils.indicators['overlays']) + len(self.utils.indicators['studies'])):
+	# 		indicator = self.utils.indicators['studies'][index - len(self.utils.indicators['overlays'])]
+	# 		print(str(indicator.type)+":\n", str(indicator.history[pair])+"\n")
+	# 		return
+	# 	print("Could not find indicator at index", index)
+
+	# def getValuesByTime(self, raw, pair):
+	# 	try:
+	# 		time = raw[0]
+	# 		hour = int(time.split(':')[0])
+	# 		minute = int(time.split(':')[1])
+	# 		date = raw[1]
+	# 		day = int(date.split('/')[0])
+	# 		month = int(date.split('/')[1])
+	# 		timestamp = self.utils.convertTimeToTimestamp(day, month, hour, minute)
+	# 	except:
+	# 		print("Could not complete command.")
+	# 		return
+	# 	try:
+	# 		print("OHLC:", str(self.utils.ohlc[pair][timestamp])+"\n")
+	# 		for overlay in self.utils.indicators['overlays']:
+	# 			print(str(overlay.type)+":\n", str(overlay.history[pair][timestamp])+"\n")
+	# 		for study in self.utils.indicators['studies']:
+	# 			print(str(study.type)+":\n", str(study.history[pair][timestamp])+"\n")
+	# 	except:
+	# 		print("Could not find saved data at that time.")
+	# 		return
 
 	def handleLostConnection(self):
 		while (True):

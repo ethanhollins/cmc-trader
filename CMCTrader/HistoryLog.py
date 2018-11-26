@@ -5,9 +5,12 @@ import datetime
 
 class HistoryLog(object):
 
-	def __init__(self, driver):
+	def __init__(self, driver, utils):
 		self.driver = driver
+		self.utils = utils
 		self.historyLogElem = self.getHistoryLogElem()
+
+		self.current_timestamp = self.setTimestamp()
 
 	def reinit(self):
 		self.historyLogElem = self.getHistoryLogElem()
@@ -27,8 +30,11 @@ class HistoryLog(object):
 				'return feature.querySelector(\'[class="tables"]\').querySelector(\'[class="rows"]\');'
 			)
 
+	def setTimestamp(self):
+		return self.utils.convertDateTimeToTimestamp(self.utils.startTime)
+
 	def getFilteredHistory(self):
-		rowDict = self.driver.execute_script(
+		row_list = self.driver.execute_script(
 				'var list = [];'
 				# 'var rows = arguments[0].querySelectorAll(\'div[class="row"]\');' +
 				'console.log(arguments[0]);'
@@ -64,9 +70,9 @@ class HistoryLog(object):
 				self.historyLogElem
 			)
 
-		for i in rowDict:
+		for i in row_list:
 			if (i[0] == ''):
-				del rowDict[rowDict.index(i)]
+				del row_list[row_list.index(i)]
 			else:
 				i[1] = self._convertTime(i[1])
 				i[3] = self._convertPair(i[3])
@@ -75,15 +81,27 @@ class HistoryLog(object):
 				else:
 					i[4] = self._convertUnits(i[4])
 
-		return rowDict
+		return row_list
 
 	def getHistoryPropertiesById(self, historyID):
 		return [i for i in self.getFilteredHistory() if i[0] == historyID]
 
 	def getReleventPositions(self, listenedTypes):
-		# self.makeVisible()
 		history = self.getFilteredHistory()
 		return [i for i in history if i[2].strip() in listenedTypes]
+
+	def updateHistory(self, listenedTypes):
+		history = self.getReleventPositions(listenedTypes)
+		history = [j for j in row_list if row_list[1] >= self.current_timestamp]
+		history.sort(key = lambda x : x[1])
+
+		print("History:", str(history))
+
+		if (len(history) > 0):
+			self.current_timestamp = history[-1][1]
+
+		return history
+
 
 	def getClosedPosition(self, pos):
 		self.makeVisible()

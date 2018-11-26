@@ -850,6 +850,8 @@ def getPositionStrand(shift):
 def momentumEntry(shift):
 	global re_entry_trigger, position_strands, current_trigger
 
+	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+
 	print(position_strands)
 	for i in position_strands:
 		print(str(i.direction), str(i.start))

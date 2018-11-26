@@ -46,7 +46,7 @@ class Utilities:
 
 		self._initVARIABLES()
 
-		self.historyLog = HistoryLog(self.driver)
+		self.historyLog = HistoryLog(self.driver, self)
 		self.positionLog = PositionLog(self.driver)
 		self.orderLog = OrderLog(self.driver)
 		self.barReader = BarReader(self, self.driver)
@@ -235,12 +235,49 @@ class Utilities:
 		else:
 			print("ERROR: Sell type not recognised!")
 
+# for pos in self.positions:
+# 						if value[0] == pos.orderID:
+# 							if not pos.sl == value[6]:
+# 								if ()
+# 									pos.modifySL(self.utils.convertToPips())
+
+# 							if not pos.tp == value[7]:
+
 	def updatePositions(self):
 		print("Updating Positions")
-		listenedTypes = ['Take Profit', 'Stop Loss', 'SE Order Sell Trade', 'SE Order Buy Trade', 'Limit Order Buy Trade', 'Limit Order Sell Trade']
-		releventPositions = self.historyLog.getReleventPositions(listenedTypes)
-		for value in releventPositions:
-			if value[2] == 'Take Profit' or value[2] == 'Stop Loss':
+		listenedTypes = ['Buy Trade', 'Sell Trade', 'Close Trade', 'Take Profit', 'Stop Loss', 'SE Order Sell Trade', 'SE Order Buy Trade', 'Limit Order Buy Trade', 'Limit Order Sell Trade']
+		history = self.historyLog.updateHistory(listenedTypes)
+		for value in history:
+			if value[2] == 'Buy Trade':
+				position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
+
+				if not value[0] in position_id_list:
+					pos = self.createPosition(utils = self, ticket = self.tickets[value[3]], orderID = value[0], pair = value[3], ordertype = 'market', direction = 'buy')
+					pos.entryprice = float(value[5])
+					pos.lotsize = int(value[4])
+					pos.sl = float(value[6])
+					pos.tp = float(value[7])
+					self.positions.append(pos)
+
+			elif value[2] == 'Sell Trade':
+				position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
+
+				if not value[0] in position_id_list:
+					pos = self.createPosition(utils = self, ticket = self.tickets[value[3]], orderID = value[0], pair = value[3], ordertype = 'market', direction = 'sell')
+					pos.entryprice = float(value[5])
+					pos.lotsize = int(value[4])
+					pos.sl = float(value[6])
+					pos.tp = float(value[7])
+					self.positions.append(pos)
+
+			elif value[2] == 'Close Trade':
+				for pos in self.positions:
+					if i[8] == pos.orderID:
+						del self.positions[self.positions.index(pos)]
+						pos.closeprice = float(i[5])
+						self.closedPositions.append(pos)
+
+			elif value[2] == 'Take Profit' or value[2] == 'Stop Loss':
 				for pos in self.positions:
 					if value[0] == pos.orderID:
 						print(str(pos.orderID), str(value[2]))
@@ -267,6 +304,9 @@ class Utilities:
 				 		properties = self.historyLog.getHistoryPropertiesById(pos.orderID)[0]
 				 		pos.entryprice = self.properties[5]
 				 		pos.isPending = False
+
+	def checkPosition(self, pos):
+		
 
 	def getPositionAmount(self, pair):
 		return self.positionLog.getPairPositionAmount(pair)
@@ -587,6 +627,14 @@ class Utilities:
 					minute = mins,
 					second = seconds
 				))
+
+	def convertDateTimeToTimestamp(self, now):
+		tz = pytz.timezone('Australia/Melbourne')
+		date = datetime.datetime.now(tz = tz)
+
+		then = datetime.datetime(year = 2018, month = 1, day = 1)
+		now = now.astimezone(tz)
+		return int((now - then).total_seconds())
 
 	def convertTimeToTimestamp(self, day, month, hour, minute):
 		tz = pytz.timezone('Australia/Melbourne')
