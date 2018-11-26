@@ -21,13 +21,14 @@ class Backtester(object):
 		self.plan = plan
 
 		self.down_time = True
+		self.has_run = False
 		
 	def runOnce(func):
 		def wrapper(*args, **kwargs):
-			if not wrapper.has_run:
-				wrapper.has_run = True
+			self = args[0]
+			if not self.has_run:
+				self.has_run = True
 				return func(*args, **kwargs)
-			wrapper.has_run = False
 		return wrapper
 
 	def redirect_backtest( func):
@@ -218,6 +219,7 @@ class Backtester(object):
 	def recover(self, ohlc, indicators):
 		global state, pair, current_timestamp
 		state = State.RECOVER
+		self.has_run = False
 
 		position_logs = None
 
