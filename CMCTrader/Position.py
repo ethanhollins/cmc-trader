@@ -471,13 +471,9 @@ class Position(object):
 	def getProfit(self):
 		if (float(self.closeprice) == 0):
 			if (self.direction == 'buy'):
-				print(str(self.utils.getBid(self.pair)), str(float(self.entryprice)))
-
 				profit = self.utils.getBid(self.pair) - float(self.entryprice)
 				profit = self.utils.convertToPips(profit)
 			else:
-				print(str(self.utils.getAsk(self.pair)), str(float(self.entryprice)))
-
 				profit = float(self.entryprice) - self.utils.getAsk(self.pair)
 				profit = self.utils.convertToPips(profit)
 		else:
