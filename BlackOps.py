@@ -300,7 +300,6 @@ def handleStopAndReverse(pos, entry):
 
 		resetPositionStrands()
 		getPositionStrand(0)
-		utils.restartCMC()
 
 	del pending_entries[pending_entries.index(entry)]
 
@@ -330,7 +329,6 @@ def handleRegularEntry(entry):
 
 		resetPositionStrands()
 		getPositionStrand(0)
-		utils.restartCMC()
 
 	del pending_entries[pending_entries.index(entry)]
 

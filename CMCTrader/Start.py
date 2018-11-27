@@ -277,7 +277,7 @@ class Start(object):
 
 		self.isDowntime = True
 		
-		self.utils.getRecovery()
+		# self.utils.getRecovery()
 
 		self.functionCalls()
 		
@@ -361,8 +361,9 @@ class Start(object):
 								# 	self.plan.failsafe(missingTimestamps)
 								# except AttributeError as e:
 								# 	pass
-								values = self.formatForRecover(missingTimestamps)
-								self.utils.backtester.recover(values['ohlc'], values['indicators'])
+								for pair in missingTimestamps:
+									values = self.utils.formatForRecover(pair, missingTimestamps[pair])
+									self.utils.backtester.recover(values['ohlc'], values['indicators'])
 
 							if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
 								if (self.isDowntime):
@@ -398,7 +399,8 @@ class Start(object):
 										# for pos in closedPositions:
 										self.utils.closedPositions = []
 									self.isDowntime = True
-							
+
+							self.utils.refreshAll()
 							self.utils.updateRecovery()
 					
 					elif (seconds != 0):
@@ -416,34 +418,6 @@ class Start(object):
 			else:
 				if (self.utils.manualChartReading):
 					self.utils.backtester.manual()
-
-	def formatForRecover(self, missing_timestamps):
-		values = {}
-
-		values['ohlc'] = {}
-		values['indicators'] = { 'overlays' : [], 'studies' : [] }
-
-		for pair in self.utils.ohlc:
-			values['ohlc'][pair] = []
-			for timestamp in missing_timestamps:
-				values['ohlc'][pair].append(self.utils.ohlc[pair][timestamp])
-
-		for overlay in range(len(self.utils.indicators['overlays'])):
-			for pair in overlay.history:
-				values['indicators']['overlays'].append({ pair : [] })
-
-				for timestamp in missing_timestamps:
-					values['indicators']['overlays'][pair].append(overlay.history[pair][timestamp])
-
-		for study in range(len(self.utils.indicators['studies'])):
-			for pair in study.history:
-				values['indicators']['studies'].append({ pair : [] })
-
-				for timestamp in missing_timestamps:
-					values['indicators']['studies'][pair].append(study.history[pair][timestamp])
-
-		return values
-
 
 			# if (skipTo > i):
 			# 	continue

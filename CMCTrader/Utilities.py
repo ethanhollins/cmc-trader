@@ -1,5 +1,7 @@
 from selenium import webdriver
 import selenium.webdriver.support.ui as ui
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
 import numpy as np
 import time
@@ -849,8 +851,118 @@ class Utilities:
 		self.tAUDUSD = tAUDUSD
 
 	@Backtester.redirect_backtest
-	def restartCMC(self):
-		self.driver.get(CMC_WEBSITE);
+	def refreshAll(self):
+		for pair in self.tickets:
+			self.refreshChart(pair)
+			self.refreshValues(pair)
+
+
+	@Backtester.redirect_backtest
+	def refreshChart(self, pair):
+		chart = self.barReader.getChart(pair)
+
+		chart_id = self.driver.execute_script(
+						'return arguments[0].getAttribute("id");',
+						chart
+					)
+
+		chart_select = self.driver.execute_script(
+						'var chart_select = arguments[0].querySelector(\'button[class="feature-window-saved-states-toggle"]\');'
+						'chart_select.click();'
+						'return chart_select;',
+						chart
+					)
+
+		chart_title = self.driver.execute_script(
+						'return arguments[0].getAttribute("title");',
+						chart_select
+					)
+
+		wait = ui.WebDriverWait(self.driver, 10)
+		wait.until(EC.presence_of_element_located(
+			(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'feature-window-saved-states')]//li[contains(@title, '"+str(chart_title)+"')]")
+		))
+
+		refresh_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'feature-window-saved-states')]//li[contains(@title, '"+str(chart_title)+"')]")
+
+		refresh_btn.click()
+
+		self.barReader.setCanvases(self.barReader.chartDict)
+
+		wait = ui.WebDriverWait(self.driver, 10)
+		wait.until(lambda driver : self.chartTimestampCheck(pair))
+
+	def refreshValues(self, pair):
+		timestamp = self.latestTimestamp[pair]
+
+		changed_timestamps = self.checkTimestampValues(pair, timestamp)
+
+		if (len(changed_timestamps) > 0):
+			print("Backtesting changed timestamps")
+			
+			values = self.formatForRecover(pair, changed_timestamps)
+			self.backtester.recover(values['ohlc'], values['indicators'])
+
+	def formatForRecover(self, pair, missing_timestamps):
+		earliest_timestamp = self.getEarliestTimestamp(missing_timestamps)
+
+		missing_timestamps = []
+		sorted_timestamps = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)]
+		for timestamp in sorted_timestamps:
+			if (timestamp >= earliest_timestamp):
+				missing_timestamps.append(timestamp)
+			else:
+				break
+
+		print(missing_timestamps)
+
+		values = {}
+
+		values['ohlc'] = {}
+		values['indicators'] = { 'overlays' : [], 'studies' : [] }
+
+		for pair in self.ohlc:
+			values['ohlc'][pair] = {}
+			for timestamp in missing_timestamps:
+				values['ohlc'][pair][timestamp] = self.ohlc[pair][timestamp]
+
+		count = 0
+		for overlay in self.indicators['overlays']:
+			for pair in overlay.history:
+				values['indicators']['overlays'].append({ pair : {} })
+
+				for timestamp in missing_timestamps:
+					values['indicators']['overlays'][count][pair][timestamp] = overlay.history[pair][timestamp]
+			count += 1
+
+		count = 0
+		for study in self.indicators['studies']:
+			for pair in study.history:
+				values['indicators']['studies'].append({ pair : {} })
+
+				for timestamp in missing_timestamps:
+					values['indicators']['studies'][count][pair][timestamp] = study.history[pair][timestamp]
+			count += 1
+
+		print(values)
+		return values
+
+	def isChartAvailable(self, chart_id):
+		availability_checker = self.driver.find_element(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'popup-container')]")
+
+		checker_class = availability_checker.get_attribute("class")
+
+		return 'active' in str(checker_class)
+
+	def chartTimestampCheck(self, pair):
+		try:
+			self.barReader.getLatestBarTimestamp(pair)
+			return True
+		except:
+			return False
+
+	def checkTimestampValues(self, pair, timestamp):
+		return self.barReader.checkBarInfoByTimestamp(pair, [timestamp])
 
 	def updateRecovery(self):
 		values = {}

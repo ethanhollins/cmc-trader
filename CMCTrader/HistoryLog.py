@@ -95,8 +95,6 @@ class HistoryLog(object):
 		# history = [j for j in row_list if row_list[1] >= self.current_timestamp]
 		history.sort(key = lambda x : x[1])
 
-		print("History:", str(history))
-
 		# if (len(history) > 0):
 		# 	self.current_timestamp = history[-1][1]
 

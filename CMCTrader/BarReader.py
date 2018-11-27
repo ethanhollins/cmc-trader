@@ -280,6 +280,59 @@ class BarReader(object):
 				else:
 					self._insertValues(pair, fillValues)
 
+	def checkBarInfoByTimestamp(self, pair, timestamps):
+		chart = self.chartDict[pair]
+		canvas = self.canvasDict[pair]
+
+		xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
+
+		# if (self._isCurrentBar(chart, canvas, xOff)):
+		timestamps.sort(reverse=True)
+
+		values = None
+		changed_timestamps = []
+		for timestamp in timestamps:
+			xOff = self.chartValues[pair][0] - self.chartValues[pair][1] * self._getBarOffset(timestamp)
+
+			if (xOff < 340):
+				return changed_timestamps
+
+			values = self._performBarInfoCapture(chart, canvas, pair, xOff, exactTimestamp = timestamp)
+			
+			prev_values = self._getCurrentValuesByTimestamp(pair, timestamp)
+
+			self._insertValues(pair, values)
+
+			new_values = self._getCurrentValuesByTimestamp(pair, timestamp)
+
+			for key in new_values:
+				if (not new_values[key] == prev_values[key]):
+					changed_timestamps.append(timestamp)
+					print("Difference found!")
+					print(str(new_values) + "\n" + str(prev_values))
+					break
+
+		return changed_timestamps
+
+	def _getCurrentValuesByTimestamp(self, pair, timestamp):
+		values = {}
+
+		ohlc = self.utils.ohlc[pair][timestamp].copy()
+
+		overlays = []
+		for overlay in self.utils.indicators['overlays'].copy():
+			overlays.append(overlay.history[pair][timestamp])
+
+		studies = []
+		for study in self.utils.indicators['studies'].copy():
+			studies.append(study.history[pair][timestamp])
+
+		values['ohlc'] = ohlc
+		values['overlays'] = overlays
+		values['studies'] = studies
+
+		return values
+
 	def manualBarCollectionByTimestamp(self, pair, startTimestamp, endTimestamp):
 		if (startTimestamp > endTimestamp):
 			print("ERROR: End time must be greater than start time!")
@@ -348,8 +401,6 @@ class BarReader(object):
 					xOff += self.chartValues[pair][1]
 
 			isCompleted = timestamp < startTimestamp
-
-
 
 	def _insertValues(self, pair, values):
 		if (values['filled']):
@@ -666,3 +717,5 @@ class BarReader(object):
 		return (mins - 1) == timestamp_mins
 
 
+	def getChart(self, pair):
+		return self.chartDict[pair]
