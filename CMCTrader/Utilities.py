@@ -685,8 +685,9 @@ class Utilities:
 		tz = pytz.timezone('Australia/Melbourne')
 
 		then = datetime.datetime(year = 2018, month = 1, day = 1)
-		now = tz.localize(now)
+		now = now.astimezone(tz)
 		now = now.replace(tzinfo=None)
+		print(now)
 		return int((now - then).total_seconds())
 
 	def convertTimeToTimestamp(self, day, month, hour, minute):
