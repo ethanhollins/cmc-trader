@@ -55,8 +55,11 @@ macd = None
 current_trigger = None
 re_entry_trigger = None
 
+block_direction = None
+
 strands = []
 position_strands = []
+current_brown = None
 
 pending_entries = []
 pending_breakevens = []
@@ -97,6 +100,8 @@ class Trigger(object):
 		self.state = State.SWING_ONE
 		self.tradable = tradable
 		self.last_obos = 0
+		self.hit_orange = False
+		self.hit_brown = False
 
 class SARType(Enum):
 	REG = 1
@@ -106,7 +111,19 @@ class Strand(object):
 	def __init__(self, direction, start):
 		self.direction = direction
 		self.start = start
+		self.end = 0
 		self.is_completed = False
+
+class BrownStrand(object):
+	def __init__(self, direction, start):
+		self.to_hit = start
+		self.following_count = 1
+		self.is_hit = False
+
+	def updateHitValue(self, x):
+		if (self.following_count > 0):
+			self.following_count -= 1
+			self.to_hit = x
 
 def init(utilities):
 	''' Initialize utilities and indicators '''
@@ -565,6 +582,7 @@ def onNewCycle(shift):
 
 		if (len(strands) > 0):
 			strands[-1].is_completed = True
+			strands[-1].end = black_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
 
 		if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			direction = Direction.SHORT
@@ -576,7 +594,39 @@ def onNewCycle(shift):
 
 		print("New Strand:", str(strand.direction), str(strand.start))
 
+		if (len(strands) > 1):
+			isWhollyCrossed(shift)
+
 		getPositionStrand(shift)
+
+
+	global current_brown
+	
+	if (brown_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
+		sar = brown_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+
+		if (not current_trigger == None):
+			
+			if (current_trigger.direction == Direction.LONG and brown_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
+				current_brown = BrownStrand(Direction.LONG, sar)
+			
+			elif (current_trigger.direction == Direction.SHORT and brown_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
+				current_brown = BrownStrand(Direction.SHORT, sar)
+
+def isWhollyCrossed(shift):
+
+	global block_direction
+
+	first = strands[-2]
+	second = strands[-1]
+
+	if (second.direction == Direction.SHORT):
+		if (second.start < first.start and second.end > first.end):
+			block_direction = Direction.SHORT
+
+	else:
+		if (second.start > first.start and second.end < first.end):
+			block_direction = Direction.LONG
 
 def isCompletedStrand():
 	for strand in strands:
@@ -677,11 +727,11 @@ def swingTwo(shift, direction):
 	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
 	if (direction == Direction.LONG):
-		if (ch_idx <= -VARIABLES['cci_ct_cross']):
+		if (ch_idx <= -VARIABLES['cci_ct_cross'] and isBrownParaConfirmation(shift, direction)):
 			return True
 	
 	else:
-		if (ch_idx >= VARIABLES['cci_ct_cross']):
+		if (ch_idx >= VARIABLES['cci_ct_cross'] and isBrownParaConfirmation(shift, direction)):
 			return True
 
 	return False
@@ -745,10 +795,14 @@ def isRegParaConfirmation(shift, direction):
 		return reg_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 def paraHit(shift, direction, no_conf):
-	if (no_conf):
-		return 1
+	
+	brownHit(shift, direction)
 
-	if (isGateKeepParaConfirmation(shift, direction)):
+	if (current_brown.is_hit and isSlowParaConfirmation(shift, direction)):
+		
+		if (no_conf):
+			return 1
+
 		if (swingConfirmation(shift, direction)):
 			return 1
 		else:
@@ -756,12 +810,35 @@ def paraHit(shift, direction, no_conf):
 
 	return -1
 
-def isGateKeepParaConfirmation(shift, direction):
+
+def brownHit(shift, direction):
+
+	sar = brown_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+	current_brown.updateHitValue(sar)
+
+	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
+	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
 
 	if (direction == Direction.LONG):
-		return slow_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0] and brown_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+		if (high > current_brown.to_hit):
+			current_brown.is_hit = True
+
 	else:
-		return slow_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0] and brown_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
+		if (low < current_brown.to_hit):
+			current_brown.is_hit = True
+
+def isSlowParaConfirmation(shift, direction):
+
+	if (direction == Direction.LONG):
+		return slow_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+	else:
+		return slow_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
+
+def isBrownParaConfirmation(shift, direction):
+	if (direction == Direction.LONG):
+		return brown_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+	else:
+		return brown_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 def crossNegative(shift, direction):
 	''' Checks for swing to be in positive direction '''
@@ -771,11 +848,11 @@ def crossNegative(shift, direction):
 	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
 	if (direction == Direction.LONG):
-		if (ch_idx < VARIABLES['cci_entry_cross']):
+		if (ch_idx < VARIABLES['cci_entry_cross'] and isBrownParaConfirmation(shift, direction)):
 			return True
 	
 	else:
-		if (ch_idx > VARIABLES['cci_entry_cross']):
+		if (ch_idx > VARIABLES['cci_entry_cross'] and isBrownParaConfirmation(shift, direction)):
 			return True
 
 	return False
@@ -808,24 +885,35 @@ def onOBOS(shift, trigger):
 def confirmation(shift, trigger):
 	''' Checks for overbought, oversold and confirm entry '''
 
-	global re_entry_trigger
+	global re_entry_trigger, block_direction
 
 	print("confirmation")
 
 	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 	
 	if (trigger.direction == Direction.LONG):
-		if (str_idx >= VARIABLES['rsi_overbought']):
+		
+		if (block_direction == Direction.LONG):
+			trigger.state = State.CROSS_NEGATIVE
+			block_direction = None
+
+		elif (str_idx >= VARIABLES['rsi_overbought']):
 			trigger.state = State.OBOS
 			current_trigger.last_obos = str_idx
+		
 		else:
 			pending_entries.append(trigger)
 			re_entry_trigger = None
 	
 	else:
-		if (str_idx <= VARIABLES['rsi_oversold']):
+		if (block_direction == Direction.SHORT):
+			trigger.state = State.CROSS_NEGATIVE
+			block_direction = None
+
+		elif (str_idx <= VARIABLES['rsi_oversold']):
 			trigger.state = State.OBOS
 			current_trigger.last_obos = str_idx
+		
 		else:
 			pending_entries.append(trigger)
 			re_entry_trigger = None
@@ -857,7 +945,9 @@ def momentumEntry(shift):
 		print(str(i.direction), str(i.start))
 
 	if (len(position_strands) >= VARIABLES['num_paras_momentum']):
+
 		if (position_strands[-1].direction == Direction.SHORT):
+
 			min_strand = None
 
 			for strand in position_strands[-VARIABLES['num_paras_momentum']:]:
@@ -869,6 +959,13 @@ def momentumEntry(shift):
 			print("min strand:", min_strand.start)
 
 			if (hasCrossedBelow(shift, min_strand)):
+
+				if (current_trigger.direction == Direction.SHORT):
+					if (current_trigger.state.value >= State.OBOS.value):
+						print("Swing entry blocked momentum entry short!")
+						position_strands = []
+						return
+
 				if (not isObos(shift, Direction.SHORT)):
 					print("Entering on momentum entry short!")
 					
@@ -897,6 +994,13 @@ def momentumEntry(shift):
 			print("max strand:", max_strand.start)
 
 			if (hasCrossedAbove(shift, max_strand)):
+
+				if (current_trigger.direction == Direction.LONG):
+					if (current_trigger.state.value >= State.OBOS.value):
+						print("Swing entry blocked momentum entry long!")
+						position_strands = []
+						return
+
 				if (not isObos(shift, Direction.LONG)):
 					print("Entering on momentum entry long!")
 					

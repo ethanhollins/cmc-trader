@@ -31,6 +31,7 @@ class HistoryLog(object):
 			)
 
 	def setTimestamp(self):
+		print(self.utils.convertDateTimeToTimestamp(self.utils.startTime))
 		return self.utils.convertDateTimeToTimestamp(self.utils.startTime)
 
 	def getFilteredHistory(self):
@@ -92,7 +93,7 @@ class HistoryLog(object):
 
 	def updateHistory(self, listenedTypes):
 		history = self.getReleventPositions(listenedTypes)
-		history = [j for j in history if j[1] >= self.current_timestamp]
+		history = [j for j in history if j[1] > self.current_timestamp]
 		history.sort(key = lambda x : x[1])
 
 		if (len(history) > 0):
