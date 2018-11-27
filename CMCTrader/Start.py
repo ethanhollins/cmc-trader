@@ -319,7 +319,7 @@ class Start(object):
 			# except AttributeError as e:
 			# 	pass
 			if (len(missingTimestamps) > 0):
-				values = self.formatForRecover(missingTimestamps)
+				values = self.utils.formatForRecover(missingTimestamps)
 				self.utils.backtester.recover(values['ohlc'], values['indicators'])
 
 		except StaleElementReferenceException as e:

@@ -889,7 +889,7 @@ class Utilities:
 
 		self.barReader.setCanvases(self.barReader.chartDict)
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 60)
 		wait.until(lambda driver : self.chartTimestampCheck(pair))
 
 	def refreshValues(self, pair):
