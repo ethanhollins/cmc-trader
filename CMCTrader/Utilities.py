@@ -685,6 +685,7 @@ class Utilities:
 		tz = pytz.timezone('Australia/Melbourne')
 
 		then = datetime.datetime(year = 2018, month = 1, day = 1)
+		now = now.astimezone(tz)
 		now = now.replace(tzinfo=None)
 		return int((now - then).total_seconds())
 
