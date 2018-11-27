@@ -7,6 +7,8 @@ VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD],
 	'START_TIME' : '1:30',
 	'END_TIME' : '19:00',
+	'FIXED_SL' : 17,
+	'FIXED_TP' : 200,
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
 	'profit_limit' : 85,
@@ -965,3 +967,14 @@ def onBacktestFinish():
 		re_entry_trigger.state = State.CROSS_NEGATIVE
 
 		pending_entries = []
+
+class SaveState(object):
+	def __init__(self):
+		self.save()
+
+	def save(self):
+		self.saved_vars = globals().copy()
+
+	def load(self):
+		for key in globals():
+			globals()[key] = self.saved_vars[key]

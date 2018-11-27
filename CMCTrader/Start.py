@@ -330,8 +330,6 @@ class Start(object):
 
 	def functionCalls(self):
 		self.isTrading = True
-		
-		self.utils.setTradeTimes()
 
 		while (True):
 			if (not self.utils.isStopped):
@@ -364,6 +362,8 @@ class Start(object):
 								for pair in missingTimestamps:
 									values = self.utils.formatForRecover(pair, missingTimestamps[pair])
 									self.utils.backtester.recover(values['ohlc'], values['indicators'])
+
+							self.utils.save_state.save()
 
 							if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
 								if (self.isDowntime):

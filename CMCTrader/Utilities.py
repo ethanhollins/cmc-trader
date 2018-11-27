@@ -70,7 +70,12 @@ class Utilities:
 		self.startTime = None
 		self.endTime = None
 
+		self.setTradeTimes()
+
 		self.historyLog = HistoryLog(self.driver, self)
+
+		self.save_state = self.plan.SaveState()
+		
 		self._startPrompt()
 
 	def reinit(self):
@@ -250,36 +255,36 @@ class Utilities:
 		listenedTypes = ['Buy Trade', 'Sell Trade', 'Close Trade', 'Take Profit', 'Stop Loss', 'SE Order Sell Trade', 'SE Order Buy Trade', 'Limit Order Buy Trade', 'Limit Order Sell Trade']
 		history = self.historyLog.updateHistory(listenedTypes)
 		for value in history:
-			# if value[2] == 'Buy Trade':
-			# 	position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
+			if value[2] == 'Buy Trade':
+				position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
 
-			# 	if not value[0] in position_id_list:
-			# 		pos = self.createPosition(utils = self, ticket = self.tickets[value[3]], orderID = value[0], pair = value[3], ordertype = 'market', direction = 'buy')
-			# 		pos.entryprice = float(value[5])
-			# 		pos.lotsize = int(value[4])
-			# 		pos.sl = float(value[6])
-			# 		pos.tp = float(value[7])
-			# 		self.positions.append(pos)
+				if not value[0] in position_id_list:
+					pos = self.createPosition(utils = self, ticket = self.tickets[value[3]], orderID = value[0], pair = value[3], ordertype = 'market', direction = 'buy')
+					pos.entryprice = float(value[5])
+					pos.lotsize = int(value[4])
+					pos.sl = float(value[6])
+					pos.tp = float(value[7])
+					self.positions.append(pos)
 
-			# elif value[2] == 'Sell Trade':
-			# 	position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
+			elif value[2] == 'Sell Trade':
+				position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
 
-			# 	if not value[0] in position_id_list:
-			# 		pos = self.createPosition(utils = self, ticket = self.tickets[value[3]], orderID = value[0], pair = value[3], ordertype = 'market', direction = 'sell')
-			# 		pos.entryprice = float(value[5])
-			# 		pos.lotsize = int(value[4])
-			# 		pos.sl = float(value[6])
-			# 		pos.tp = float(value[7])
-			# 		self.positions.append(pos)
+				if not value[0] in position_id_list:
+					pos = self.createPosition(utils = self, ticket = self.tickets[value[3]], orderID = value[0], pair = value[3], ordertype = 'market', direction = 'sell')
+					pos.entryprice = float(value[5])
+					pos.lotsize = int(value[4])
+					pos.sl = float(value[6])
+					pos.tp = float(value[7])
+					self.positions.append(pos)
 
-			# elif value[2] == 'Close Trade':
-			# 	for pos in self.positions:
-			# 		if value[8] == pos.orderID:
-			# 			del self.positions[self.positions.index(pos)]
-			# 			pos.closeprice = float(value[5])
-			# 			self.closedPositions.append(pos)
+			elif value[2] == 'Close Trade':
+				for pos in self.positions:
+					if value[8] == pos.orderID:
+						del self.positions[self.positions.index(pos)]
+						pos.closeprice = float(value[5])
+						self.closedPositions.append(pos)
 
-			if value[2] == 'Take Profit' or value[2] == 'Stop Loss':
+			elif value[2] == 'Take Profit' or value[2] == 'Stop Loss':
 				for pos in self.positions:
 					if value[0] == pos.orderID:
 						print(str(pos.orderID), str(value[2]))
@@ -299,7 +304,7 @@ class Utilities:
 								pass
 
 			elif (value[2] == 'SE Order Sell Trade' or value[2] == 'SE Order Buy Trade' or
-				 value[2] == 'Limit Order Sell Trade' or value[2] == 'Limit Order Buy Trade'):
+				value[2] == 'Limit Order Sell Trade' or value[2] == 'Limit Order Buy Trade'):
 				for pos in self.positions:
 					if value[0] == pos.orderID:
 				 		print(str(pos.orderID), str(value[2]))
@@ -307,8 +312,54 @@ class Utilities:
 				 		pos.entryprice = self.properties[5]
 				 		pos.isPending = False
 
-	# def checkPosition(self, pos):
+	def checkPosition(self, pos):
+		history = self.historyLog.getHistoryPropertiesById(pos.orderID)
+		listenedTypes = ['Buy Trade', 'Sell Trade']
 		
+		for i in history:
+			if i[2] in listenedTypes:
+
+				# Check Stop loss
+				if (not pos.sl == i[6] or i[6] <= 0):
+					sl = pos.sl
+					
+					if (sl <= 0):
+						if ('FIXED_SL' in self.plan.VARIABLES):
+							sl_points = self.plan.VARIABLES['FIXED_SL']
+
+							pos.modifySL(sl_points)
+					else:
+						if (pos.direction == 'buy'):
+							sl_points = self.convertToPips(pos.entryprice - sl)
+						else:
+							sl_points = self.convertToPips(sl - pos.entryprice)
+
+						if ('FIXED_SL' in self.plan.VARIABLES and sl_points > self.plan.VARIABLES['FIXED_SL']):
+							sl_points = self.plan.VARIABLES['FIXED_SL']
+
+						pos.modifySL(sl_points)
+
+				# Check Take Profit
+				if (not pos.tp == i[7] or i[7] <= 0):
+					tp = pos.tp
+					
+					if (tp <= 0):
+						if ('FIXED_TP' in self.plan.VARIABLES):
+							tp_points = self.plan.VARIABLES['FIXED_TP']
+
+							pos.modifyTP(tp_points)
+					else:
+						if (pos.direction == 'buy'):
+							tp_points = self.convertToPips(tp - pos.entryprice)
+						else:
+							tp_points = self.convertToPips(pos.entryprice - tp)
+
+						if ('FIXED_TP' in self.plan.VARIABLES and tp_points > self.plan.VARIABLES['FIXED_TP']):
+							tp_points = self.plan.VARIABLES['FIXED_TP']
+
+						pos.modifyTP(tp_points)
+
+				pos.apply()
 
 	def getPositionAmount(self, pair):
 		return self.positionLog.getPairPositionAmount(pair)
@@ -856,7 +907,6 @@ class Utilities:
 			self.refreshChart(pair)
 			self.refreshValues(pair)
 
-
 	@Backtester.redirect_backtest
 	def refreshChart(self, pair):
 		chart = self.barReader.getChart(pair)
@@ -898,6 +948,8 @@ class Utilities:
 		changed_timestamps = self.checkTimestampValues(pair, timestamp)
 
 		if (len(changed_timestamps) > 0):
+			self.save_state.load()
+
 			print("Backtesting changed timestamps")
 			
 			values = self.formatForRecover(pair, changed_timestamps)

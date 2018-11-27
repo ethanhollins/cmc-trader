@@ -20,7 +20,7 @@ def stopandreverse_redirect_backtest(func):
 			self.utils.closedPositions.append(self)
 			del self.utils.positions[self.utils.positions.index(self)]
 		else:
-			return func(self, lotsize, sl = 0, tp = 0)
+			return func(self, lotsize, sl, tp)
 	return wrapper
 
 def close_redirect_backtest(func):

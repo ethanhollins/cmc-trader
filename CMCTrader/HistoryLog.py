@@ -10,7 +10,7 @@ class HistoryLog(object):
 		self.utils = utils
 		self.historyLogElem = self.getHistoryLogElem()
 
-		# self.current_timestamp = self.setTimestamp()
+		self.current_timestamp = self.setTimestamp()
 
 	def reinit(self):
 		self.historyLogElem = self.getHistoryLogElem()
@@ -54,7 +54,7 @@ class HistoryLog(object):
 				'  {'
 				'    tp = "0";'
 				'  }'
-				# list = [0: id, 1: time, 2: type, 3: product, 4: units, 5:price, 6: sl, 7: tp, 8: closed id]
+				# list = [0: id, 1: time, 2: type, 3: product, 4: units, 5: price, 6: sl, 7: tp, 8: closed id]
 				'  list.push(['
 				'      cols[2].querySelector(\'span\').innerHTML,'
 				'      cols[0].querySelector(\'span\').innerHTML,'
@@ -92,11 +92,13 @@ class HistoryLog(object):
 
 	def updateHistory(self, listenedTypes):
 		history = self.getReleventPositions(listenedTypes)
-		# history = [j for j in row_list if row_list[1] >= self.current_timestamp]
+		history = [j for j in row_list if row_list[1] >= self.current_timestamp]
 		history.sort(key = lambda x : x[1])
 
-		# if (len(history) > 0):
-		# 	self.current_timestamp = history[-1][1]
+		if (len(history) > 0):
+			self.current_timestamp = history[-1][1]
+
+		print("HISTORY:", str(history))
 
 		return history
 
