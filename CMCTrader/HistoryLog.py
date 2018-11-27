@@ -92,7 +92,7 @@ class HistoryLog(object):
 
 	def updateHistory(self, listenedTypes):
 		history = self.getReleventPositions(listenedTypes)
-		history = [j for j in row_list if row_list[1] >= self.current_timestamp]
+		history = [j for j in history if history[1] >= self.current_timestamp]
 		history.sort(key = lambda x : x[1])
 
 		if (len(history) > 0):
