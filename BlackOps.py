@@ -11,7 +11,7 @@ VARIABLES = {
 	'FIXED_TP' : 200,
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
-	'profit_limit' : 85,
+	'profit_limit' : 51,
 	'maximum_bank' : 500,
 	'PLAN' : None,
 	'stoprange' : 17,
@@ -34,23 +34,13 @@ VARIABLES = {
 	'rsi_oversold' : 25,
 	'rsi_threshold' : 50,
 	'CCI' : None,
-	'cci_t_cross' : 80,
+	'cci_t_cross' : 75,
 	'cci_ct_cross' : 50,
 	'cci_entry_cross' : 0,
 	'cci_obos' : 70,
 	'MACD' : None,
 	'macd_threshold' : 0
 }
-
-utils = None
-
-reg_sar = None
-slow_sar = None
-black_sar = None
-brown_sar = None
-rsi = None
-cci = None
-macd = None
 
 current_trigger = None
 re_entry_trigger = None
@@ -93,37 +83,87 @@ class State(Enum):
 	OBOS = 6
 	ENTERED = 7
 
-class Trigger(object):
-	def __init__(self, direction, start, tradable = False):
+class Trigger(dict):
+	def __init__(self, direction, start, tradable = False, is_re_entry = False):
 		self.direction = direction
 		self.start = start
 		self.state = State.SWING_ONE
 		self.tradable = tradable
+		self.is_re_entry = is_re_entry
 		self.last_obos = 0
-		self.hit_orange = False
-		self.hit_brown = False
+		self.ct_conf = False
 
-class SARType(Enum):
-	REG = 1
-	SLOW = 2
+	@classmethod
+	def fromDict(cls, dic):
+		cpy = cls(dic['direction'], dic['start'], tradable = dic['tradable'], is_re_entry = dic['is_re_entry'])
+		for key in dic:
+			cpy[key] = dic[key]
+		return cpy
 
-class Strand(object):
+	def __getattr__(self, key):
+		return self[key]
+
+	def __setattr__(self, key, value):
+		self[key] = value
+
+	def __deepcopy__(self, memo):
+		return Trigger.fromDict(dict(self))
+
+class Strand(dict):
 	def __init__(self, direction, start):
 		self.direction = direction
 		self.start = start
 		self.end = 0
 		self.is_completed = False
 
-class BrownStrand(object):
-	def __init__(self, direction, start):
-		self.to_hit = start
-		self.following_count = 1
+	@classmethod
+	def fromDict(cls, dic):
+		cpy = cls(dic['direction'], dic['start'])
+		for key in dic:
+			cpy[key] = dic[key]
+		return cpy
+
+	def __getattr__(self, key):
+		return self[key]
+
+	def __setattr__(self, key, value):
+		self[key] = value
+
+	def __deepcopy__(self, memo):
+		return Strand.fromDict(dict(self))
+
+class BrownStrand(dict):
+	def __init__(self, shift):
+		self.num_points = 2
+		self.to_hit = self.getToHit(shift)
 		self.is_hit = False
 
-	def updateHitValue(self, x):
-		if (self.following_count > 0):
-			self.following_count -= 1
-			self.to_hit = x
+	@classmethod
+	def fromDict(cls, dic):
+		cpy = cls(0)
+		for key in dic:
+			cpy[key] = dic[key]
+		return cpy
+	
+	def __getattr__(self, key):
+		return self[key]
+
+	def __setattr__(self, key, value):
+		self[key] = value
+
+	def __deepcopy__(self, memo):
+		return BrownStrand.fromDict(dict(self))
+	
+	def getToHit(self, shift):
+		for i in range(self.num_points):
+			current_shift = shift + i
+			if (brown_sar.isNewCycle(VARIABLES['TICKETS'][0], current_shift)):
+
+				print("Brown sar:", str(brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]))
+				return brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]
+
+		print("Brown sar end:", str(brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]))
+		return brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]
 
 def init(utilities):
 	''' Initialize utilities and indicators '''
@@ -234,7 +274,7 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif (news_trade_block):
 					print("Trade blocked on NEWS! Trigger reset.")
-					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False)
+					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
 					re_entry_trigger.state = State.CROSS_NEGATIVE
 
 					del pending_entries[pending_entries.index(entry)]
@@ -250,7 +290,7 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif (news_trade_block):
 					print("Trade blocked on NEWS! Trigger reset.")
-					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False)
+					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
 					re_entry_trigger.state = State.CROSS_NEGATIVE
 
 					del pending_entries[pending_entries.index(entry)]
@@ -272,7 +312,7 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif (news_trade_block):
 					print("Trade blocked on NEWS! Trigger reset.")
-					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False)
+					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
 					re_entry_trigger.state = State.CROSS_NEGATIVE
 
 					del pending_entries[pending_entries.index(entry)]
@@ -287,7 +327,7 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif (news_trade_block):
 					print("Trade blocked on NEWS! Trigger reset.")
-					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False)
+					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
 					re_entry_trigger.state = State.CROSS_NEGATIVE
 
 					del pending_entries[pending_entries.index(entry)]
@@ -407,10 +447,10 @@ def onStopLoss(pos):
 	global re_entry_trigger
 
 	if (pos.direction == 'buy'):
-		re_entry_trigger = Trigger(Direction.LONG, 0, tradable = True)
+		re_entry_trigger = Trigger(Direction.LONG, 0, tradable = True, is_re_entry = True)
 		re_entry_trigger.state = State.CROSS_NEGATIVE
 	else:
-		re_entry_trigger = Trigger(Direction.SHORT, 0, tradable = True)
+		re_entry_trigger = Trigger(Direction.SHORT, 0, tradable = True, is_re_entry = True)
 		re_entry_trigger.state = State.CROSS_NEGATIVE
 
 def failsafe(timestamps):
@@ -433,7 +473,7 @@ def failsafe(timestamps):
 		runSequence(current_shift)
 
 		if (len(pending_entries) > 0):
-			re_entry_trigger = Trigger(pending_entries[-1].direction, pending_entries[-1].start, tradable = False)
+			re_entry_trigger = Trigger(pending_entries[-1].direction, pending_entries[-1].start, tradable = False, is_re_entry = True)
 			re_entry_trigger.state = State.CROSS_NEGATIVE
 
 			for entry in pending_entries:
@@ -603,15 +643,14 @@ def onNewCycle(shift):
 	global current_brown
 	
 	if (brown_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
-		sar = brown_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 		if (not current_trigger == None):
 			
-			if (current_trigger.direction == Direction.LONG and brown_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
-				current_brown = BrownStrand(Direction.LONG, sar)
+			if (current_trigger.direction == Direction.LONG and brown_sar.isFalling(VARIABLES['TICKETS'][0], shift + 1, 1)[0]):
+				current_brown = BrownStrand(shift + 1)
 			
-			elif (current_trigger.direction == Direction.SHORT and brown_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
-				current_brown = BrownStrand(Direction.SHORT, sar)
+			elif (current_trigger.direction == Direction.SHORT and brown_sar.isRising(VARIABLES['TICKETS'][0], shift + 1, 1)[0]):
+				current_brown = BrownStrand(shift + 1)
 
 def isWhollyCrossed(shift):
 
@@ -623,10 +662,14 @@ def isWhollyCrossed(shift):
 	if (second.direction == Direction.SHORT):
 		if (second.start < first.start and second.end > first.end):
 			block_direction = Direction.SHORT
+		else:
+			block_direction = None
 
 	else:
 		if (second.start > first.start and second.end < first.end):
 			block_direction = Direction.LONG
+		else:
+			block_direction = None
 
 def isCompletedStrand():
 	for strand in strands:
@@ -667,7 +710,8 @@ def entrySetup(shift, trigger, no_conf = False):
 				trigger.state = State.SWING_TWO
 
 		elif (trigger.state == State.SWING_TWO):
-			if (swingTwo(shift, trigger.direction)):
+			if (swingTwo(shift, trigger)):
+				trigger.ct_conf = False
 				trigger.state = State.SWING_THREE
 
 		elif (trigger.state == State.SWING_THREE):
@@ -681,7 +725,8 @@ def entrySetup(shift, trigger, no_conf = False):
 				trigger.state = State.CROSS_NEGATIVE
 		
 		elif (trigger.state == State.CROSS_NEGATIVE):
-			if (crossNegative(shift, trigger.direction)):
+			if (crossNegative(shift, trigger)):
+				trigger.ct_conf = False
 				trigger.state = State.SWING_THREE
 				
 				entrySetup(shift, trigger, no_conf = no_conf)
@@ -720,19 +765,23 @@ def swingOne(shift, direction):
 
 	return False
 
-def swingTwo(shift, direction):
+def swingTwo(shift, trigger):
 
 	print("swingTwo")
 
 	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
-	if (direction == Direction.LONG):
-		if (ch_idx <= -VARIABLES['cci_ct_cross'] and isBrownParaConfirmation(shift, direction)):
-			return True
+	if (trigger.direction == Direction.LONG):
+		if (ch_idx <= -VARIABLES['cci_ct_cross'] or trigger.ct_conf):
+			trigger.ct_conf = True
+			if (isBrownParaConfirmation(shift, trigger.direction)):
+				return True
 	
 	else:
-		if (ch_idx >= VARIABLES['cci_ct_cross'] and isBrownParaConfirmation(shift, direction)):
-			return True
+		if (ch_idx >= VARIABLES['cci_ct_cross'] or trigger.ct_conf):
+			trigger.ct_conf = True
+			if (isBrownParaConfirmation(shift, trigger.direction)):
+				return True
 
 	return False
 
@@ -794,6 +843,12 @@ def isRegParaConfirmation(shift, direction):
 	else:
 		return reg_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
+def isBrownParaConfirmation(shift, direction):
+	if (direction == Direction.SHORT):
+		return brown_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+	else:
+		return brown_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
+
 def paraHit(shift, direction, no_conf):
 	
 	brownHit(shift, direction)
@@ -810,11 +865,7 @@ def paraHit(shift, direction, no_conf):
 
 	return -1
 
-
 def brownHit(shift, direction):
-
-	sar = brown_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
-	current_brown.updateHitValue(sar)
 
 	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
 	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
@@ -834,26 +885,22 @@ def isSlowParaConfirmation(shift, direction):
 	else:
 		return slow_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
-def isBrownParaConfirmation(shift, direction):
-	if (direction == Direction.LONG):
-		return brown_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
-	else:
-		return brown_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
-
-def crossNegative(shift, direction):
+def crossNegative(shift, trigger):
 	''' Checks for swing to be in positive direction '''
 
 	print("crossNegative")
 
 	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
-	if (direction == Direction.LONG):
-		if (ch_idx < VARIABLES['cci_entry_cross'] and isBrownParaConfirmation(shift, direction)):
-			return True
+	if (trigger.direction == Direction.LONG):
+		if (ch_idx < VARIABLES['cci_entry_cross'] or trigger.ct_conf):
+			if (isBrownParaConfirmation(shift, trigger.direction)):
+				return True
 	
 	else:
-		if (ch_idx > VARIABLES['cci_entry_cross'] and isBrownParaConfirmation(shift, direction)):
-			return True
+		if (ch_idx > VARIABLES['cci_entry_cross'] or trigger.ct_conf):
+			if (isBrownParaConfirmation(shift, trigger.direction)):
+				return True
 
 	return False
 
@@ -893,7 +940,7 @@ def confirmation(shift, trigger):
 	
 	if (trigger.direction == Direction.LONG):
 		
-		if (block_direction == Direction.LONG):
+		if (block_direction == Direction.LONG and not trigger.is_re_entry):
 			trigger.state = State.CROSS_NEGATIVE
 			block_direction = None
 
@@ -906,7 +953,7 @@ def confirmation(shift, trigger):
 			re_entry_trigger = None
 	
 	else:
-		if (block_direction == Direction.SHORT):
+		if (block_direction == Direction.SHORT and not trigger.is_re_entry):
 			trigger.state = State.CROSS_NEGATIVE
 			block_direction = None
 
@@ -1074,11 +1121,28 @@ def onBacktestFinish():
 
 class SaveState(object):
 	def __init__(self):
+		self.saved_vars = {}
+		self.saved_names = self.getCopyable()
 		self.save()
 
+	def getCopyable(self):
+		names = []
+		
+		for i in globals():	
+			try:
+				copy.deepcopy(globals()[i])
+				names.append(i)
+			except:
+				continue
+
+		return names
+
 	def save(self):
-		self.saved_vars = globals().copy()
+		self.saved_names = self.getCopyable()
+
+		for name in self.saved_names:
+			self.saved_vars[name] = copy.deepcopy(globals()[name])
 
 	def load(self):
-		for key in globals():
-			globals()[key] = self.saved_vars[key]
+		for name in self.saved_names:
+			globals()[name] = self.saved_vars[name]

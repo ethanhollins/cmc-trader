@@ -31,7 +31,6 @@ class HistoryLog(object):
 			)
 
 	def setTimestamp(self):
-		print(self.utils.startTime)
 		return self.utils.convertDateTimeToTimestamp(self.utils.startTime)
 
 	def getFilteredHistory(self):

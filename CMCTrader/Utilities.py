@@ -685,7 +685,9 @@ class Utilities:
 		tz = pytz.timezone('Australia/Melbourne')
 
 		then = datetime.datetime(year = 2018, month = 1, day = 1)
+		print(now)
 		now = now.astimezone(tz)
+		print(now)
 		now = now.replace(tzinfo=None)
 		print(now)
 		return int((now - then).total_seconds())
@@ -729,11 +731,16 @@ class Utilities:
 					0
 				)
 
-			if (int(startTimeParts[0]) > int(endTimeParts[0])):
+			if (self.startTime > self.endTime):
 
-				if (currentTime.hour < self.endTime.hour and currentTime.hour >= 0):
+				if (self.startTime - datetime.timedelta(days=1) < currentTime < self.endTime):
 					self.startTime -= datetime.timedelta(days=1)
 				else:
+					self.endTime += datetime.timedelta(days=1)
+
+			else:
+				if (currentTime > self.endTime):
+					self.startTime += datetime.timedelta(days=1)
 					self.endTime += datetime.timedelta(days=1)
 
 		else:

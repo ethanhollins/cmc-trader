@@ -302,6 +302,7 @@ class Backtester(object):
 			try:
 				self.plan.onNewBar()
 			except AttributeError as e:
+				print(str(e), "continuing...")
 				pass
 			except Exception as e:
 				print(traceback.format_exc())

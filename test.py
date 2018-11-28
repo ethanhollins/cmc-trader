@@ -1,27 +1,45 @@
 from CMCTrader import Constants
+import copy
 
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD], # or 'GBPUSD'
-	# 'START_TIME' : '1:00',
-	# 'END_TIME' : '7:55',
+	'START_TIME' : '1:30',
+	'END_TIME' : '19:00',
 	'risk' : 1.0,
 	'stoploss' : 17
 }
-utils = None
 
-reg_sar = None
-slow_sar = None
-black_sar = None
-rsi = None
-cci = None
-macd = None
+count = 0
+nums = []
+trig = None
 
-pending_entries = []
-entered = []
-is_init = True
+class Trigger(dict):
+	def __init__(self, txt):
+		self.txt1 = txt
+		self.txt2 = "text num 2"
 
-bought = False
-sold = False
+	@classmethod
+	def fromDict(cls, dic):
+		cpy = cls(dic['txt1'])
+		for key in dic:
+			cpy[key] = dic[key]
+		return cpy
+	
+	def __getattr__(self, key):
+		return self[key]
+
+	def __setattr__(self, key, value):
+		self[key] = value
+
+	def __deepcopy__(self, memo):
+		return Trigger.fromDict(dict(self))
+
+# class Trigger(object):
+# 	def __init__(self, txt):
+# 		self.txt1 = txt
+# 		self.txt2 = "text num 2"
+
+
 
 def init(utilities):
 	print("Hello init World!")
@@ -32,49 +50,35 @@ def init(utilities):
 	reg_sar = utils.SAR(1)
 	black_sar = utils.SAR(2)
 	slow_sar = utils.SAR(3)
-	rsi = utils.RSI(4, 1)
-	cci = utils.CCI(5, 1)
-	macd = utils.MACD(6, 1)
+	brown_sar = utils.SAR(4)
+	rsi = utils.RSI(5, 1)
+	cci = utils.CCI(6, 1)
+	macd = utils.MACD(7, 1)
 
-	pending_entries.append('buy')
-	entered.append('buy')
+	global trig
+	trig = Trigger("text 1")
+	print(str(trig))
+	print(str(trig.txt1), str(trig['txt2']))
+
+	trig2 = copy.deepcopy(trig)
+	trig.txt1 = "text again"
+	print(str(trig2.txt1))
+	print(str(trig))
 
 def onLoop():
-	global bought, sold
-
-	for entry in pending_entries:
-		if entry == 'buy' and not bought:
-			pos = utils.buy(400, sl = 100)
-			pos.quickExit()
-			bought = True
-		elif not sold:
-			pos = utils.sell(400, sl = 200)
-			sold = True
+	return
 
 def onNewBar():
 	print("onNewBar")
-	global is_init
+	
+	global count
 
-	if (is_init):
-		pending_entries.append('sell')
-		entered.append('sell')
-		is_init = False
+	count += 1
 
-	print(pending_entries)
-	print(entered)
-	# pos = utils.buy(1000, ordertype = 'stopentry', entry = 1.4, sl = 300, tp = 100)
-	# pos.close()
-	# print(sar1.get(Constants.GBPUSD, 0, 10))
-	# print(sar1.isRising(Constants.GBPUSD, 0, 10))
-	# pos = pos.stopAndReverse(3000)
-	# print(pos.entryprice)
-	# pos.modifyPositionSize(2000)
-	# pos.modifyTP(30)
-	# pos.modifySL(60)
-	# pos.removeTP()
-	# pos.apply()
-	# pos.close()
-	# print(pos.closeprice)
+	print(trig)
+
+	nums.append(count)
+	print(nums)
 
 def onRecovery():
 	print("onRecovery")
@@ -84,7 +88,35 @@ def onRecovery():
 def onDownTime():
 	print("onDownTime")
 
-def failsafe(timestamps):
-	print(timestamps)
+class SaveState(object):
+	def __init__(self):
+		self.saved_vars = {}
+		self.saved_names = self.getPicklable()
+		self.save()
 
+	def getPicklable(self):
+		names = []
+		
+		for i in globals():	
+			try:
+				copy.deepcopy(globals()[i])
+				names.append(i)
+			except:
+				continue
+
+		print(names)
+		return names
+
+	def save(self):
+		self.saved_names = self.getPicklable()
+
+		for name in self.saved_names:
+			self.saved_vars[name] = copy.deepcopy(globals()[name])
+
+		print(self.saved_vars)
+
+	def load(self):
+		for name in self.saved_names:
+			print(str(globals()[name]), ":", str(self.saved_vars[name]))
+			globals()[name] = self.saved_vars[name]
 	
