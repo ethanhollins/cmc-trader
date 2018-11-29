@@ -47,8 +47,12 @@ re_entry_trigger = None
 
 block_direction = None
 
-strands = []
-position_strands = []
+class Strands(list):
+	def __getitem__(self, key):
+		return sorted(list(self), key=lambda x: x.count, reverse = True)[key]
+
+strands = Strands()
+position_strands = Strands()
 current_brown = None
 
 pending_entries = []
@@ -83,6 +87,30 @@ class State(Enum):
 	OBOS = 6
 	ENTERED = 7
 
+class Strand(dict):
+	def __init__(self, direction, start):
+		self.direction = direction
+		self.start = start
+		self.end = 0
+		self.is_completed = False
+		self.count = len(strands)
+
+	@classmethod
+	def fromDict(cls, dic):
+		cpy = cls(dic['direction'], dic['start'])
+		for key in dic:
+			cpy[key] = dic[key]
+		return cpy
+
+	def __getattr__(self, key):
+		return self[key]
+
+	def __setattr__(self, key, value):
+		self[key] = value
+
+	def __deepcopy__(self, memo):
+		return Strand.fromDict(dict(self))
+
 class Trigger(dict):
 	def __init__(self, direction, start, tradable = False, is_re_entry = False):
 		self.direction = direction
@@ -108,29 +136,6 @@ class Trigger(dict):
 
 	def __deepcopy__(self, memo):
 		return Trigger.fromDict(dict(self))
-
-class Strand(dict):
-	def __init__(self, direction, start):
-		self.direction = direction
-		self.start = start
-		self.end = 0
-		self.is_completed = False
-
-	@classmethod
-	def fromDict(cls, dic):
-		cpy = cls(dic['direction'], dic['start'])
-		for key in dic:
-			cpy[key] = dic[key]
-		return cpy
-
-	def __getattr__(self, key):
-		return self[key]
-
-	def __setattr__(self, key, value):
-		self[key] = value
-
-	def __deepcopy__(self, memo):
-		return Strand.fromDict(dict(self))
 
 class BrownStrand(dict):
 	def __init__(self, shift):
@@ -597,10 +602,10 @@ def getTrigger(shift):
 	if (black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
 
 		if (black_sar.strandCount(VARIABLES['TICKETS'][0], shift + 1) > VARIABLES['sar_size']):
-			current_trigger = Trigger(strands[-2].direction, strands[-2].start, tradable = True)
+			current_trigger = Trigger(strands[1].direction, strands[1].start, tradable = True)
 		
 		else:
-			current_trigger = Trigger(strands[-2].direction, strands[-2].start)
+			current_trigger = Trigger(strands[1].direction, strands[1].start)
 
 	if (not current_trigger == None and not current_trigger.tradable):
 		
@@ -621,11 +626,11 @@ def onNewCycle(shift):
 	if (black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
 
 		if (len(strands) > 0):
-			strands[-1].is_completed = True
-			strands[-1].end = black_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
+			strands[0].is_completed = True
+			strands[0].end = black_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
 		
 		if (len(strands) > 1):
-			isWhollyCrossed(shift)
+			isWhollyCrossed()
 
 		if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			direction = Direction.SHORT
@@ -652,12 +657,12 @@ def onNewCycle(shift):
 			elif (current_trigger.direction == Direction.SHORT and brown_sar.isRising(VARIABLES['TICKETS'][0], shift + 1, 1)[0]):
 				current_brown = BrownStrand(shift + 1)
 
-def isWhollyCrossed(shift):
+def isWhollyCrossed():
 
 	global block_direction
 
-	first = strands[-2]
-	second = strands[-1]
+	first = strands[1]
+	second = strands[0]
 
 	if (second.direction == Direction.SHORT):
 		if (second.start < first.start and second.end > first.end):
@@ -983,11 +988,11 @@ def getPositionStrand(shift):
 			print("get buy strand")
 			if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 				print("add strand")
-				position_strands.append(strands[-1])
+				position_strands.append(strands[0])
 
 		else:
 			if (black_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
-				position_strands.append(strands[-1])
+				position_strands.append(strands[0])
 
 def momentumEntry(shift):
 	global re_entry_trigger, position_strands, current_trigger
@@ -1000,11 +1005,11 @@ def momentumEntry(shift):
 
 	if (len(position_strands) >= VARIABLES['num_paras_momentum']):
 
-		if (position_strands[-1].direction == Direction.SHORT):
+		if (position_strands[0].direction == Direction.SHORT):
 
 			min_strand = None
 
-			for strand in position_strands[-VARIABLES['num_paras_momentum']:]:
+			for strand in position_strands[:VARIABLES['num_paras_momentum']]:
 				if (min_strand == None):
 					min_strand = strand
 				elif (strand.start < min_strand.start):
@@ -1039,7 +1044,7 @@ def momentumEntry(shift):
 		else:
 			max_strand = None
 
-			for strand in position_strands[-VARIABLES['num_paras_momentum']:]:
+			for strand in position_strands[:VARIABLES['num_paras_momentum']]:
 				if (max_strand == None):
 					max_strand = strand
 				elif (strand.start > max_strand.start):
