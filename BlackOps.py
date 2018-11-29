@@ -623,6 +623,9 @@ def onNewCycle(shift):
 		if (len(strands) > 0):
 			strands[-1].is_completed = True
 			strands[-1].end = black_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
+		
+		if (len(strands) > 1):
+			isWhollyCrossed(shift)
 
 		if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			direction = Direction.SHORT
@@ -633,9 +636,6 @@ def onNewCycle(shift):
 		strands.append(strand)
 
 		print("New Strand:", str(strand.direction), str(strand.start))
-
-		if (len(strands) > 1):
-			isWhollyCrossed(shift)
 
 		getPositionStrand(shift)
 
@@ -843,17 +843,24 @@ def isRegParaConfirmation(shift, direction):
 	else:
 		return reg_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
-def isBrownParaConfirmation(shift, direction):
-	if (direction == Direction.SHORT):
-		return brown_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+def isBrownParaConfirmation(shift, direction, reverse = False):
+	if (not reverse):
+		if (direction == Direction.SHORT):
+			return brown_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+		else:
+			return brown_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
+	
 	else:
-		return brown_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
+		if (direction == Direction.LONG):
+			return brown_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+		else:
+			return brown_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 def paraHit(shift, direction, no_conf):
 	
 	brownHit(shift, direction)
 
-	if (current_brown.is_hit and isSlowParaConfirmation(shift, direction)):
+	if (current_brown.is_hit and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction, reverse = True)):
 		
 		if (no_conf):
 			return 1
@@ -1093,6 +1100,9 @@ def report():
 
 	if (not re_entry_trigger == None):
 		print("RE-ENTRY TRIGGER:", re_entry_trigger.direction, re_entry_trigger.state)
+
+	if (not block_direction == None):
+		print("BLOCK DIRECTION:", str(block_direction))
 
 	print("CLOSED POSITIONS:")
 	count = 0

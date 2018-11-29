@@ -19,6 +19,7 @@ import decimal
 from botocore.exceptions import ClientError
 
 from CMCTrader import DBManager as db
+from CMCTrader import Log
 from CMCTrader.Position import Position
 from CMCTrader.HistoryLog import HistoryLog
 from CMCTrader.PositionLog import PositionLog
@@ -45,6 +46,8 @@ class Utilities:
 
 		self.user_id = json.loads(user_info)['user_id']
 		self.plan_name = json.loads(user_info)['user_program']
+
+		Log.set_utils(self)
 
 		self._initVARIABLES()
 
