@@ -247,6 +247,8 @@ class Backtester(object):
 
 					position_logs = self.getPositionLogs(timestamp)
 					
+					print(position_logs)
+
 					if (len(position_logs) > 0):
 						for log in position_logs:
 							if log[1] < timestamp:
@@ -377,8 +379,10 @@ class Backtester(object):
 		print("history:", str(sorted_history))
 
 		if (sorted_history == None):
+			print("this")
 			return []
 		else:
+			print("this2")
 			return sorted_history
 
 	def updatePosition(self, i):
