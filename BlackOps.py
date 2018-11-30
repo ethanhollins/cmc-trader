@@ -708,13 +708,13 @@ def isWhollyCrossed():
 	second = strands[0]
 
 	if (second.direction == Direction.SHORT):
-		if (second.start < first.start and second.end > first.end):
+		if (second.start < first.end and second.end > first.start):
 			block_direction = Direction.SHORT
 		else:
 			block_direction = None
 
 	else:
-		if (second.start > first.start and second.end < first.end):
+		if (second.start > first.end and second.end < first.start):
 			block_direction = Direction.LONG
 		else:
 			block_direction = None
