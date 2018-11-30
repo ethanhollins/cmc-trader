@@ -1050,6 +1050,8 @@ def momentumEntry(shift):
 		handleMomentumEntry(shift, Direction.LONG)
 
 def getMomentumCrossStrand(count, direction):
+	print("MOMENTUM CROSS STRAND")
+
 	last_strands = []
 
 	for strand in position_strands.getSorted():
