@@ -230,6 +230,8 @@ class Backtester(object):
 		state = State.RECOVER
 		self.has_run = False
 
+		position_logs = None
+
 		for _pair in ohlc:
 			pair = _pair
 
@@ -245,7 +247,8 @@ class Backtester(object):
 					
 					current_timestamp = timestamp
 
-					position_logs = self.getPositionLogs(timestamp)
+					if (position_logs == None):
+						position_logs = self.getPositionLogs(timestamp)
 					
 					print(position_logs)
 
