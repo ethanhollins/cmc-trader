@@ -1078,7 +1078,7 @@ def handleMomentumEntry(shift, direction):
 
 	if (not cross_strand == None):
 
-		if (checkMomentumCrossed(shift, strand)):
+		if (checkMomentumCrossed(shift, cross_strand)):
 
 			if (current_trigger.direction == direction):
 				if (current_trigger.state.value >= State.OBOS.value):
