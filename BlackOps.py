@@ -654,7 +654,7 @@ def setCurrentTrigger(direction):
 
 def getLastStrandStart(direction):
 	for strand in strands.getSorted():
-		if (not strand.direction == direction):
+		if (strand.direction == direction):
 			return strand.start
 
 def onNewCycle(shift):
@@ -689,7 +689,10 @@ def onNewCycle(shift):
 	
 	if (brown_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
 
-		if (not current_trigger == None):
+		if (current_trigger == None):
+			current_brown = BrownStrand(shift + 1)
+
+		else:
 			
 			if (current_trigger.direction == Direction.LONG and brown_sar.isFalling(VARIABLES['TICKETS'][0], shift + 1, 1)[0]):
 				current_brown = BrownStrand(shift + 1)
@@ -1134,12 +1137,12 @@ def report():
 	''' Prints report for debugging '''
 
 	if (not current_trigger == None):
-		print("CURRENT TRIGGER:", current_trigger.direction, current_trigger.state)
+		print("CURRENT TRIGGER:", str(current_trigger))
 	else:
 		print("CURRENT TRIGGER: None")
 
 	if (not re_entry_trigger == None):
-		print("RE-ENTRY TRIGGER:", re_entry_trigger.direction, re_entry_trigger.state)
+		print("RE-ENTRY TRIGGER:", str(re_entry_trigger))
 
 	if (not block_direction == None):
 		print("BLOCK DIRECTION:", str(block_direction))
