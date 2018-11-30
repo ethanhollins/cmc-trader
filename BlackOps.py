@@ -209,8 +209,8 @@ def onStartTrading():
 	is_nnt = False
 	is_be = False
 
-	resetPositionStrands(Direction.LONG)
-	resetPositionStrands(Direction.SHORT)
+	# resetPositionStrands(Direction.LONG)
+	# resetPositionStrands(Direction.SHORT)
 
 def onFinishTrading():
 	''' Function called on trade end time '''
