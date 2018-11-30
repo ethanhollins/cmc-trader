@@ -14,7 +14,6 @@ state = State.NONE
 current_timestamp = 0
 pair = None
 
-
 class Backtester(object):
 
 	def __init__(self, utils, plan):
@@ -377,7 +376,12 @@ class Backtester(object):
 		sorted_history = [i for i in history if int(i[1]) >= timestamp and i[2] in listened_types]
 		sorted_history.sort(key=lambda i: i[1])
 
-		return sorted_history
+		print("history:", str(history))
+
+		if (sorted_history == None):
+			return []
+		else:
+			return sorted_history
 
 	def updatePosition(self, i):
 
