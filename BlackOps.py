@@ -368,7 +368,7 @@ def handleStopAndReverse(pos, entry):
 
 		resetPositionStrands(Direction.LONG)
 		resetPositionStrands(Direction.SHORT)
-		getPositionStrand(0)
+		getPositionStrand()
 
 	del pending_entries[pending_entries.index(entry)]
 
@@ -398,7 +398,7 @@ def handleRegularEntry(entry):
 
 		resetPositionStrands(Direction.LONG)
 		resetPositionStrands(Direction.SHORT)
-		getPositionStrand(0)
+		getPositionStrand()
 
 	del pending_entries[pending_entries.index(entry)]
 
@@ -682,7 +682,7 @@ def onNewCycle(shift):
 
 		print("New Strand:", str(strand.direction), str(strand.start))
 
-		getPositionStrand(shift)
+		getPositionStrand()
 
 
 	global current_brown
@@ -1027,21 +1027,9 @@ def resetPositionStrands(direction):
 		if (strand.direction == direction):
 			del position_strands[position_strands.index(strand)]
 
-def getPositionStrand(shift):
+def getPositionStrand():
 	print("getPositionStrand")
 	position_strands.append(strands[0])
-	return
-
-	for pos in utils.positions:
-		if (pos.direction == 'buy'):
-			print("get buy strand")
-		if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
-			print("add strand")
-			position_strands.append(strands[0])
-
-		else:
-			if (black_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
-				position_strands.append(strands[0])
 
 def momentumEntry(shift):
 	global re_entry_trigger, position_strands, current_trigger
@@ -1064,7 +1052,7 @@ def momentumEntry(shift):
 def getMomentumCrossStrand(count, direction):
 	last_strands = []
 
-	print(position_strands.getSorted())
+	print(position_strands)
 
 	for strand in position_strands.getSorted():
 		if (len(last_strands) >= count):
@@ -1090,7 +1078,7 @@ def handleMomentumEntry(shift, direction):
 
 	if (not cross_strand == None):
 
-		if (hasCrossedBelow(shift, cross_strand)):
+		if (checkMomentumCrossed(shift, strand)):
 
 			if (current_trigger.direction == direction):
 				if (current_trigger.state.value >= State.OBOS.value):
@@ -1113,6 +1101,12 @@ def handleMomentumEntry(shift, direction):
 				current_trigger.last_obos = str_idx
 		
 			resetPositionStrands(direction)
+
+def checkMomentumCrossed(shift, strand):
+	if (strand.direction == Direction.LONG):
+		return hasCrossedAbove(shift, strand)
+	else:
+		return hasCrossedBelow(shift, strand)
 
 def isObos(shift, direction):
 
