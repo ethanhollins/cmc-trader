@@ -1047,7 +1047,7 @@ class Utilities:
 			with open('recover.json', 'r') as f:
 				values = json.load(f)
 
-			if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 30):
+			if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 45):
 				for pair in values['ohlc']:
 					values['ohlc'][pair] = {int(k):v for k,v in values['ohlc'][pair].items()}
 
