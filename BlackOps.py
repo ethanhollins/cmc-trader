@@ -654,7 +654,7 @@ def setCurrentTrigger(direction):
 
 def getLastStrandStart(direction):
 	for strand in strands.getSorted():
-		if (strand.direction == direction):
+		if (not strand.direction == direction):
 			return strand.start
 
 def onNewCycle(shift):
