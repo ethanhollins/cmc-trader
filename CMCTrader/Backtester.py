@@ -232,30 +232,33 @@ class Backtester(object):
 
 		position_logs = None
 
-		for pair in ohlc:
-			pair = pair
+		for _pair in ohlc:
+			pair = _pair
 
 			sorted_timestamps = [i[0] for i in sorted(ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)]
 
-			position_logs = self.getPositionLogs(sorted_timestamps[0])
-			print(position_logs)
+			real_time = self.utils.getLondonTime()
+
+			self.utils.setTradeTimes(currentTime = real_time)
 
 			for timestamp in sorted_timestamps:
-				current_timestamp = timestamp
-				
-				if (len(position_logs) > 0):
-					for log in position_logs:
-						if log[1] < timestamp:
-							self.updatePosition(position_logs[0])
-							del position_logs[position_logs.index(log)]
-
-				self.insertValuesByTimestamp(timestamp, pair, ohlc, indicators)
-
-				time = self.getLondonTime(timestamp)
-
-				self.utils.setTradeTimes(currentTime = time)
 
 				if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
+					
+					current_timestamp = timestamp
+
+					position_logs = self.getPositionLogs(timestamp)
+					
+					if (len(position_logs) > 0):
+						for log in position_logs:
+							if log[1] < timestamp:
+								self.updatePosition(position_logs[0])
+								del position_logs[position_logs.index(log)]
+					
+					self.insertValuesByTimestamp(timestamp, pair, ohlc, indicators)
+					
+					time = self.getLondonTime(timestamp)
+
 					self.runMainLoop(time)
 
 		try:
