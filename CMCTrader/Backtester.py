@@ -239,7 +239,7 @@ class Backtester(object):
 
 			real_time = self.utils.getLondonTime()
 
-			self.utils.setTradeTimes(currentTime = real_time)
+			# self.utils.setTradeTimes(currentTime = real_time)
 			print(str(self.utils.startTime), str(self.utils.endTime))
 
 			for timestamp in sorted_timestamps:
