@@ -209,7 +209,8 @@ def onStartTrading():
 	is_nnt = False
 	is_be = False
 
-	resetPositionStrands()
+	resetPositionStrands(Direction.LONG)
+	resetPositionStrands(Direction.SHORT)
 
 def onFinishTrading():
 	''' Function called on trade end time '''
@@ -365,7 +366,8 @@ def handleStopAndReverse(pos, entry):
 		
 		is_position_breakeven = False
 
-		resetPositionStrands()
+		resetPositionStrands(Direction.LONG)
+		resetPositionStrands(Direction.SHORT)
 		getPositionStrand(0)
 
 	del pending_entries[pending_entries.index(entry)]
@@ -394,7 +396,8 @@ def handleRegularEntry(entry):
 		
 		is_position_breakeven = False
 
-		resetPositionStrands()
+		resetPositionStrands(Direction.LONG)
+		resetPositionStrands(Direction.SHORT)
 		getPositionStrand(0)
 
 	del pending_entries[pending_entries.index(entry)]
@@ -447,7 +450,8 @@ def handleExits(shift):
 
 	if (is_exit):
 		pending_exits = []
-		resetPositionStrands()
+		resetPositionStrands(Direction.LONG)
+		resetPositionStrands(Direction.SHORT)
 
 def onStopLoss(pos):
 	print("onStopLoss")
@@ -1013,18 +1017,24 @@ def confirmation(shift, trigger):
 			pending_entries.append(trigger)
 			re_entry_trigger = None
 
-def resetPositionStrands():
+def resetPositionStrands(direction):
 	global position_strands
-	position_strands = []
+
+	for strand in position_strands:
+		if (strand.direction == direction):
+			del position_strands[position_strands.index(strand)]
 
 def getPositionStrand(shift):
 	print("getPositionStrand")
+	position_strands.append(strands[0])
+	return
+
 	for pos in utils.positions:
 		if (pos.direction == 'buy'):
 			print("get buy strand")
-			if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
-				print("add strand")
-				position_strands.append(strands[0])
+		if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
+			print("add strand")
+			position_strands.append(strands[0])
 
 		else:
 			if (black_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
@@ -1035,82 +1045,71 @@ def momentumEntry(shift):
 
 	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 
-	print(position_strands)
-	for i in position_strands:
-		print(str(i.direction), str(i.start))
+	if (len(utils.positions) <= 0):
 
-	if (len(position_strands) >= VARIABLES['num_paras_momentum']):
+		handleMomentumEntry(shift, Direction.LONG)
+		handleMomentumEntry(shift, Direction.SHORT)
 
-		if (position_strands[0].direction == Direction.SHORT):
+	elif (utils.positions[0].direction == 'buy'):
 
-			min_strand = None
+		handleMomentumEntry(shift, Direction.SHORT)
 
-			for strand in position_strands[:VARIABLES['num_paras_momentum']]:
-				if (min_strand == None):
-					min_strand = strand
-				elif (strand.start < min_strand.start):
-					min_strand = strand
+	elif (utils.positions[0].direction == 'sell'):
 
-			print("min strand:", min_strand.start)
+		handleMomentumEntry(shift, Direction.LONG)
 
-			if (hasCrossedBelow(shift, min_strand)):
+def getMomentumCrossStrand(count, direction):
+	last_strands = []
 
-				if (current_trigger.direction == Direction.SHORT):
-					if (current_trigger.state.value >= State.OBOS.value):
-						print("Swing entry blocked momentum entry short!")
-						position_strands = []
-						return
+	print(position_strands.getSorted())
 
-				if (not isObos(shift, Direction.SHORT)):
-					print("Entering on momentum entry short!")
-					
-					entry = Trigger(Direction.SHORT, 0, tradable = True)
-					pending_entries.append(entry)
-					re_entry_trigger = None
+	for strand in position_strands.getSorted():
+		if (len(last_strands) >= count):
+			break
 
-				else:
-					print("Oversold on momentum entry")
+		if (strand.direction == direction):
+			last_strands.append(strand)
 
-					current_trigger = Trigger(Direction.SHORT, 0, tradable = True)
-					current_trigger.state = State.OBOS
-					current_trigger.last_obos = str_idx
+	if (len(last_strands) < count):
+		return None
+
+	if (direction == Direction.LONG):
+		cross_strand = sorted(last_strands, key=lambda x: x.start, reverse=True)[0]
+	else:
+		cross_strand = sorted(last_strands, key=lambda x: x.start)[0]
+
+	return cross_strand
+
+def handleMomentumEntry(shift, direction):
+	cross_strand = getMomentumCrossStrand(VARIABLES['num_paras_momentum'], direction)
+
+	print("Cross Strand:", str(cross_strand))
+
+	if (not cross_strand == None):
+
+		if (hasCrossedBelow(shift, cross_strand)):
+
+			if (current_trigger.direction == direction):
+				if (current_trigger.state.value >= State.OBOS.value):
+					print("Swing entry blocked momentum entry short!")
+					position_strands = []
+					return
+
+			if (not isObos(shift, direction)):
+				print("Entering on momentum entry short!")
 				
-				resetPositionStrands()
+				entry = Trigger(direction, 0, tradable = True)
+				pending_entries.append(entry)
+				re_entry_trigger = None
 
-		else:
-			max_strand = None
+			else:
+				print("Oversold on momentum entry")
 
-			for strand in position_strands[:VARIABLES['num_paras_momentum']]:
-				if (max_strand == None):
-					max_strand = strand
-				elif (strand.start > max_strand.start):
-					max_strand = strand
-
-			print("max strand:", max_strand.start)
-
-			if (hasCrossedAbove(shift, max_strand)):
-
-				if (current_trigger.direction == Direction.LONG):
-					if (current_trigger.state.value >= State.OBOS.value):
-						print("Swing entry blocked momentum entry long!")
-						position_strands = []
-						return
-
-				if (not isObos(shift, Direction.LONG)):
-					print("Entering on momentum entry long!")
-					
-					entry = Trigger(Direction.LONG, 0, tradable = True)
-					pending_entries.append(entry)
-					re_entry_trigger = None
-
-				else:
-					print("Overbought on momentum entry")
-
-					current_trigger = Trigger(Direction.LONG, 0, tradable = True)
-					current_trigger.state = State.OBOS
-					current_trigger.last_obos = str_idx
-
-				resetPositionStrands()
+				current_trigger = Trigger(direction, 0, tradable = True)
+				current_trigger.state = State.OBOS
+				current_trigger.last_obos = str_idx
+		
+			resetPositionStrands(direction)
 
 def isObos(shift, direction):
 

@@ -213,7 +213,8 @@ class Backtester(object):
 				# self.checkStopLoss()
 				# self.checkTakeProfit()
 
-				self.runMainLoop(time)
+				if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
+					self.runMainLoop(time)
 
 				input("Press enter to continue...")
 
@@ -254,7 +255,8 @@ class Backtester(object):
 
 				self.utils.setTradeTimes(currentTime = time)
 
-				self.runMainLoop(time)
+				if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
+					self.runMainLoop(time)
 
 		try:
 			self.plan.onBacktestFinish()
