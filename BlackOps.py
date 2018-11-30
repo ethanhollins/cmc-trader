@@ -291,6 +291,10 @@ def handleEntries():
 					print("Attempting position enter long: stop and reverse")
 					handleStopAndReverse(pos, entry)
 
+					resetPositionStrands(Direction.LONG)
+					resetPositionStrands(Direction.SHORT)
+					getPositionStrand()
+
 			else:
 
 				if (no_new_trades):
@@ -306,6 +310,10 @@ def handleEntries():
 				else:
 					print("Attempting position enter long: regular")
 					handleRegularEntry(entry)
+
+					resetPositionStrands(Direction.LONG)
+					resetPositionStrands(Direction.SHORT)
+					getPositionStrand()
 
 		else:
 
@@ -329,6 +337,9 @@ def handleEntries():
 					print("Attempting position enter short: stop and reverse")
 					handleStopAndReverse(pos, entry)
 
+					resetPositionStrands(Direction.LONG)
+					resetPositionStrands(Direction.SHORT)
+					getPositionStrand()
 			else:
 
 				if (no_new_trades):
@@ -343,6 +354,10 @@ def handleEntries():
 				else:
 					print("Attempting position enter short: regular")
 					handleRegularEntry(entry)
+
+					resetPositionStrands(Direction.LONG)
+					resetPositionStrands(Direction.SHORT)
+					getPositionStrand()
 
 @Backtester.skip_on_recover
 def handleStopAndReverse(pos, entry):
@@ -365,10 +380,6 @@ def handleStopAndReverse(pos, entry):
 		pos.stopAndReverse(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
 		
 		is_position_breakeven = False
-
-		resetPositionStrands(Direction.LONG)
-		resetPositionStrands(Direction.SHORT)
-		getPositionStrand()
 
 	del pending_entries[pending_entries.index(entry)]
 
@@ -395,10 +406,6 @@ def handleRegularEntry(entry):
 			utils.sell(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
 		
 		is_position_breakeven = False
-
-		resetPositionStrands(Direction.LONG)
-		resetPositionStrands(Direction.SHORT)
-		getPositionStrand()
 
 	del pending_entries[pending_entries.index(entry)]
 
