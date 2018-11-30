@@ -1052,8 +1052,6 @@ def momentumEntry(shift):
 def getMomentumCrossStrand(count, direction):
 	last_strands = []
 
-	print(position_strands)
-
 	for strand in position_strands.getSorted():
 		if (len(last_strands) >= count):
 			break
