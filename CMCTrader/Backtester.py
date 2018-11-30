@@ -194,7 +194,7 @@ class Backtester(object):
 		global state, pair, current_timestamp
 		state = State.BACKTEST
 
-		position_logs = None
+		# position_logs = None
 
 		for pair in ohlc:
 			pair = pair
@@ -229,8 +229,6 @@ class Backtester(object):
 		global state, pair, current_timestamp
 		state = State.RECOVER
 		self.has_run = False
-
-		position_logs = None
 
 		for _pair in ohlc:
 			pair = _pair
