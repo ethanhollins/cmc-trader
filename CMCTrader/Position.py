@@ -180,24 +180,59 @@ class Position(object):
 		wait.until(lambda driver : self._getModifyTicket() is not None)
 
 		self.modifyTicketElements = self.driver.execute_script(
-				'var attr = arguments[0].getAttribute("style");' +
-				'attr.replace("display: none;", "");'+
-				'var ticket_elements = {};' +
-				'ticket_id = arguments[0].getAttribute("id");' +
-				'ticket_elements[\'TICKET_ID\'] = ticket_id;' +
-				'elem_stop_loss = arguments[0].querySelector(\'[class="stopLoss"]\').querySelector(\'[class*="add-child-order"]\');' +
+				'var attr = arguments[0].getAttribute("style");'
+				'attr.replace("display: none;", "");'
+				'var ticket_elements = {};'
+				'ticket_id = arguments[0].getAttribute("id");'
+				'ticket_elements[\'TICKET_ID\'] = ticket_id;'
+				'elem_stop_loss = arguments[0].querySelector(\'[class="stopLoss"]\').querySelector(\'[class*="add-child-order"]\');'
 				'ticket_elements[\'STOP_LOSS\'] = elem_stop_loss;'
-				'elem_take_profit = arguments[0].querySelector(\'[class="takeProfit"]\').querySelector(\'[class*="add-child-order"]\');' +
-				'ticket_elements[\'TAKE_PROFIT\'] = elem_take_profit;' +
-				'elem_close_position_btn = arguments[0].querySelector(\'[class*="primary-order-side-button"]\');' +
-				'ticket_elements[\'CLOSE_POSITION_BTN\'] = elem_close_position_btn;' +
-				'elem_submit_btn = arguments[0].querySelector(\'button[class*="submit-button"]\');' +
-				'ticket_elements[\'MODIFY_BTN\'] = elem_submit_btn;' +
-				'elem_close_btn = arguments[0].querySelector(\'button[class*="close-button"]\');' +
+				'console.log(arguments[0].querySelector(\'div[class="stopLoss"]\').querySelector(\'[class="order-type"]\'));'
+				'elem_order_type_stop = arguments[0].querySelector(\'div[class="stopLoss"]\').querySelector(\'[class="order-type"]\');'
+				'ticket_elements[\'ORDER_TYPE_STOP\'] = elem_order_type_stop;'
+				'elem_market = elem_order_type_stop.querySelector(\'[data-value="Regular"]\');'
+				'ticket_elements[\'REGULAR\'] = elem_market;'
+				'elem_limit = elem_order_type_stop.querySelector(\'[data-value="Trailing"]\');'
+				'ticket_elements[\'TRAILING\'] = elem_limit;'
+				'elem_take_profit = arguments[0].querySelector(\'[class="takeProfit"]\').querySelector(\'[class*="add-child-order"]\');'
+				'ticket_elements[\'TAKE_PROFIT\'] = elem_take_profit;'
+				'elem_close_position_btn = arguments[0].querySelector(\'[class*="primary-order-side-button"]\');'
+				'ticket_elements[\'CLOSE_POSITION_BTN\'] = elem_close_position_btn;'
+				'elem_submit_btn = arguments[0].querySelector(\'button[class*="submit-button"]\');'
+				'ticket_elements[\'MODIFY_BTN\'] = elem_submit_btn;'
+				'elem_close_btn = arguments[0].querySelector(\'button[class*="close-button"]\');'
 				'ticket_elements[\'CLOSE_BTN\'] = elem_close_btn;'
 				'return ticket_elements;',
 				self.modifyTicket
 			)
+
+	# def trailing(self):
+	# 	if self.modifyTicket is None:
+	# 		if (not self.utils.positionExists(self)):
+	# 			self.utils.updatePositions()
+	# 			return
+	# 		self._getModifyTicketBtns()
+
+	# 	self._clickTrailingStop()
+
+	# 	self.driver.execute_script(
+	# 			'arguments[0].textContent = arguments[1]',
+	# 			self._getStopLossPointsElem(), str(float(50))
+	# 		)
+
+	# def trailingReg(self):
+	# 	if self.modifyTicket is None:
+	# 		if (not self.utils.positionExists(self)):
+	# 			self.utils.updatePositions()
+	# 			return
+	# 		self._getModifyTicketBtns()
+
+	# 	self._clickRegularStop()
+
+	# 	self.driver.execute_script(
+	# 			'arguments[0].textContent = arguments[1]',
+	# 			self._getStopLossPointsElem(), str(float(40))
+	# 		)
 
 	@Backtester.redirect_backtest
 	def modifySL(self, stopLoss):
@@ -206,6 +241,25 @@ class Position(object):
 				self.utils.updatePositions()
 				return
 			self._getModifyTicketBtns()
+
+		self.ticket.setRegularStop()
+
+		self.driver.execute_script(
+				'arguments[0].textContent = arguments[1]',
+				self._getStopLossPointsElem(), str(float(stopLoss))
+			)
+		print("Modified stoploss to " + str(stopLoss) + ".")
+
+	@Backtester.redirect_backtest
+	def modifyTrailingSL(self, stopLoss):
+		if self.modifyTicket is None:
+			if (not self.utils.positionExists(self)):
+				self.utils.updatePositions()
+				return
+			self._getModifyTicketBtns()
+
+		self.ticket.setTrailingStop()
+
 		self.driver.execute_script(
 				'arguments[0].textContent = arguments[1]',
 				self._getStopLossPointsElem(), str(float(stopLoss))
@@ -256,6 +310,9 @@ class Position(object):
 
 		if (self.direction == 'buy'):
 			if (self.ticket.getBidPrice() > self.entryprice):
+
+				self.ticket.setRegularStop()
+
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
 					self._getStopLossPointsElem(), str(float(0))
@@ -269,6 +326,9 @@ class Position(object):
 				breakeven()
 		elif (self.direction == 'sell'):
 			if (self.ticket.getAskPrice() < self.entryprice):
+
+				self.ticket.setRegularStop()
+
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
 					self._getStopLossPointsElem(), str(float(0))
@@ -293,12 +353,18 @@ class Position(object):
 
 		if (self.direction == 'buy'):
 			if (self.ticket.getBidPrice() > self.entryprice):
+
+				self.ticket.setRegularStop()
+
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
 					self._getStopLossPointsElem(), str(float(0))
 				)
 		elif (self.direction == 'sell'):
 			if (self.ticket.getAskPrice() < self.entryprice):
+
+				self.ticket.setRegularStop()
+
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
 					self._getStopLossPointsElem(), str(float(0))
@@ -517,6 +583,66 @@ class Position(object):
 		))
 
 		return self.driver.find_element(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//div[@name='stopLossPoints']")
+
+	def _clickRegularStop(self):
+		wait = ui.WebDriverWait(self.driver, 5)
+		wait.until(lambda driver : self.attemptBtnPress(self.modifyTicketElements['ORDER_TYPE_STOP']))
+
+		time.sleep(1)
+
+		wait = ui.WebDriverWait(self.driver, 5)
+		wait.until(lambda driver : self.attemptBtnPress(self.driver.find_element(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//li[@data-value='Regular']")))
+
+	def _clickTrailingStop(self):
+		wait = ui.WebDriverWait(self.driver, 5)
+		wait.until(lambda driver : self.attemptBtnPress(self.modifyTicketElements['ORDER_TYPE_STOP']))
+
+		time.sleep(1)
+
+		trailing_elem = self.driver.find_element(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//li[@data-value='Trailing']")
+
+		self.driver.execute_script(
+				'arguments[0].click();',
+				trailing_elem
+			)
+
+		# wait = ui.WebDriverWait(self.driver, 5)
+		# wait.until(lambda driver : self.attemptBtnPress(self.driver.find_element(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//li[@data-value='Trailing']")))
+
+	def attemptBtnPress(self, btn):
+		try:
+			btn.click()
+			return True
+		except:
+			return False
+
+	def _clickStopRegularElem(self):
+		self._clickOrderTypeStopElem()
+
+		wait = ui.WebDriverWait(self.driver, 10)
+
+		wait.until(EC.presence_of_element_located(
+			(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//li[@data-value='Regular']")
+		))
+		
+		elem_id = self.driver.execute_script(
+				'arguments[1].click();',
+				self.modifyTicket, self.modifyTicketElements['REGULAR']
+			)
+
+	def _clickStopTrailingElem(self):
+		self._clickOrderTypeStopElem()
+
+		wait = ui.WebDriverWait(self.driver, 10)
+
+		wait.until(EC.presence_of_element_located(
+			(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//li[@data-value='Trailing']")
+		))
+		
+		elem_id = self.driver.execute_script(
+				'arguments[1].click();',
+				self.modifyTicket, self.modifyTicketElements['TRAILING']
+			)
 
 	def _getTakeProfitCloseElem(self):
 		elem_id = self.driver.execute_script(

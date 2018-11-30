@@ -48,8 +48,11 @@ re_entry_trigger = None
 block_direction = None
 
 class Strands(list):
-	def __getitem__(self, key):
-		return sorted(list(self), key=lambda x: x.count, reverse = True)[key]
+	def __getitem__(self, row):
+		return sorted(list(self), key=lambda x: x.count, reverse = True)[row]
+
+	def getSorted(self):
+		return sorted(list(self), key=lambda x: x.count, reverse = True)
 
 strands = Strands()
 position_strands = Strands()
@@ -350,7 +353,7 @@ def handleStopAndReverse(pos, entry):
 	global is_position_breakeven
 
 	current_profit = utils.getTotalProfit() + pos.getProfit()
-	loss_limit = -VARIABLES['stoprange'] * 1.5
+	loss_limit = -VARIABLES['stoprange'] * 2
 	
 	if (current_profit < loss_limit or current_profit > VARIABLES['profit_limit']):
 		print("Tradable conditions not met:", str(current_profit))
@@ -377,7 +380,7 @@ def handleRegularEntry(entry):
 	global is_position_breakeven
 
 	current_profit = utils.getTotalProfit()
-	loss_limit = -VARIABLES['stoprange'] * 1.5
+	loss_limit = -VARIABLES['stoprange'] * 2
 
 	if (current_profit < loss_limit or current_profit > VARIABLES['profit_limit']):
 		print("Tradable conditions not met:", str(current_profit))
@@ -602,10 +605,28 @@ def getTrigger(shift):
 	if (black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
 
 		if (black_sar.strandCount(VARIABLES['TICKETS'][0], shift + 1) > VARIABLES['sar_size']):
-			current_trigger = Trigger(strands[1].direction, strands[1].start, tradable = True)
+			
+			if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
+				direction = Direction.LONG
+				setCurrentTrigger(direction)
+
+				current_trigger.tradable = True
+
+			elif (black_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
+				direction = Direction.SHORT
+				setCurrentTrigger(direction)
+
+				current_trigger.tradable = True
 		
 		else:
-			current_trigger = Trigger(strands[1].direction, strands[1].start)
+			
+			if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
+				direction = Direction.LONG
+				setCurrentTrigger(direction)
+
+			elif (black_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
+				direction = Direction.SHORT
+				setCurrentTrigger(direction)
 
 	if (not current_trigger == None and not current_trigger.tradable):
 		
@@ -616,6 +637,21 @@ def getTrigger(shift):
 		else:
 			if (hasCrossedBelow(shift, current_trigger)):
 				current_trigger.tradable = True
+
+def setCurrentTrigger(direction):
+	global current_trigger
+
+	if (not current_trigger == None and current_trigger.direction == direction):
+		return
+			
+	start = getLastStrandStart(direction)
+
+	current_trigger = Trigger(direction, start)
+
+def getLastStrandStart(direction):
+	for strand in strands.getSorted():
+		if (strand.direction == direction):
+			return strand.start
 
 def onNewCycle(shift):
 	''' 

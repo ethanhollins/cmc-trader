@@ -1,5 +1,6 @@
 from CMCTrader import Constants
 import copy
+import time
 
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD], # or 'GBPUSD'
@@ -55,30 +56,17 @@ def init(utilities):
 	cci = utils.CCI(6, 1)
 	macd = utils.MACD(7, 1)
 
-	global trig
-	trig = Trigger("text 1")
-	print(str(trig))
-	print(str(trig.txt1), str(trig['txt2']))
-
-	trig2 = copy.deepcopy(trig)
-	trig.txt1 = "text again"
-	print(str(trig2.txt1))
-	print(str(trig))
+	pos = utils.buy(400, sl = 30)
+	# pos.trailing()
+	# time.sleep(3)
+	# pos.trailingReg()
+	# pos.modifyTrailingSL(10)
 
 def onLoop():
 	return
 
 def onNewBar():
 	print("onNewBar")
-	
-	global count
-
-	count += 1
-
-	print(trig)
-
-	nums.append(count)
-	print(nums)
 
 def onRecovery():
 	print("onRecovery")
@@ -113,10 +101,7 @@ class SaveState(object):
 		for name in self.saved_names:
 			self.saved_vars[name] = copy.deepcopy(globals()[name])
 
-		print(self.saved_vars)
-
 	def load(self):
 		for name in self.saved_names:
-			print(str(globals()[name]), ":", str(self.saved_vars[name]))
 			globals()[name] = self.saved_vars[name]
 	

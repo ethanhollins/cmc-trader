@@ -99,14 +99,14 @@ class Ticket(object):
 
 	def setMarketOrder(self):
 		wait = ui.WebDriverWait(self.driver, 5)
-		wait.until(lambda driver : self.attemptBtnPress(self.getOrderTypeElem()))
+		wait.until(lambda driver : self.attemptBtnPress(self.getOrderTypeEntryElem()))
 
 		wait = ui.WebDriverWait(self.driver, 5)
 		wait.until(lambda driver : self.attemptBtnPress(self.driver.find_element(By.XPATH, "//div[@id='"+str(self.getTicketID())+"']//li[@data-value='MARKET']")))
 
 	def setLimitOrder(self, price):
 		wait = ui.WebDriverWait(self.driver, 5)
-		wait.until(lambda driver : self.attemptBtnPress(self.getOrderTypeElem()))
+		wait.until(lambda driver : self.attemptBtnPress(self.getOrderTypeEntryElem()))
 
 		wait = ui.WebDriverWait(self.driver, 5)
 		wait.until(lambda driver : self.attemptBtnPress(self.driver.find_element(By.XPATH, "//div[@id='"+str(self.getTicketID())+"']//li[@data-value='LIMIT']")))
@@ -118,7 +118,7 @@ class Ticket(object):
 
 	def setStopEntryOrder(self, price):
 		wait = ui.WebDriverWait(self.driver, 5)
-		wait.until(lambda driver : self.attemptBtnPress(self.getOrderTypeElem()))
+		wait.until(lambda driver : self.attemptBtnPress(self.getOrderTypeEntryElem()))
 
 		wait = ui.WebDriverWait(self.driver, 5)
 		wait.until(lambda driver : self.attemptBtnPress(self.driver.find_element(By.XPATH, "//div[@id='"+str(self.getTicketID())+"']//li[@data-value='STOP_ENTRY']")))
@@ -127,6 +127,20 @@ class Ticket(object):
 				'arguments[0].textContent = arguments[1]',
 				self.getStopEntryOrderPriceElem(), str(float(price))
 			)
+
+	def setRegularStop(self):
+		wait = ui.WebDriverWait(self.driver, 5)
+		wait.until(lambda driver : self.attemptBtnPress(self.getOrderTypeStopElem()))
+
+		wait = ui.WebDriverWait(self.driver, 5)
+		wait.until(lambda driver : self.attemptBtnPress(self.driver.find_element(By.XPATH, "//div[@id='"+str(self.getTicketID())+"']//li[@data-value='Regular']")))
+
+	def setTrailingStop(self):
+		wait = ui.WebDriverWait(self.driver, 5)
+		wait.until(lambda driver : self.attemptBtnPress(self.getOrderTypeStopElem()))
+
+		wait = ui.WebDriverWait(self.driver, 5)
+		wait.until(lambda driver : self.attemptBtnPress(self.driver.find_element(By.XPATH, "//div[@id='"+str(self.getTicketID())+"']//li[@data-value='Trailing']")))
 
 	def attemptBtnPress(self, btn):
 		try:
@@ -234,8 +248,8 @@ class Ticket(object):
 	def getTicketID(self):
 		return self.ticketElements['TICKET_ID']
 
-	def getOrderTypeElem(self):
-		return self.ticketElements['ORDER_TYPE']
+	def getOrderTypeEntryElem(self):
+		return self.ticketElements['ORDER_TYPE_ENTRY']
 
 	def getMarketOrderElem(self):
 		return self.ticketElements['MARKET']
@@ -271,6 +285,15 @@ class Ticket(object):
 		# 		'return arguments[0].querySelector(\'[name="stopEntry"]\');',
 		# 		self.getTicketElem()
 		# 	)
+
+	def getOrderTypeStopElem(self):
+		return self.ticketElements['ORDER_TYPE_STOP']
+
+	def getRegularStopElem(self):
+		return self.ticketElements['REGULAR']
+
+	def getTrailingStopElem(self):
+		return self.ticketElements['TRAILING']
 
 	def getBuySelectElem(self):
 		return self.ticketElements['T_BUY']
