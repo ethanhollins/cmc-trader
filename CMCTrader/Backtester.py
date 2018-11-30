@@ -374,7 +374,7 @@ class Backtester(object):
 		sorted_history = [i for i in history if int(i[1]) >= timestamp and i[2] in listened_types]
 		sorted_history.sort(key=lambda i: i[1])
 
-		print("history:", str(history))
+		print("history:", str(sorted_history))
 
 		if (sorted_history == None):
 			return []
