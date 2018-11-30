@@ -1070,6 +1070,8 @@ def getMomentumCrossStrand(count, direction):
 	return cross_strand
 
 def handleMomentumEntry(shift, direction):
+	global current_trigger, re_entry_trigger, position_strands
+
 	cross_strand = getMomentumCrossStrand(VARIABLES['num_paras_momentum'], direction)
 
 	print("Cross Strand:", str(cross_strand))
