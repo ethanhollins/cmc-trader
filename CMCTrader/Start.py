@@ -320,8 +320,7 @@ class Start(object):
 			# 	pass
 			if (len(missingTimestamps) > 0):
 				for pair in missingTimestamps:
-					values = self.utils.formatForRecover(pair, missingTimestamps[pair])
-					self.utils.backtester.recover(values['ohlc'], values['indicators'])
+					self.utils.refreshAllValues(pair)
 
 		except StaleElementReferenceException as e:
 			self.handleLostConnection()
@@ -362,8 +361,7 @@ class Start(object):
 								# except AttributeError as e:
 								# 	pass
 								for pair in missingTimestamps:
-									values = self.utils.refreshAllValues(pair)
-									self.utils.backtester.recover(values['ohlc'], values['indicators'])
+									self.utils.refreshAllValues(pair)
 
 							# self.utils.save_state.save()
 
