@@ -237,6 +237,9 @@ class Backtester(object):
 
 		position_logs = None
 
+		self.utils.positions = []
+		self.utils.closedPositions = []
+
 		for _pair in ohlc:
 			pair = _pair
 
