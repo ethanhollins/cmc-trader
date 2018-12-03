@@ -364,7 +364,7 @@ class Start(object):
 									values = self.utils.formatForRecover(pair, missingTimestamps[pair])
 									self.utils.backtester.recover(values['ohlc'], values['indicators'])
 
-							self.utils.save_state.save()
+							# self.utils.save_state.save()
 
 							if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
 								if (self.isDowntime):

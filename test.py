@@ -56,7 +56,9 @@ def init(utilities):
 	cci = utils.CCI(6, 1)
 	macd = utils.MACD(7, 1)
 
-	pos = utils.buy(400, sl = 30)
+	pos = utils.buy(400)
+	pos.modifySL(40)
+	pos.apply()
 	# pos.trailing()
 	# time.sleep(3)
 	# pos.trailingReg()

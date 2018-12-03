@@ -4,6 +4,7 @@ import os
 import json
 import traceback
 import datetime
+import time as t
 
 class State(Enum):
 	NONE = 1
@@ -194,6 +195,8 @@ class Backtester(object):
 		global state, pair, current_timestamp
 		state = State.BACKTEST
 
+		start_time = t.time()
+
 		# position_logs = None
 
 		for pair in ohlc:
@@ -216,12 +219,14 @@ class Backtester(object):
 				if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
 					self.runMainLoop(time)
 
-				input("Press enter to continue...")
+				# input("Press enter to continue...")
 
 		try:
 			self.plan.onBacktestFinish()
 		except AttributeError as e:
 			pass
+
+		print(t.time() - start_time)
 
 		state = State.NONE
 

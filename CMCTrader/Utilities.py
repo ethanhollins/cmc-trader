@@ -959,11 +959,12 @@ class Utilities:
 		changed_timestamps = self.checkTimestampValues(pair, timestamp)
 
 		if (len(changed_timestamps) > 0):
-			self.save_state.load()
+			# self.save_state.load()
+			first_timestamp = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)][0]
 
 			print("Backtesting changed timestamps")
 			
-			values = self.formatForRecover(pair, changed_timestamps)
+			values = self.formatForRecover(pair, first_timestamp)
 			self.backtester.recover(values['ohlc'], values['indicators'])
 
 	def formatForRecover(self, pair, missing_timestamps):

@@ -714,6 +714,8 @@ def isWhollyCrossed():
 	first = strands[1]
 	second = strands[0]
 
+	print("WC:", str(first), str(second))
+
 	if (second.direction == Direction.SHORT):
 		if (second.start < first.end and second.end > first.start):
 			block_direction = Direction.SHORT
@@ -913,12 +915,12 @@ def isBrownParaConfirmation(shift, direction, reverse = False):
 
 def paraHit(shift, direction, no_conf):
 	
+	if (no_conf):
+		return 1
+		
 	brownHit(shift, direction)
 
 	if (current_brown.is_hit and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction, reverse = True)):
-		
-		if (no_conf):
-			return 1
 
 		if (swingConfirmation(shift, direction)):
 			return 1

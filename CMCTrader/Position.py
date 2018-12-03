@@ -242,8 +242,6 @@ class Position(object):
 				return
 			self._getModifyTicketBtns()
 
-		self.ticket.setRegularStop()
-
 		self.driver.execute_script(
 				'arguments[0].textContent = arguments[1]',
 				self._getStopLossPointsElem(), str(float(stopLoss))
@@ -311,8 +309,6 @@ class Position(object):
 		if (self.direction == 'buy'):
 			if (self.ticket.getBidPrice() > self.entryprice):
 
-				self.ticket.setRegularStop()
-
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
 					self._getStopLossPointsElem(), str(float(0))
@@ -326,8 +322,6 @@ class Position(object):
 				breakeven()
 		elif (self.direction == 'sell'):
 			if (self.ticket.getAskPrice() < self.entryprice):
-
-				self.ticket.setRegularStop()
 
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
@@ -354,16 +348,12 @@ class Position(object):
 		if (self.direction == 'buy'):
 			if (self.ticket.getBidPrice() > self.entryprice):
 
-				self.ticket.setRegularStop()
-
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
 					self._getStopLossPointsElem(), str(float(0))
 				)
 		elif (self.direction == 'sell'):
 			if (self.ticket.getAskPrice() < self.entryprice):
-
-				self.ticket.setRegularStop()
 
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
