@@ -968,7 +968,10 @@ class Utilities:
 			self.backtester.recover(values['ohlc'], values['indicators'])
 
 	def formatForRecover(self, pair, missing_timestamps):
-		earliest_timestamp = self.getEarliestTimestamp(missing_timestamps)
+		if (type(missing_timestamps) == list):
+			earliest_timestamp = self.getEarliestTimestamp(missing_timestamps)
+		else:
+			earliest_timestamp = missing_timestamps
 
 		missing_timestamps = []
 		sorted_timestamps = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)]
@@ -978,7 +981,7 @@ class Utilities:
 			else:
 				break
 
-		print(missing_timestamps)
+		# print(missing_timestamps)
 
 		values = {}
 
@@ -1008,7 +1011,7 @@ class Utilities:
 					values['indicators']['studies'][count][pair][timestamp] = study.history[pair][timestamp]
 			count += 1
 
-		print(values)
+		# print(values)
 		return values
 
 	def isChartAvailable(self, chart_id):
