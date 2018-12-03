@@ -188,8 +188,6 @@ def init(utilities):
 	cci = utils.CCI(6, 1)
 	macd = utils.MACD(7, 1)
 
-	initVariables()
-
 # def initVariables():
 
 # 	global current_trigger, re_entry_trigger, block_direction
