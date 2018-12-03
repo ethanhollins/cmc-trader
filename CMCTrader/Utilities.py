@@ -975,7 +975,8 @@ class Utilities:
 
 	def refreshAllValues(self, pair):
 
-		self.save_state.load()
+		self.plan.initVariables()
+		# self.save_state.load()
 
 		first_timestamp = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)][0]
 

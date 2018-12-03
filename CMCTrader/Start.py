@@ -329,7 +329,7 @@ class Start(object):
 			self.handleError(e, tb)
 
 	def functionCalls(self):
-		self.utils.save_state.save()
+		# self.utils.save_state.save()
 
 		while (True):
 			if (not self.utils.isStopped):

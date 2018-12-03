@@ -42,10 +42,10 @@ VARIABLES = {
 	'macd_threshold' : 0
 }
 
-current_trigger = None
-re_entry_trigger = None
+# current_trigger = None
+# re_entry_trigger = None
 
-block_direction = None
+# block_direction = None
 
 class Strands(list):
 	def __getitem__(self, row):
@@ -54,28 +54,28 @@ class Strands(list):
 	def getSorted(self):
 		return sorted(list(self), key=lambda x: x.count, reverse = True)
 
-strands = Strands()
-position_strands = Strands()
-current_brown = None
+# strands = Strands()
+# position_strands = Strands()
+# current_brown = None
 
-pending_entries = []
-pending_breakevens = []
-pending_exits = []
+# pending_entries = []
+# pending_breakevens = []
+# pending_exits = []
 
-is_position_breakeven = False
+# is_position_breakeven = False
 
-current_news = None
-news_trade_block = False
+# current_news = None
+# news_trade_block = False
 
-stop_trading = False
-no_new_trades = False
+# stop_trading = False
+# no_new_trades = False
 
-is_profit_nnt = False
-is_nnt = False
-is_be = False
-is_end_time = False
+# is_profit_nnt = False
+# is_nnt = False
+# is_be = False
+# is_end_time = False
 
-bank = 0
+# bank = 0
 
 class Direction(Enum):
 	LONG = 1
@@ -188,42 +188,44 @@ def init(utilities):
 	cci = utils.CCI(6, 1)
 	macd = utils.MACD(7, 1)
 
-# def initVariables():
+	initVariables()
 
-# 	global current_trigger, re_entry_trigger, block_direction
-# 	global strands, position_strands, current_brown
-# 	global pending_entries, pending_breakevens, pending_exits
-# 	global is_position_breakeven, current_news, news_trade_block
-# 	global stop_trading, no_new_trades
-# 	global is_profit_nnt, is_nnt, is_be, is_end_time
+def initVariables():
 
-# 	current_trigger = None
-# 	re_entry_trigger = None
+	global current_trigger, re_entry_trigger, block_direction
+	global strands, position_strands, current_brown
+	global pending_entries, pending_breakevens, pending_exits
+	global is_position_breakeven, current_news, news_trade_block
+	global stop_trading, no_new_trades
+	global is_profit_nnt, is_nnt, is_be, is_end_time
 
-# 	block_direction = None
+	current_trigger = None
+	re_entry_trigger = None
 
-# 	strands = Strands()
-# 	position_strands = Strands()
-# 	current_brown = None
+	block_direction = None
 
-# 	pending_entries = []
-# 	pending_breakevens = []
-# 	pending_exits = []
+	strands = Strands()
+	position_strands = Strands()
+	current_brown = None
 
-# 	is_position_breakeven = False
+	pending_entries = []
+	pending_breakevens = []
+	pending_exits = []
 
-# 	current_news = None
-# 	news_trade_block = False
+	is_position_breakeven = False
 
-# 	stop_trading = False
-# 	no_new_trades = False
+	current_news = None
+	news_trade_block = False
 
-# 	is_profit_nnt = False
-# 	is_nnt = False
-# 	is_be = False
-# 	is_end_time = False
+	stop_trading = False
+	no_new_trades = False
 
-# 	bank = 0
+	is_profit_nnt = False
+	is_nnt = False
+	is_be = False
+	is_end_time = False
+
+	bank = 0
 
 def onStartTrading():
 	''' Function called on trade start time '''
