@@ -959,6 +959,8 @@ class Utilities:
 		changed_timestamps = self.checkTimestampValues(pair, timestamp)
 
 		if (len(changed_timestamps) > 0):
+
+			self.plan.initVariables()
 			# self.save_state.load()
 			first_timestamp = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)][0]
 
