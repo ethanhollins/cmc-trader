@@ -361,7 +361,7 @@ class Start(object):
 								# except AttributeError as e:
 								# 	pass
 								for pair in missingTimestamps:
-									values = self.utils.formatForRecover(pair, missingTimestamps[pair])
+									values = self.utils.refreshAllValues(pair)
 									self.utils.backtester.recover(values['ohlc'], values['indicators'])
 
 							# self.utils.save_state.save()

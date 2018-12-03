@@ -916,7 +916,12 @@ class Utilities:
 	def refreshAll(self):
 		for pair in self.tickets:
 			self.refreshChart(pair)
-			self.refreshValues(pair)
+
+			timestamp = self.latestTimestamp[pair]
+			changed_timestamps = self.checkTimestampValues(pair, timestamp)
+
+			if (len(changed_timestamps) > 0):
+				self.refreshAllValues(pair)
 
 	@Backtester.redirect_backtest
 	def refreshChart(self, pair):
@@ -962,12 +967,22 @@ class Utilities:
 
 			self.plan.initVariables()
 			# self.save_state.load()
-			first_timestamp = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)][0]
 
 			print("Backtesting changed timestamps")
 			
-			values = self.formatForRecover(pair, first_timestamp)
+			values = self.formatForRecover(pair, changed_timestamps)
 			self.backtester.recover(values['ohlc'], values['indicators'])
+
+	def refreshAllValues(self, pair):
+
+		self.plan.initVariables()
+
+		first_timestamp = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)][0]
+
+		print("Backtesting changed timestamps")
+		
+		values = self.formatForRecover(pair, first_timestamp)
+		self.backtester.recover(values['ohlc'], values['indicators'])
 
 	def formatForRecover(self, pair, missing_timestamps):
 		if (type(missing_timestamps) == list):
