@@ -330,10 +330,11 @@ class Start(object):
 			self.handleError(e, tb)
 
 	def functionCalls(self):
-		self.isTrading = True
+		self.utils.save_state.save()
 
 		while (True):
 			if (not self.utils.isStopped):
+				self.isTrading = True
 				try:
 					self.checkIfInApp()
 					try:
@@ -417,6 +418,8 @@ class Start(object):
 					tb = traceback.format_exc()
 					self.handleError(e, tb)
 			else:
+				self.isTrading = False
+
 				if (self.utils.manualChartReading):
 					self.utils.backtester.manual()
 
