@@ -2,6 +2,8 @@ from CMCTrader import Constants
 from CMCTrader.Backtester import Backtester
 from enum import Enum
 import datetime
+import types
+import copy
 
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD],
@@ -42,10 +44,10 @@ VARIABLES = {
 	'macd_threshold' : 0
 }
 
-# current_trigger = None
-# re_entry_trigger = None
+current_trigger = None
+re_entry_trigger = None
 
-# block_direction = None
+block_direction = None
 
 class Strands(list):
 	def __getitem__(self, row):
@@ -54,28 +56,28 @@ class Strands(list):
 	def getSorted(self):
 		return sorted(list(self), key=lambda x: x.count, reverse = True)
 
-# strands = Strands()
-# position_strands = Strands()
-# current_brown = None
+strands = Strands()
+position_strands = Strands()
+current_brown = None
 
-# pending_entries = []
-# pending_breakevens = []
-# pending_exits = []
+pending_entries = []
+pending_breakevens = []
+pending_exits = []
 
-# is_position_breakeven = False
+is_position_breakeven = False
 
-# current_news = None
-# news_trade_block = False
+current_news = None
+news_trade_block = False
 
-# stop_trading = False
-# no_new_trades = False
+stop_trading = False
+no_new_trades = False
 
-# is_profit_nnt = False
-# is_nnt = False
-# is_be = False
-# is_end_time = False
+is_profit_nnt = False
+is_nnt = False
+is_be = False
+is_end_time = False
 
-# bank = 0
+bank = 0
 
 class Direction(Enum):
 	LONG = 1
@@ -187,45 +189,6 @@ def init(utilities):
 	rsi = utils.RSI(5, 1)
 	cci = utils.CCI(6, 1)
 	macd = utils.MACD(7, 1)
-
-	initVariables()
-
-def initVariables():
-
-	global current_trigger, re_entry_trigger, block_direction
-	global strands, position_strands, current_brown
-	global pending_entries, pending_breakevens, pending_exits
-	global is_position_breakeven, current_news, news_trade_block
-	global stop_trading, no_new_trades
-	global is_profit_nnt, is_nnt, is_be, is_end_time
-
-	current_trigger = None
-	re_entry_trigger = None
-
-	block_direction = None
-
-	strands = Strands()
-	position_strands = Strands()
-	current_brown = None
-
-	pending_entries = []
-	pending_breakevens = []
-	pending_exits = []
-
-	is_position_breakeven = False
-
-	current_news = None
-	news_trade_block = False
-
-	stop_trading = False
-	no_new_trades = False
-
-	is_profit_nnt = False
-	is_nnt = False
-	is_be = False
-	is_end_time = False
-
-	bank = 0
 
 def onStartTrading():
 	''' Function called on trade start time '''
@@ -511,31 +474,31 @@ def onStopLoss(pos):
 		re_entry_trigger = Trigger(Direction.SHORT, 0, tradable = True, is_re_entry = True)
 		re_entry_trigger.state = State.CROSS_NEGATIVE
 
-def failsafe(timestamps):
-	''' Function called on any error or interuption '''
+# def failsafe(timestamps):
+# 	''' Function called on any error or interuption '''
 
-	global current_trigger
+# 	global current_trigger
 
-	print("failsafe")
-	print("Missing timestamps:", str(timestamps[VARIABLES['TICKETS'][0]]))
+# 	print("failsafe")
+# 	print("Missing timestamps:", str(timestamps[VARIABLES['TICKETS'][0]]))
 
-	earliest = utils.getEarliestTimestamp(timestamps[VARIABLES['TICKETS'][0]])
-	offset = utils.getBarOffset(earliest)
+# 	earliest = utils.getEarliestTimestamp(timestamps[VARIABLES['TICKETS'][0]])
+# 	offset = utils.getBarOffset(earliest)
 
-	i = 0
-	for timestamp in timestamps[VARIABLES['TICKETS'][0]]:
+# 	i = 0
+# 	for timestamp in timestamps[VARIABLES['TICKETS'][0]]:
 		
-		current_shift = offset - i
-		print("Backtesting Time:", str(utils.convertTimestampToTime(timestamp)))
+# 		current_shift = offset - i
+# 		print("Backtesting Time:", str(utils.convertTimestampToTime(timestamp)))
 
-		runSequence(current_shift)
+# 		runSequence(current_shift)
 
-		if (len(pending_entries) > 0):
-			re_entry_trigger = Trigger(pending_entries[-1].direction, pending_entries[-1].start, tradable = False, is_re_entry = True)
-			re_entry_trigger.state = State.CROSS_NEGATIVE
+# 		if (len(pending_entries) > 0):
+# 			re_entry_trigger = Trigger(pending_entries[-1].direction, pending_entries[-1].start, tradable = False, is_re_entry = True)
+# 			re_entry_trigger.state = State.CROSS_NEGATIVE
 
-			for entry in pending_entries:
-				del pending_entries[pending_entries.index(entry)]
+# 			for entry in pending_entries:
+# 				del pending_entries[pending_entries.index(entry)]
 
 def onNews(title, time):
 	''' 
@@ -1203,6 +1166,8 @@ def report():
 		count += 1
 		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit())
 
+	print("GLOB:", str([globals()[attr[0]] for i in globals() for attr in utils.save_state.save_state if i is attr[0]]) + "\n")
+	print("SAVE:", str([attr[1] for attr in utils.save_state.save_state]) + "\n")
 	print("--|\n")
 
 def onBacktestFinish():
@@ -1217,29 +1182,29 @@ def onBacktestFinish():
 		pending_entries = []
 
 class SaveState(object):
-	def __init__(self):
-		self.saved_vars = {}
-		self.saved_names = self.getCopyable()
-		self.save()
-
-	def getCopyable(self):
-		names = []
-		
-		for i in globals():	
-			try:
-				copy.deepcopy(globals()[i])
-				names.append(i)
-			except:
-				continue
-
-		return names
+	def __init__(self, utils):
+		self.utils = utils
+		self.save_state = self.save()
+		# print("SAVED:", str(self.save_state))
 
 	def save(self):
-		self.saved_names = self.getCopyable()
-
-		for name in self.saved_names:
-			self.saved_vars[name] = copy.deepcopy(globals()[name])
+		voided_types = [type(i) for sub in self.utils.indicators.values() for i in sub]
+		voided_types.append(type(self.utils))
+		return [
+				copy.deepcopy(attr) for attr in globals().items() 
+				if not attr[0].startswith("__") 
+				and not callable(attr[1]) 
+				and not isinstance(attr[1], types.ModuleType) 
+				and not type(attr[1]) in voided_types 
+				and not attr[0] == 'VARIABLES'
+			]
 
 	def load(self):
-		for name in self.saved_names:
-			globals()[name] = self.saved_vars[name]
+		print("\nLOADING...")
+		print("GLOB:", str([globals()[attr[0]] for i in globals() for attr in self.save_state if i is attr[0]]) + "\n")
+		print("SAVE:", str([attr[1] for attr in self.save_state]) + "\n")
+		for attr in self.save_state:
+			globals()[attr[0]] = attr[1]
+
+		print("NEW\nGLOB:", str([globals()[attr[0]] for i in globals() for attr in self.save_state if i is attr[0]]) + "\n")
+

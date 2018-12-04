@@ -237,13 +237,17 @@ class Backtester(object):
 
 		position_logs = None
 
-		self.utils.positions = []
-		self.utils.closedPositions = []
+		# self.utils.positions = []
+		# self.utils.closedPositions = []
+		# self.resetBarValues()
 
 		for _pair in ohlc:
 			pair = _pair
 
 			sorted_timestamps = [i[0] for i in sorted(ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)]
+			
+			self.removeTimestampsUntil(pair, sorted_timestamps[0])
+			print(self.utils.ohlc)
 
 			real_time = self.utils.getLondonTime()
 
@@ -357,6 +361,33 @@ class Backtester(object):
 			except Exception as e:
 				print(str(e), "continuing...")
 				return
+
+	def resetBarValues(self):
+		self.utils.ohlc = self.utils._initOHLC()
+		
+		for overlay in self.utils.indicators['overlays']:
+			overlay.history = overlay.initHistory(self.utils.tickets)
+		for study in self.utils.indicators['studies']:
+			study.history = study.initHistory(self.utils.tickets)
+
+	def removeTimestampsUntil(self, pair, until):
+		print(until)
+
+		reverse_sorted_timestamps = [i[0] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)]
+
+		for timestamp in reverse_sorted_timestamps:
+
+			if (timestamp >= until):
+				print("removing", str(timestamp)+"...")
+
+				del self.utils.ohlc[pair][timestamp]
+				
+				for overlay in self.utils.indicators['overlays']:
+					del overlay.history[pair][timestamp]
+				for study in self.utils.indicators['studies']:
+					del study.history[pair][timestamp]
+			else:
+				break
 
 	def insertValuesByTimestamp(self, timestamp, pair, ohlc, indicators):
 		self.utils.ohlc[pair][timestamp] = ohlc[pair][timestamp]

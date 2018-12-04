@@ -77,7 +77,7 @@ class Utilities:
 
 		self.historyLog = HistoryLog(self.driver, self)
 
-		self.save_state = self.plan.SaveState()
+		self.save_state = self.plan.SaveState(self)
 		
 		self._startPrompt()
 
@@ -921,7 +921,7 @@ class Utilities:
 			changed_timestamps = self.checkTimestampValues(pair, timestamp)
 
 			if (len(changed_timestamps) > 0):
-				self.refreshAllValues(pair)
+				self.refreshValues(pair, changed_timestamps)
 
 	@Backtester.redirect_backtest
 	def refreshChart(self, pair):
@@ -958,20 +958,21 @@ class Utilities:
 		wait = ui.WebDriverWait(self.driver, 60)
 		wait.until(lambda driver : self.chartTimestampCheck(pair))
 
-	def refreshValues(self, pair):
-		timestamp = self.latestTimestamp[pair]
+	def refreshValues(self, pair, changed_timestamps):
+		# timestamp = self.latestTimestamp[pair]
 
-		changed_timestamps = self.checkTimestampValues(pair, timestamp)
+		# changed_timestamps = self.checkTimestampValues(pair, timestamp)
 
-		if (len(changed_timestamps) > 0):
+		# if (len(changed_timestamps) > 0):
 
-			# self.plan.initVariables()
-			self.save_state.load()
+		print(changed_timestamps)
 
-			print("Backtesting changed timestamps")
-			
-			values = self.formatForRecover(pair, changed_timestamps)
-			self.backtester.recover(values['ohlc'], values['indicators'])
+		self.save_state.load()
+
+		print("Backtesting changed timestamps")
+		
+		values = self.formatForRecover(pair, changed_timestamps)
+		self.backtester.recover(values['ohlc'], values['indicators'])
 
 	def refreshAllValues(self, pair):
 
@@ -987,8 +988,10 @@ class Utilities:
 
 	def formatForRecover(self, pair, missing_timestamps):
 		if (type(missing_timestamps) == list):
+			print("islist")
 			earliest_timestamp = self.getEarliestTimestamp(missing_timestamps)
 		else:
+			print("isnt")
 			earliest_timestamp = missing_timestamps
 
 		missing_timestamps = []

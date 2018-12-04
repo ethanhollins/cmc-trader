@@ -264,10 +264,10 @@ class Start(object):
 		self.utils = Utilities(self.driver, self.plan, self.user_info, self.tickets, self.tAUDUSD)
 
 		print("\nTrading plan is LIVE...\n-----------------------\n")
-		try:
-			self.plan.init(self.utils)
-		except AttributeError as e:
-			pass
+		# try:
+		self.plan.init(self.utils)
+		# except AttributeError as e:
+		# 	pass
 
 		# self.utils.updateValues()
 
@@ -320,7 +320,7 @@ class Start(object):
 			# 	pass
 			if (len(missingTimestamps) > 0):
 				for pair in missingTimestamps:
-					self.utils.refreshAllValues(pair)
+					self.utils.refreshValues(pair, missingTimestamps[pair])
 
 		except StaleElementReferenceException as e:
 			self.handleLostConnection()
@@ -329,8 +329,6 @@ class Start(object):
 			self.handleError(e, tb)
 
 	def functionCalls(self):
-		# self.utils.save_state.save()
-
 		while (True):
 			if (not self.utils.isStopped):
 				self.isTrading = True
@@ -354,6 +352,8 @@ class Start(object):
 						
 						if (isUpdated):
 
+							self.utils.save_state = self.plan.SaveState(self.utils)
+
 							missingTimestamps = self.utils.recoverMissingValues()
 							if (len(missingTimestamps) > 0):
 								# try:
@@ -361,9 +361,9 @@ class Start(object):
 								# except AttributeError as e:
 								# 	pass
 								for pair in missingTimestamps:
-									self.utils.refreshAllValues(pair)
+									self.utils.refreshValues(pair, missingTimestamps[pair])
 
-							# self.utils.save_state.save()
+								self.utils.save_state = self.plan.SaveState(self.utils)
 
 							if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
 								if (self.isDowntime):
