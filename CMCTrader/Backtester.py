@@ -14,6 +14,7 @@ class State(Enum):
 state = State.NONE
 current_timestamp = 0
 pair = None
+sorted_timestamps = []
 
 class Backtester(object):
 
@@ -79,7 +80,15 @@ class Backtester(object):
 				self.positions.append(pos)
 				return pos
 			elif (state == State.RECOVER):
-				return None
+				if (self.isLive and current_timestamp == sorted_timestamps[-1]):
+					return func(*args, **kwargs)
+				else:
+					try:
+						self.plan.onMissedEntry(*args, **kwargs)
+					except AttributeError as e:
+						pass
+
+					return
 			else:
 				return func(*args, **kwargs)
 		return wrapper
@@ -192,7 +201,7 @@ class Backtester(object):
 
 
 	def backtest(self, ohlc, indicators):
-		global state, pair, current_timestamp
+		global state, pair, current_timestamp, sorted_timestamps
 		state = State.BACKTEST
 
 		start_time = t.time()
@@ -231,7 +240,7 @@ class Backtester(object):
 		state = State.NONE
 
 	def recover(self, ohlc, indicators):
-		global state, pair, current_timestamp
+		global state, pair, current_timestamp, sorted_timestamps
 		state = State.RECOVER
 		self.has_run = False
 
@@ -247,7 +256,6 @@ class Backtester(object):
 			sorted_timestamps = [i[0] for i in sorted(ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)]
 			
 			self.removeTimestampsUntil(pair, sorted_timestamps[0])
-			print(self.utils.ohlc)
 
 			real_time = self.utils.getLondonTime()
 
@@ -371,15 +379,11 @@ class Backtester(object):
 			study.history = study.initHistory(self.utils.tickets)
 
 	def removeTimestampsUntil(self, pair, until):
-		print(until)
-
 		reverse_sorted_timestamps = [i[0] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)]
 
 		for timestamp in reverse_sorted_timestamps:
 
 			if (timestamp >= until):
-				print("removing", str(timestamp)+"...")
-
 				del self.utils.ohlc[pair][timestamp]
 				
 				for overlay in self.utils.indicators['overlays']:
