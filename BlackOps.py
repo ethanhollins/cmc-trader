@@ -1171,12 +1171,12 @@ def report():
 	print("GLOB:", str([globals()[attr[0]] for i in globals() for attr in utils.save_state.save_state if i is attr[0]]) + "\n")
 	print("SAVE:", str([attr[1] for attr in utils.save_state.save_state]) + "\n")
 	print("--|\n")
-	
+
 def onMissedEntry(*args, **kwargs):
 
 	global pending_entries, current_trigger
 
-	if (args[1] == 'buy')
+	if (args[1] == 'buy'):
 		direction = Direction.LONG
 	else:
 		direction = Direction.SHORT
