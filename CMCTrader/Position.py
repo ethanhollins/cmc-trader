@@ -211,6 +211,7 @@ class Position(object):
 
 	@Backtester.redirect_backtest
 	def modifyTrailing(self, stop_loss):
+		print("modifyTrailing")
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
 				self.utils.updatePositions()

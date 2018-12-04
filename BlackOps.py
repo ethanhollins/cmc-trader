@@ -500,6 +500,8 @@ def handleTrailingStop():
 			pos.modifyTrailing(VARIABLES['trailing_pips_first_stop'])
 			trailing_state = TrailingState.FIRST
 
+			print("first2")
+
 def onStopLoss(pos):
 	print("onStopLoss")
 
