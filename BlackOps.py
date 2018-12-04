@@ -486,15 +486,15 @@ def handleTrailingStop():
 	global trailing_state
 
 	for pos in utils.positions:
-		if (pos.getProfit() >= VARIABLES['trailing_pips_second_profit'] and trailing_state.value < TrailingState.SECOND.value):
+		if (pos.getProfit() >= VARIABLES['trailing_pips_second_profit'] '''and trailing_state.value < TrailingState.SECOND.value'''):
 			
-			trailing_state = TrailingState.SECOND
 			pos.modifyTrailing(VARIABLES['trailing_pips_second_stop'])
+			trailing_state = TrailingState.SECOND
 
 		elif (pos.getProfit() >= VARIABLES['trailing_pips_first_profit'] and trailing_state.value < TrailingState.FIRST.value):
 			
-			trailing_state = TrailingState.FIRST
 			pos.modifyTrailing(VARIABLES['trailing_pips_first_stop'])
+			trailing_state = TrailingState.FIRST
 
 def onStopLoss(pos):
 	print("onStopLoss")
