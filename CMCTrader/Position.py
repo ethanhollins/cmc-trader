@@ -214,14 +214,21 @@ class Position(object):
 		print("modifyTrailing")
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
+				print("update")
 				self.utils.updatePositions()
 				return
 			self._getModifyTicketBtns()
+			print("getbtn")
+
+
+		print('1')
 
 		self.driver.execute_script(
 				'arguments[0].textContent = arguments[1]',
 				self._getStopLossPointsElem(), str(float(stop_loss))
 			)
+		print('2')
+
 		print("Modified stoploss to " + str(stop_loss) + ".")
 
 		self._clickTrailingStop()
