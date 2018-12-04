@@ -21,6 +21,10 @@ VARIABLES = {
 	'full_profit' : 200,
 	'rounding' : 100,
 	'breakeven_min_pips' : 2,
+	'trailing_pips_first_profit' : 50,
+	'trailing_pips_first_stop' : 30,
+	'trailing_pips_second_profit' : 80,
+	'trailing_pips_second_stop' : 40,
 	'CLOSING SEQUENCE' : None,
 	'no_more_trades_in_profit' : '16:00',
 	'no_more_trades' : '18:00',
@@ -175,6 +179,13 @@ class BrownStrand(dict):
 		print("Brown sar end:", str(brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]))
 		return brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]
 
+class TrailingState(Enum):
+	NONE = 1
+	FIRST = 2
+	SECOND = 3
+
+trailing_state = TrailingState.NONE
+
 def init(utilities):
 	''' Initialize utilities and indicators '''
 
@@ -262,6 +273,7 @@ def onLoop():
 		return
 
 	handleEntries()		# Handle all pending entries
+	handleTrailingStop() # Handle all trailing stops
 	handleBreakeven()	# Handle all pending breakeven
 
 def handleEntries():
@@ -368,7 +380,7 @@ def handleStopAndReverse(pos, entry):
 	and check if tradable conditions are met.
 	'''
 
-	global is_position_breakeven
+	global is_position_breakeven, trailing_state
 
 	current_profit = utils.getTotalProfit() + pos.getProfit()
 	loss_limit = -VARIABLES['stoprange'] * 2
@@ -383,6 +395,7 @@ def handleStopAndReverse(pos, entry):
 		
 		is_position_breakeven = False
 
+	trailing_state = TrailingState.NONE
 	del pending_entries[pending_entries.index(entry)]
 
 @Backtester.skip_on_recover
@@ -392,7 +405,7 @@ def handleRegularEntry(entry):
 	and check if tradable conditions are met.
 	'''
 
-	global is_position_breakeven
+	global is_position_breakeven, trailing_state
 
 	current_profit = utils.getTotalProfit()
 	loss_limit = -VARIABLES['stoprange'] * 2
@@ -409,6 +422,7 @@ def handleRegularEntry(entry):
 		
 		is_position_breakeven = False
 
+	trailing_state = TrailingState.NONE
 	del pending_entries[pending_entries.index(entry)]
 
 @Backtester.skip_on_recover
@@ -418,27 +432,30 @@ def handleBreakeven():
 	and positions that have exceeded breakeven threshold
 	'''
 
-	global is_position_breakeven
+	global is_position_breakeven, trailing_state
 
 	for pos in utils.positions:
 		
-		if (pos.getProfit() >= VARIABLES['breakeven_point'] and not is_position_breakeven):
-			print("Reached BREAKEVEN point:", str(pos.getProfit()))
-			is_position_breakeven = True
-			pos.breakeven()
-			if (not pos.apply()):
-				pending_breakevens.append(pos)
-
-		if pos in pending_breakevens:
-			if (pos.getProfit() > VARIABLES['breakeven_min_pips']):
+		if (not trailing_state.value > TrailingState.NONE.value):
+			if (pos.getProfit() >= VARIABLES['breakeven_point'] and not is_position_breakeven):
+				print("Reached BREAKEVEN point:", str(pos.getProfit()))
+				is_position_breakeven = True
 				pos.breakeven()
-				if (pos.apply()):
-					del pending_breakevens[pending_breakevens.index(pos)]
+				if (not pos.apply()):
+					pending_breakevens.append(pos)
+					trailing_state = TrailingState.NONE
+
+			if pos in pending_breakevens:
+				if (pos.getProfit() > VARIABLES['breakeven_min_pips']):
+					pos.breakeven()
+					if (pos.apply()):
+						del pending_breakevens[pending_breakevens.index(pos)]
+						trailing_state = TrailingState.NONE
 
 @Backtester.skip_on_recover
 def handleExits(shift):
 
-	global pending_exits
+	global pending_exits, trailing_state
 
 	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 	is_exit = False
@@ -459,46 +476,40 @@ def handleExits(shift):
 
 	if (is_exit):
 		pending_exits = []
+		trailing_state = TrailingState.NONE
 		resetPositionStrands(Direction.LONG)
 		resetPositionStrands(Direction.SHORT)
+
+@Backtester.skip_on_recover
+def handleTrailingStop():
+
+	global trailing_state
+
+	if (pos.getProfit() >= VARIABLES['trailing_pips_first_profit'] and trailing_state.value < TrailingState.FIRST.value):
+		
+		trailing_state = TrailingState.FIRST
+		for pos in utils.positions:
+			pos.modifyTrailing(VARIABLES['trailing_pips_first_stop'])
+	
+	elif (pos.getProfit() >= VARIABLES['trailing_pips_second_profit'] and trailing_state.value < TrailingState.SECOND.value):
+		
+		trailing_state = TrailingState.SECOND
+		for pos in utils.positions:
+			pos.modifyTrailing(VARIABLES['trailing_pips_second_stop'])
+
 
 def onStopLoss(pos):
 	print("onStopLoss")
 
 	global re_entry_trigger
 
-	if (pos.direction == 'buy'):
-		re_entry_trigger = Trigger(Direction.LONG, 0, tradable = True, is_re_entry = True)
-		re_entry_trigger.state = State.CROSS_NEGATIVE
-	else:
-		re_entry_trigger = Trigger(Direction.SHORT, 0, tradable = True, is_re_entry = True)
-		re_entry_trigger.state = State.CROSS_NEGATIVE
-
-# def failsafe(timestamps):
-# 	''' Function called on any error or interuption '''
-
-# 	global current_trigger
-
-# 	print("failsafe")
-# 	print("Missing timestamps:", str(timestamps[VARIABLES['TICKETS'][0]]))
-
-# 	earliest = utils.getEarliestTimestamp(timestamps[VARIABLES['TICKETS'][0]])
-# 	offset = utils.getBarOffset(earliest)
-
-# 	i = 0
-# 	for timestamp in timestamps[VARIABLES['TICKETS'][0]]:
-		
-# 		current_shift = offset - i
-# 		print("Backtesting Time:", str(utils.convertTimestampToTime(timestamp)))
-
-# 		runSequence(current_shift)
-
-# 		if (len(pending_entries) > 0):
-# 			re_entry_trigger = Trigger(pending_entries[-1].direction, pending_entries[-1].start, tradable = False, is_re_entry = True)
-# 			re_entry_trigger.state = State.CROSS_NEGATIVE
-
-# 			for entry in pending_entries:
-# 				del pending_entries[pending_entries.index(entry)]
+	if (pos.getProfit() <= 0):
+		if (pos.direction == 'buy'):
+			re_entry_trigger = Trigger(Direction.LONG, 0, tradable = True, is_re_entry = True)
+			re_entry_trigger.state = State.CROSS_NEGATIVE
+		else:
+			re_entry_trigger = Trigger(Direction.SHORT, 0, tradable = True, is_re_entry = True)
+			re_entry_trigger.state = State.CROSS_NEGATIVE
 
 def onNews(title, time):
 	''' 
@@ -512,7 +523,7 @@ def onNews(title, time):
 	be_time = time - datetime.timedelta(minutes = VARIABLES['time_threshold_no_trades'])
 	no_trade_time = time - datetime.timedelta(minutes = VARIABLES['time_threshold_no_trades'])
 	
-	if (be_time <= utils.getLondonTime() < time):
+	if (be_time <= utils.getLondonTime() < time and trailing_state.value == TrailingState.NONE.value):
 		print(str(title), "done")
 		for pos in utils.positions:
 			if not pos in pending_breakevens:

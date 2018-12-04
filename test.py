@@ -1,5 +1,6 @@
 from CMCTrader import Constants
 import copy
+import types
 import time
 
 VARIABLES = {
@@ -57,9 +58,10 @@ def init(utilities):
 	macd = utils.MACD(7, 1)
 
 	pos = utils.buy(400)
-	pos.modifySL(40)
-	pos.apply()
-	# pos.trailing()
+	# pos.apply()
+	pos.modifyTrailing(40)
+	pos.modifyTrailing(60)
+	# pos.trailingReg(50)
 	# time.sleep(3)
 	# pos.trailingReg()
 	# pos.modifyTrailingSL(10)
@@ -79,31 +81,29 @@ def onDownTime():
 	print("onDownTime")
 
 class SaveState(object):
-	def __init__(self):
-		self.saved_vars = {}
-		self.saved_names = self.getPicklable()
-		self.save()
-
-	def getPicklable(self):
-		names = []
-		
-		for i in globals():	
-			try:
-				copy.deepcopy(globals()[i])
-				names.append(i)
-			except:
-				continue
-
-		print(names)
-		return names
+	def __init__(self, utils):
+		self.utils = utils
+		self.save_state = self.save()
+		# print("SAVED:", str(self.save_state))
 
 	def save(self):
-		self.saved_names = self.getPicklable()
-
-		for name in self.saved_names:
-			self.saved_vars[name] = copy.deepcopy(globals()[name])
+		voided_types = [type(i) for sub in self.utils.indicators.values() for i in sub]
+		voided_types.append(type(self.utils))
+		return [
+				copy.deepcopy(attr) for attr in globals().items() 
+				if not attr[0].startswith("__") 
+				and not callable(attr[1]) 
+				and not isinstance(attr[1], types.ModuleType) 
+				and not type(attr[1]) in voided_types 
+				and not attr[0] == 'VARIABLES'
+			]
 
 	def load(self):
-		for name in self.saved_names:
-			globals()[name] = self.saved_vars[name]
+		print("\nLOADING...")
+		print("GLOB:", str([globals()[attr[0]] for i in globals() for attr in self.save_state if i is attr[0]]) + "\n")
+		print("SAVE:", str([attr[1] for attr in self.save_state]) + "\n")
+		for attr in self.save_state:
+			globals()[attr[0]] = attr[1]
+
+		print("NEW\nGLOB:", str([globals()[attr[0]] for i in globals() for attr in self.save_state if i is attr[0]]) + "\n")
 	

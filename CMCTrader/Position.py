@@ -1,8 +1,11 @@
 from selenium import webdriver
 import selenium.webdriver.support.ui as ui
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 import time
+import threading
 
 from CMCTrader.Backtester import Backtester
 
@@ -206,33 +209,21 @@ class Position(object):
 				self.modifyTicket
 			)
 
-	# def trailing(self):
-	# 	if self.modifyTicket is None:
-	# 		if (not self.utils.positionExists(self)):
-	# 			self.utils.updatePositions()
-	# 			return
-	# 		self._getModifyTicketBtns()
+	@Backtester.redirect_backtest
+	def modifyTrailing(self, stop_loss):
+		if self.modifyTicket is None:
+			if (not self.utils.positionExists(self)):
+				self.utils.updatePositions()
+				return
+			self._getModifyTicketBtns()
 
-	# 	self._clickTrailingStop()
+		self.driver.execute_script(
+				'arguments[0].textContent = arguments[1]',
+				self._getStopLossPointsElem(), str(float(stop_loss))
+			)
+		print("Modified stoploss to " + str(stop_loss) + ".")
 
-	# 	self.driver.execute_script(
-	# 			'arguments[0].textContent = arguments[1]',
-	# 			self._getStopLossPointsElem(), str(float(50))
-	# 		)
-
-	# def trailingReg(self):
-	# 	if self.modifyTicket is None:
-	# 		if (not self.utils.positionExists(self)):
-	# 			self.utils.updatePositions()
-	# 			return
-	# 		self._getModifyTicketBtns()
-
-	# 	self._clickRegularStop()
-
-	# 	self.driver.execute_script(
-	# 			'arguments[0].textContent = arguments[1]',
-	# 			self._getStopLossPointsElem(), str(float(40))
-	# 		)
+		self._clickTrailingStop()
 
 	@Backtester.redirect_backtest
 	def modifySL(self, stopLoss):
@@ -246,22 +237,9 @@ class Position(object):
 				'arguments[0].textContent = arguments[1]',
 				self._getStopLossPointsElem(), str(float(stopLoss))
 			)
-		print("Modified stoploss to " + str(stopLoss) + ".")
 
-	@Backtester.redirect_backtest
-	def modifyTrailingSL(self, stopLoss):
-		if self.modifyTicket is None:
-			if (not self.utils.positionExists(self)):
-				self.utils.updatePositions()
-				return
-			self._getModifyTicketBtns()
+		self._clickRegularStop()
 
-		self.ticket.setTrailingStop()
-
-		self.driver.execute_script(
-				'arguments[0].textContent = arguments[1]',
-				self._getStopLossPointsElem(), str(float(stopLoss))
-			)
 		print("Modified stoploss to " + str(stopLoss) + ".")
 
 	@Backtester.redirect_backtest
@@ -313,6 +291,9 @@ class Position(object):
 					'arguments[0].textContent = arguments[1]',
 					self._getStopLossPointsElem(), str(float(0))
 				)
+
+				self._clickRegularStop()
+
 			elif (self.ticket.getBidPrice() < self.entryprice):
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
@@ -327,6 +308,9 @@ class Position(object):
 					'arguments[0].textContent = arguments[1]',
 					self._getStopLossPointsElem(), str(float(0))
 				)
+
+				self._clickRegularStop()
+
 			elif (self.ticket.getAskPrice() > self.entryprice):
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
@@ -359,6 +343,8 @@ class Position(object):
 					'arguments[0].textContent = arguments[1]',
 					self._getStopLossPointsElem(), str(float(0))
 				)
+
+		self._clickRegularStop()
 
 		print("Set position breakeven stoploss.")
 
@@ -578,8 +564,6 @@ class Position(object):
 		wait = ui.WebDriverWait(self.driver, 5)
 		wait.until(lambda driver : self.attemptBtnPress(self.modifyTicketElements['ORDER_TYPE_STOP']))
 
-		time.sleep(1)
-
 		wait = ui.WebDriverWait(self.driver, 5)
 		wait.until(lambda driver : self.attemptBtnPress(self.driver.find_element(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//li[@data-value='Regular']")))
 
@@ -587,17 +571,8 @@ class Position(object):
 		wait = ui.WebDriverWait(self.driver, 5)
 		wait.until(lambda driver : self.attemptBtnPress(self.modifyTicketElements['ORDER_TYPE_STOP']))
 
-		time.sleep(1)
-
-		trailing_elem = self.driver.find_element(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//li[@data-value='Trailing']")
-
-		self.driver.execute_script(
-				'arguments[0].click();',
-				trailing_elem
-			)
-
-		# wait = ui.WebDriverWait(self.driver, 5)
-		# wait.until(lambda driver : self.attemptBtnPress(self.driver.find_element(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//li[@data-value='Trailing']")))
+		wait = ui.WebDriverWait(self.driver, 5)
+		wait.until(lambda driver : self.attemptBtnHold(self.driver.find_element(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//li[@data-value='Trailing']")))
 
 	def attemptBtnPress(self, btn):
 		try:
@@ -606,32 +581,24 @@ class Position(object):
 		except:
 			return False
 
-	def _clickStopRegularElem(self):
-		self._clickOrderTypeStopElem()
+	def attemptBtnHold(self, btn):
+		try:
+			ActionChains(self.driver).move_to_element_with_offset(btn, 1, 1)
+			ActionChains(self.driver).click_and_hold(btn).perform()
+			
+			task = self.apply
+			t = threading.Thread(target = task)
+			t.start()
+			t.join()
 
-		wait = ui.WebDriverWait(self.driver, 10)
+			return True
+		except:
+			return False
 
-		wait.until(EC.presence_of_element_located(
-			(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//li[@data-value='Regular']")
-		))
-		
-		elem_id = self.driver.execute_script(
-				'arguments[1].click();',
-				self.modifyTicket, self.modifyTicketElements['REGULAR']
-			)
-
-	def _clickStopTrailingElem(self):
-		self._clickOrderTypeStopElem()
-
-		wait = ui.WebDriverWait(self.driver, 10)
-
-		wait.until(EC.presence_of_element_located(
-			(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//li[@data-value='Trailing']")
-		))
-		
-		elem_id = self.driver.execute_script(
-				'arguments[1].click();',
-				self.modifyTicket, self.modifyTicketElements['TRAILING']
+	def _clickModifyBtn(self):
+		self.driver.execute_script(
+				'arguments[0].click();',
+				self.modifyTicketElements['MODIFY_BTN']
 			)
 
 	def _getTakeProfitCloseElem(self):
