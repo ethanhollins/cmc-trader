@@ -51,7 +51,6 @@ class Start(object):
 
 		self.initDriver()
 
-		self.utils.isLive = False
 		self.initMainProgram()
 
 	def initConsole(self):
