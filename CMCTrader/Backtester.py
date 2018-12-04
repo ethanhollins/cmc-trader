@@ -87,7 +87,7 @@ class Backtester(object):
 	def price_redirect_backtest(func):
 		def wrapper(*args, **kwargs):
 			self = args[0]
-			if (not state == State.NONE and self.isStopped):
+			if (not state == State.NONE and not self.isLive):
 				return [i[1] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][3]
 			else:
 				return func(*args, **kwargs)

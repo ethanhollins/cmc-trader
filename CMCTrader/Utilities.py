@@ -65,6 +65,7 @@ class Utilities:
 		self.newsTimes = {}
 
 		self.isStopped = False
+		self.isLive = False
 		self.manualEntry = False
 		self.manualChartReading = False
 

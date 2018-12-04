@@ -51,7 +51,7 @@ class Start(object):
 
 		self.initDriver()
 
-		self.isTrading = False
+		self.utils.isLive = False
 		self.initMainProgram()
 
 	def initConsole(self):
@@ -105,7 +105,7 @@ class Start(object):
 			self.handleError(e, tb, firstInit = True)
 
 	def reinitMainProgram(self):
-		self.isTrading = False
+		self.utils.isLive = False
 		try:
 			self.login()
 			self.tickets = {}
@@ -331,7 +331,7 @@ class Start(object):
 	def functionCalls(self):
 		while (True):
 			if (not self.utils.isStopped):
-				self.isTrading = True
+				self.utils.isLive = True
 				try:
 					self.checkIfInApp()
 					try:
@@ -416,9 +416,8 @@ class Start(object):
 					tb = traceback.format_exc()
 					self.handleError(e, tb)
 			else:
-				self.isTrading = False
-
 				if (self.utils.manualChartReading):
+					self.utils.isLive = False
 					self.utils.backtester.manual()
 
 			# if (skipTo > i):

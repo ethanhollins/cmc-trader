@@ -1085,6 +1085,8 @@ def getMomentumCrossStrand(count, direction):
 def handleMomentumEntry(shift, direction):
 	global current_trigger, re_entry_trigger, position_strands
 
+	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+
 	cross_strand = getMomentumCrossStrand(VARIABLES['num_paras_momentum'], direction)
 
 	print("Cross Strand:", str(cross_strand))
