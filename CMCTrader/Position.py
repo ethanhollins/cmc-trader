@@ -63,7 +63,7 @@ def breakeven_redirect_backtest(func):
 def profit_redirect_backtest(func):
 	def wrapper(*args, **kwargs):
 		self = args[0]
-		if (not self.utils.backtester.isNotBacktesting()):			
+		if (not self.utils.backtester.isNotBacktesting() and not self.utils.isLive):			
 			return 0
 		else:
 			return func(*args, **kwargs)
@@ -145,6 +145,14 @@ class Position(object):
 		else:
 			print("ERROR: Unable to change position size, check if size change is greater than 400!")
 
+	def _getModifyBtn(self):
+		wait = ui.WebDriverWait(self.driver, 10)
+		wait.until(lambda driver : self.utils.positionLog.getPositionModifyButton(self) is not None)
+
+		print("found modify btn")
+
+		self.modifyBtn = self.utils.positionLog.getPositionModifyButton(self)
+
 	def _getModifyTicket(self):
 		self.modifyTicket = self.driver.execute_script(
 				'arguments[0].click();' +
@@ -178,8 +186,10 @@ class Position(object):
 		return self.modifyTicket
 
 	def _getModifyTicketBtns(self):
-		wait = ui.WebDriverWait(self.driver, 10)
+		if (self.modifyBtn == None):
+			self._getModifyBtn()
 
+		wait = ui.WebDriverWait(self.driver, 10)
 		wait.until(lambda driver : self._getModifyTicket() is not None)
 
 		self.modifyTicketElements = self.driver.execute_script(
@@ -217,8 +227,8 @@ class Position(object):
 				print("update")
 				self.utils.updatePositions()
 				return
-			self._getModifyTicketBtns()
 			print("getbtn")
+			self._getModifyTicketBtns()
 
 
 		print('1')

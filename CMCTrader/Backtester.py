@@ -285,10 +285,10 @@ class Backtester(object):
 
 					self.runMainLoop(time)
 
-		try:
-			self.plan.onBacktestFinish()
-		except AttributeError as e:
-			pass
+		# try:
+		# 	self.plan.onBacktestFinish()
+		# except AttributeError as e:
+		# 	pass
 
 		state = State.NONE
 

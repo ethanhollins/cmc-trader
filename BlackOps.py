@@ -486,14 +486,14 @@ def handleTrailingStop():
 	global trailing_state
 
 	for pos in utils.positions:
-		if (pos.getProfit() >= VARIABLES['trailing_pips_second_profit']): #and trailing_state.value < TrailingState.SECOND.value
+		if (pos.getProfit() >= VARIABLES['trailing_pips_second_profit'] and trailing_state.value < TrailingState.SECOND.value):
 			
 			print("second")
 
 			pos.modifyTrailing(VARIABLES['trailing_pips_second_stop'])
 			trailing_state = TrailingState.SECOND
 
-		elif (pos.getProfit() >= VARIABLES['trailing_pips_first_profit']): #and trailing_state.value < TrailingState.FIRST.value
+		elif (pos.getProfit() >= VARIABLES['trailing_pips_first_profit'] and trailing_state.value < TrailingState.FIRST.value):
 			
 			print("first")
 
@@ -1189,15 +1189,15 @@ def report():
 
 def onMissedEntry(*args, **kwargs):
 
-	global pending_entries, current_trigger
+	global pending_entries, re_entry_trigger
 
 	if (args[1] == 'buy'):
 		direction = Direction.LONG
 	else:
 		direction = Direction.SHORT
 
-	current_trigger = Trigger(direction, 0, tradable = True)
-	current_trigger.state = State.CROSS_NEGATIVE
+	re_entry_trigger = Trigger(direction, 0, tradable = True)
+	re_entry_trigger.state = State.CROSS_NEGATIVE
 
 	pending_entries = []
 

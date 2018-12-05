@@ -333,13 +333,13 @@ class Start(object):
 				self.utils.isLive = True
 				try:
 					self.checkIfInApp()
-					try:
-						if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
-							for pair in self.plan.VARIABLES['TICKETS']:
-								if (self.utils.isCurrentTimestamp(pair)):
-									self.plan.onLoop()
-					except AttributeError as e:
-						pass
+					# try:
+					if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
+						for pair in self.plan.VARIABLES['TICKETS']:
+							if (self.utils.isCurrentTimestamp(pair)):
+								self.plan.onLoop()
+					# except AttributeError as e:
+					# 	pass
 
 					seconds = int(self.seconds_elem.text)
 					second_is_zero = False
