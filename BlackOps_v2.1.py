@@ -299,7 +299,7 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif (news_trade_block):
 					print("Trade blocked on NEWS! Trigger reset.")
-					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
+					re_entry_trigger = Trigger(entry.direction, entry.start, 0, tradable = False, is_re_entry = True)
 					re_entry_trigger.state = State.CROSS_NEGATIVE
 
 					del pending_entries[pending_entries.index(entry)]
@@ -319,7 +319,7 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif (news_trade_block):
 					print("Trade blocked on NEWS! Trigger reset.")
-					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
+					re_entry_trigger = Trigger(entry.direction, entry.start, 0, tradable = False, is_re_entry = True)
 					re_entry_trigger.state = State.CROSS_NEGATIVE
 
 					del pending_entries[pending_entries.index(entry)]
@@ -345,7 +345,7 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif (news_trade_block):
 					print("Trade blocked on NEWS! Trigger reset.")
-					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
+					re_entry_trigger = Trigger(entry.direction, entry.start, 0, tradable = False, is_re_entry = True)
 					re_entry_trigger.state = State.CROSS_NEGATIVE
 
 					del pending_entries[pending_entries.index(entry)]
@@ -363,7 +363,7 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif (news_trade_block):
 					print("Trade blocked on NEWS! Trigger reset.")
-					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
+					re_entry_trigger = Trigger(entry.direction, entry.start, 0, tradable = False, is_re_entry = True)
 					re_entry_trigger.state = State.CROSS_NEGATIVE
 
 					del pending_entries[pending_entries.index(entry)]
@@ -501,10 +501,10 @@ def onStopLoss(pos):
 	if (pos.getProfit() <= 0):
 		
 		if (pos.direction == 'buy'):
-			re_entry_trigger = Trigger(Direction.LONG, 0, tradable = True, is_re_entry = True)
+			re_entry_trigger = Trigger(Direction.LONG, 0, 0, tradable = True, is_re_entry = True)
 			re_entry_trigger.state = State.CROSS_NEGATIVE
 		else:
-			re_entry_trigger = Trigger(Direction.SHORT, 0, tradable = True, is_re_entry = True)
+			re_entry_trigger = Trigger(Direction.SHORT, 0, 0, tradable = True, is_re_entry = True)
 			re_entry_trigger.state = State.CROSS_NEGATIVE
 
 def onNews(title, time):
@@ -588,9 +588,9 @@ def checkTime():
 		print("End time: looking to exit")
 		for pos in utils.positions:
 			if (pos.direction == 'buy'):
-				pending_exits.append(Trigger(Direction.LONG, 0))
+				pending_exits.append(Trigger(Direction.LONG, 0, 0))
 			else:
-				pending_exits.append(Trigger(Direction.SHORT, 0))
+				pending_exits.append(Trigger(Direction.SHORT, 0, 0))
 
 	elif (london_time > nnt_time and not is_nnt and not is_end_time):
 		print("No more trades")
@@ -1073,7 +1073,7 @@ def handleMomentumEntry(shift, direction):
 				if (is_momentum_active):
 					print("Entering on momentum entry short!")
 					
-					entry = Trigger(direction, 0, tradable = True)
+					entry = Trigger(direction, 0, 0, tradable = True)
 					pending_entries.append(entry)
 					re_entry_trigger = None
 				
@@ -1154,7 +1154,7 @@ def onMissedEntry(*args, **kwargs):
 	else:
 		direction = Direction.SHORT
 
-	re_entry_trigger = Trigger(direction, 0, tradable = True)
+	re_entry_trigger = Trigger(direction, 0, 0, tradable = True)
 	re_entry_trigger.state = State.CROSS_NEGATIVE
 
 	pending_entries = []
@@ -1165,7 +1165,7 @@ def onBacktestFinish():
 	if (len(pending_entries) > 0):
 		entry = pending_entries[-1]
 
-		re_entry_trigger = Trigger(entry.direction, entry.start, tradable = True)
+		re_entry_trigger = Trigger(entry.direction, entry.start, 0, tradable = True)
 		re_entry_trigger.state = State.CROSS_NEGATIVE
 
 		pending_entries = []
