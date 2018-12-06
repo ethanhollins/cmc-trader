@@ -1054,6 +1054,7 @@ def handleMomentumEntry(shift, direction):
 	global re_entry_trigger, position_strands
 
 	cross_strand = getMomentumCrossStrand(direction)
+	is_momentum_active = isMomentumActive(shift, strands[0].direction, direction)
 
 	print("Cross Strand:", str(cross_strand))
 	
@@ -1061,22 +1062,23 @@ def handleMomentumEntry(shift, direction):
 
 		print("MOMEM ACTIVE:", str(isMomentumActive(shift, strands[0].direction, direction)))
 
-		if (not cross_strand == None and isMomentumActive(shift, strands[0].direction, direction)):
+		if (not cross_strand == None and ):
 
 			if (checkMomentumCrossed(shift, cross_strand)):
 
 				if (trigger.direction == direction and trigger.stage == Stage.SC2):
 					print("Swing entry blocked momentum entry", str(direction)+"!")
-					resetPositionStrands(direction)
 					return
 
-				print("Entering on momentum entry short!")
+				if (is_momentum_active):
+					print("Entering on momentum entry short!")
+					
+					entry = Trigger(direction, 0, tradable = True)
+					pending_entries.append(entry)
+					re_entry_trigger = None
 				
-				entry = Trigger(direction, 0, tradable = True)
-				pending_entries.append(entry)
-				re_entry_trigger = None
-			
 				resetPositionStrands(direction)
+
 
 def isMomentumActive(shift, strand_direction, direction):
 
@@ -1092,10 +1094,10 @@ def isMomentumActive(shift, strand_direction, direction):
 			count += 1
 
 			if (strand.direction == Direction.LONG):
-				if (high > strand.start):
+				if (low > strand.start):
 					break
 			else:
-				if (low < strand.start):
+				if (high < strand.start):
 					break
 
 		if (count >= VARIABLES['num_paras_momentum']):
