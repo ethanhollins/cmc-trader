@@ -1056,27 +1056,29 @@ def handleMomentumEntry(shift, direction):
 	cross_strand = getMomentumCrossStrand(direction)
 
 	print("Cross Strand:", str(cross_strand))
+	
+	for trigger in current_triggers:
 
-	if (not cross_strand == None and isMomentumActive(shift, direction)):
+		print("MOMEM ACTIVE:", str(isMomentumActive(shift, strands[0].direction, direction)))
 
-		if (checkMomentumCrossed(shift, cross_strand)):
+		if (not cross_strand == None and isMomentumActive(shift, strands[0].direction, direction)):
 
-			for trigger in current_triggers:
-				if (trigger.direction == direction):
-					if (trigger.stage == Stage.SC2):
-						print("Swing entry blocked momentum entry", str(direction)+"!")
-						position_strands = []
-						return
+			if (checkMomentumCrossed(shift, cross_strand)):
 
-			print("Entering on momentum entry short!")
+				if (trigger.direction == direction and trigger.stage == Stage.SC2):
+					print("Swing entry blocked momentum entry", str(direction)+"!")
+					resetPositionStrands(direction)
+					return
+
+				print("Entering on momentum entry short!")
+				
+				entry = Trigger(direction, 0, tradable = True)
+				pending_entries.append(entry)
+				re_entry_trigger = None
 			
-			entry = Trigger(direction, 0, tradable = True)
-			pending_entries.append(entry)
-			re_entry_trigger = None
-		
-			resetPositionStrands(direction)
+				resetPositionStrands(direction)
 
-def isMomentumActive(shift, direction):
+def isMomentumActive(shift, strand_direction, direction):
 
 	global momentum_active_long, momentum_active_short
 
@@ -1086,25 +1088,28 @@ def isMomentumActive(shift, direction):
 	count = 0
 	for strand in position_strands.getSorted():
 
+		if (strand.direction == strand_direction):
+			count += 1
+
+			if (strand.direction == Direction.LONG):
+				if (high > strand.start):
+					break
+			else:
+				if (low < strand.start):
+					break
+
 		if (count >= VARIABLES['num_paras_momentum']):
+			if (strand_direction == Direction.LONG):
+				momentum_active_long = True
+			else:
+				momentum_active_short = True
 			break
 
-		if (strand.direction == Direction.LONG):
-			count += 1
-			if (high < strand.start):
-				return momentum_active_long
-
-		else:
-			count += 1
-			if (low > strand.start):
-				return momentum_active_short
-
+	print(str(momentum_active_long), str(momentum_active_short))
 
 	if (direction == Direction.LONG):
-		momentum_active_long = True
 		return momentum_active_long
 	else:
-		momentum_active_short = True
 		return momentum_active_short
 
 def checkMomentumCrossed(shift, strand):
