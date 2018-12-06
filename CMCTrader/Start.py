@@ -332,14 +332,16 @@ class Start(object):
 			if (not self.utils.isStopped):
 				self.utils.isLive = True
 				try:
+					self.reinitTicketBtns()
+
 					self.checkIfInApp()
-					# try:
-					if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
-						for pair in self.plan.VARIABLES['TICKETS']:
-							if (self.utils.isCurrentTimestamp(pair)):
-								self.plan.onLoop()
-					# except AttributeError as e:
-					# 	pass
+					try:
+						if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
+							for pair in self.plan.VARIABLES['TICKETS']:
+								if (self.utils.isCurrentTimestamp(pair)):
+									self.plan.onLoop()
+					except AttributeError as e:
+						pass
 
 					seconds = int(self.seconds_elem.text)
 					second_is_zero = False
@@ -499,6 +501,20 @@ class Start(object):
 	# 	except:
 	# 		print("Could not find saved data at that time.")
 	# 		return
+
+	def reinitTicketBtns(self):
+		self.tickets = {}
+		try:
+			for t in self.plan.VARIABLES['TICKETS']:
+				self.tickets[t] = self.initTicketBtns(t)
+		except:
+			self.tickets[Constants.GBPUSD] = self.initTicketBtns(Constants.GBPUSD)
+
+		self.tAUDUSD = self.initTicketBtns(Constants.AUDUSD)
+
+		self.utils.setTickets(self.tickets)
+		self.utils.setAUDUSDTicket(self.tAUDUSD)
+
 
 	def handleLostConnection(self):
 		while (True):

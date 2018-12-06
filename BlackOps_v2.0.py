@@ -134,7 +134,7 @@ class Trigger(dict):
 
 	@classmethod
 	def fromDict(cls, dic):
-		cpy = cls(dic['direction'], dic['start'], tradable = dic['tradable'], is_re_entry = dic['is_re_entry'])
+		cpy = cls(dic['direction'], dic['start'], dic['count'], tradable = dic['tradable'], is_re_entry = dic['is_re_entry'])
 		for key in dic:
 			cpy[key] = dic[key]
 		return cpy
@@ -1100,11 +1100,13 @@ def checkMomentumCrossed(shift, strand):
 def report():
 	''' Prints report for debugging '''
 
+	print("\n")
+
 	for trigger in current_triggers:
-		print("CURRENT TRIGGER:", str(trigger))
+		print("CURRENT TRIGGER:\n ", str(trigger))
 
 	if (not re_entry_trigger == None):
-		print("RE-ENTRY TRIGGER:", str(re_entry_trigger))
+		print("RE-ENTRY TRIGGER:\n ", str(re_entry_trigger))
 
 	print("CLOSED POSITIONS:")
 	count = 0
