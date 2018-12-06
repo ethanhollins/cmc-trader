@@ -1090,14 +1090,15 @@ def isMomentumActive(shift, direction):
 			break
 
 		if (strand.direction == Direction.LONG):
+			count += 1
 			if (high < strand.start):
 				return momentum_active_long
 
 		else:
+			count += 1
 			if (low > strand.start):
 				return momentum_active_short
 
-		count += 1
 
 	if (direction == Direction.LONG):
 		momentum_active_long = True
