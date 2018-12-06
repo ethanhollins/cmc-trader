@@ -1062,7 +1062,7 @@ def handleMomentumEntry(shift, direction):
 
 		print("MOMEM ACTIVE:", str(isMomentumActive(shift, strands[0].direction, direction)))
 
-		if (not cross_strand == None and ):
+		if (not cross_strand == None):
 
 			if (checkMomentumCrossed(shift, cross_strand)):
 
