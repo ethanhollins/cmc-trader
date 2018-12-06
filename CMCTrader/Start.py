@@ -332,8 +332,6 @@ class Start(object):
 			if (not self.utils.isStopped):
 				self.utils.isLive = True
 				try:
-					self.reinitTicketBtns()
-
 					self.checkIfInApp()
 					try:
 						if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
@@ -346,6 +344,8 @@ class Start(object):
 					seconds = int(self.seconds_elem.text)
 					second_is_zero = False
 					if (seconds == 0 and not second_is_zero):
+						self.reinitTicketBtns()
+
 						second_is_zero = True
 						
 						self.utils.updatePositions()
