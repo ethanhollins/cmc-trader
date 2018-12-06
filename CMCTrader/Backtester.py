@@ -228,7 +228,7 @@ class Backtester(object):
 				if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
 					self.runMainLoop(time)
 
-				# input("Press enter to continue...")
+				input("Press enter to continue...")
 
 		try:
 			self.plan.onBacktestFinish()

@@ -7,7 +7,7 @@ import copy
 
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD],
-	'START_TIME' : '1:30',
+	'START_TIME' : '0:30',
 	'END_TIME' : '19:00',
 	'FIXED_SL' : 17,
 	'FIXED_TP' : 200,
@@ -48,20 +48,18 @@ VARIABLES = {
 	'macd_threshold' : 0
 }
 
-current_trigger = None
-re_entry_trigger = None
-
-block_direction = None
-
-class Strands(list):
+class SortedList(list):
 	def __getitem__(self, row):
 		return sorted(list(self), key=lambda x: x.count, reverse = True)[row]
 
 	def getSorted(self):
 		return sorted(list(self), key=lambda x: x.count, reverse = True)
 
-strands = Strands()
-position_strands = Strands()
+current_triggers = SortedList()
+re_entry_trigger = None
+
+strands = SortedList()
+position_strands = SortedList()
 current_brown = None
 
 pending_entries = []
@@ -87,14 +85,17 @@ class Direction(Enum):
 	LONG = 1
 	SHORT = 2
 
+class Stage(Enum):
+	SC1 = 1
+	SC2 = 2
+
 class State(Enum):
 	SWING_ONE = 1
 	SWING_TWO = 2
 	SWING_THREE = 3
 	CROSS_NEGATIVE = 4
 	HIT_PARA = 5
-	OBOS = 6
-	ENTERED = 7
+	ENTERED = 6
 
 class Strand(dict):
 	def __init__(self, direction, start):
@@ -121,14 +122,15 @@ class Strand(dict):
 		return Strand.fromDict(dict(self))
 
 class Trigger(dict):
-	def __init__(self, direction, start, tradable = False, is_re_entry = False):
+	def __init__(self, direction, start, count, tradable = False, is_re_entry = False):
 		self.direction = direction
 		self.start = start
 		self.state = State.SWING_ONE
+		self.stage = Stage.SC1
 		self.tradable = tradable
 		self.is_re_entry = is_re_entry
-		self.last_obos = 0
 		self.ct_conf = False
+		self.count = count
 
 	@classmethod
 	def fromDict(cls, dic):
@@ -279,7 +281,7 @@ def onLoop():
 def handleEntries():
 	''' Handle all pending entries '''
 
-	global no_new_trades, current_trigger
+	global no_new_trades
 
 	for entry in pending_entries:
 		
@@ -508,12 +510,20 @@ def onStopLoss(pos):
 	global re_entry_trigger
 
 	if (pos.getProfit() <= 0):
+		
 		if (pos.direction == 'buy'):
 			re_entry_trigger = Trigger(Direction.LONG, 0, tradable = True, is_re_entry = True)
 			re_entry_trigger.state = State.CROSS_NEGATIVE
 		else:
 			re_entry_trigger = Trigger(Direction.SHORT, 0, tradable = True, is_re_entry = True)
 			re_entry_trigger.state = State.CROSS_NEGATIVE
+
+	else:
+		if (pos.direction == 'buy'):
+			resetPositionStrands(Direction.LONG)
+		else:
+			resetPositionStrands(Direction.SHORT)
+
 
 def onNews(title, time):
 	''' 
@@ -620,7 +630,9 @@ def runSequence(shift):
 	if (isCompletedStrand()):
 		getTrigger(shift)
 
-	entrySetup(shift, current_trigger)
+	for trigger in current_triggers:
+		entrySetup(shift, trigger)
+
 	entrySetup(shift, re_entry_trigger, no_conf = True)
 
 	momentumEntry(shift)
@@ -628,23 +640,27 @@ def runSequence(shift):
 def getTrigger(shift):
 	''' Form trigger in direction of black cross '''
 
-	global current_trigger
-
 	if (black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
 
+		for trigger in current_triggers:
+			if trigger.stage == Stage.SC1 or (trigger.stage == Stage.SC2 and trigger.state.value < State.HIT_PARA.value):
+				del current_triggers[current_triggers.index(trigger)]
+
 		if (black_sar.strandCount(VARIABLES['TICKETS'][0], shift + 1) > VARIABLES['sar_size']):
-			
+
 			if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 				direction = Direction.LONG
-				setCurrentTrigger(direction)
+				trigger = setCurrentTrigger(direction)
 
-				current_trigger.tradable = True
+				if (not trigger == None):
+					trigger.tradable = True
 
 			elif (black_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]):
 				direction = Direction.SHORT
-				setCurrentTrigger(direction)
+				trigger = setCurrentTrigger(direction)
 
-				current_trigger.tradable = True
+				if (not trigger == None):
+					trigger.tradable = True
 		
 		else:
 			
@@ -656,25 +672,34 @@ def getTrigger(shift):
 				direction = Direction.SHORT
 				setCurrentTrigger(direction)
 
-	if (not current_trigger == None and not current_trigger.tradable):
-		
-		if (current_trigger.direction == Direction.LONG):
-			if (hasCrossedAbove(shift, current_trigger)):
-				current_trigger.tradable = True
+	for trigger in current_triggers:
 
-		else:
-			if (hasCrossedBelow(shift, current_trigger)):
-				current_trigger.tradable = True
+		if (not trigger.tradable):
+		
+			if (trigger.direction == Direction.LONG):
+				if (hasCrossedAbove(shift, trigger)):
+					trigger.tradable = True
+
+			else:
+				if (hasCrossedBelow(shift, trigger)):
+					trigger.tradable = True
 
 def setCurrentTrigger(direction):
-	global current_trigger
 
-	if (not current_trigger == None and current_trigger.direction == direction):
-		return
+	for trigger in current_triggers:
+		if trigger.direction == direction:
+			return None
 			
 	start = getLastStrandStart(direction)
 
-	current_trigger = Trigger(direction, start)
+	if (len(current_triggers) > 0):
+		trigger = Trigger(direction, start, current_triggers[-1].count + 1)
+	else:
+		trigger = Trigger(direction, start, 0)
+
+	current_triggers.append(trigger)
+
+	return trigger
 
 def getLastStrandStart(direction):
 	for strand in strands.getSorted():
@@ -692,9 +717,6 @@ def onNewCycle(shift):
 		if (len(strands) > 0):
 			strands[0].is_completed = True
 			strands[0].end = black_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
-		
-		if (len(strands) > 1):
-			isWhollyCrossed()
 
 		if (black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]):
 			direction = Direction.SHORT
@@ -713,37 +735,7 @@ def onNewCycle(shift):
 	
 	if (brown_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
 
-		if (current_trigger == None):
-			current_brown = BrownStrand(shift + 1)
-
-		else:
-			
-			if (current_trigger.direction == Direction.LONG and brown_sar.isFalling(VARIABLES['TICKETS'][0], shift + 1, 1)[0]):
-				current_brown = BrownStrand(shift + 1)
-			
-			elif (current_trigger.direction == Direction.SHORT and brown_sar.isRising(VARIABLES['TICKETS'][0], shift + 1, 1)[0]):
-				current_brown = BrownStrand(shift + 1)
-
-def isWhollyCrossed():
-
-	global block_direction
-
-	first = strands[1]
-	second = strands[0]
-
-	print("WC:", str(first), str(second))
-
-	if (second.direction == Direction.SHORT):
-		if (second.start < first.end and second.end > first.start):
-			block_direction = Direction.SHORT
-		else:
-			block_direction = None
-
-	else:
-		if (second.start > first.end and second.end < first.start):
-			block_direction = Direction.LONG
-		else:
-			block_direction = None
+		current_brown = BrownStrand(shift + 1)
 
 def isCompletedStrand():
 	for strand in strands:
@@ -758,7 +750,7 @@ def hasCrossedBelow(shift, item):
 	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
 
 	if (low < item.start):
-		print("crossed black para below")
+		print("black para crossed below")
 		return True
 
 	return False
@@ -779,47 +771,69 @@ def entrySetup(shift, trigger, no_conf = False):
 
 	if (not trigger == None and trigger.tradable):
 
-		if (trigger.state == State.SWING_ONE):
-			if (swingOne(shift, trigger.direction)):
-				trigger.state = State.SWING_TWO
+		if (trigger.stage == Stage.SC1):
+			if (trigger.state == State.SWING_ONE):
+				if (swingOne(shift, trigger.direction)):
+					trigger.state = State.SWING_TWO
 
-		elif (trigger.state == State.SWING_TWO):
-			if (swingTwo(shift, trigger)):
-				trigger.ct_conf = False
-				trigger.state = State.SWING_THREE
+			elif (trigger.state == State.SWING_TWO):
+				if (swingTwo(shift, trigger)):
+					trigger.ct_conf = False
+					trigger.state = State.SWING_THREE
 
-		elif (trigger.state == State.SWING_THREE):
-			result = swingThree(shift, trigger.direction, no_conf)
-			if (result == 1):
-				trigger.state = State.HIT_PARA
+			elif (trigger.state == State.SWING_THREE):
+				result = swingThree(shift, trigger.direction, no_conf)
+				if (result == 1):
+					trigger.state = State.HIT_PARA
 
-				entrySetup(shift, trigger, no_conf = no_conf)
-			
-			elif (result == 0):
-				trigger.state = State.CROSS_NEGATIVE
-		
-		elif (trigger.state == State.CROSS_NEGATIVE):
-			if (crossNegative(shift, trigger)):
-				trigger.ct_conf = False
-				trigger.state = State.SWING_THREE
+					entrySetup(shift, trigger, no_conf = no_conf)
 				
-				entrySetup(shift, trigger, no_conf = no_conf)
+				elif (result == 0):
+					trigger.state = State.CROSS_NEGATIVE
+			
+			elif (trigger.state == State.CROSS_NEGATIVE):
+				if (crossNegative(shift, trigger)):
+					trigger.ct_conf = False
+					trigger.state = State.SWING_THREE
+					
+					entrySetup(shift, trigger, no_conf = no_conf)
 
-		elif (trigger.state == State.HIT_PARA):
-			result = paraHit(shift, trigger.direction, no_conf)
+			elif (trigger.state == State.HIT_PARA):
+				if (isBrownParaConfirmation(shift, trigger.direction, reverse = True) and isSlowParaConfirmation(shift, trigger.direction)):
+					trigger.state = State.SWING_ONE
+					trigger.stage = Stage.SC2
 
-			if (result == 1):
-				trigger.state = State.ENTERED
-				confirmation(shift, trigger)
-			elif (result == 0):
-				trigger.state = State.CROSS_NEGATIVE
+		elif (trigger.stage == Stage.SC2):
+			
+			if (trigger.state == State.SWING_ONE):
+				if (crossPositive(shift, trigger)):
+					trigger.state = State.SWING_TWO
 
-				entrySetup(shift, trigger, no_conf = no_conf)
+			elif (trigger.state == State.SWING_TWO):
+				if (crossNegative(shift, trigger)):
+					trigger.ct_conf = False
+					trigger.state = State.SWING_THREE
 
-		elif (trigger.state == State.OBOS):
-			if (onOBOS(shift, trigger)):
-				trigger.state = State.ENTERED
-				confirmation(shift, trigger)
+			elif (trigger.state == State.SWING_THREE):
+				result = swingThree(shift, trigger.direction, no_conf)
+				if (result == 1):
+					trigger.state = State.HIT_PARA
+
+					entrySetup(shift, trigger, no_conf = no_conf)
+				
+				elif (result == 0):
+					trigger.state = State.SWING_TWO
+
+			elif (trigger.state == State.HIT_PARA):
+				result = paraHit(shift, trigger.direction, no_conf)
+
+				if (result == 1):
+					trigger.state = State.ENTERED
+					confirmation(shift, trigger)
+				elif (result == 0):
+					trigger.state = State.SWING_TWO
+
+					entrySetup(shift, trigger, no_conf = no_conf)
 
 
 def swingOne(shift, direction):
@@ -898,24 +912,14 @@ def swingConfirmation(shift, direction):
 	if (direction == Direction.LONG):
 
 		if (str_idx > VARIABLES['rsi_threshold'] or hist > VARIABLES['macd_threshold']):
-			if (isRegParaConfirmation(shift, direction)):
-				return True
+			return True
 		return False
 	
 	else:
 
 		if (str_idx < VARIABLES['rsi_threshold'] or hist < VARIABLES['macd_threshold']):
-			if (isRegParaConfirmation(shift, direction)):
-				return True
+			return True
 		return False
-
-def isRegParaConfirmation(shift, direction):
-	''' Finds if both sar are in correct direction for confirmation '''
-
-	if (direction == Direction.LONG):
-		return reg_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
-	else:
-		return reg_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 def isBrownParaConfirmation(shift, direction, reverse = False):
 	if (not reverse):
@@ -966,6 +970,20 @@ def isSlowParaConfirmation(shift, direction):
 	else:
 		return slow_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
+def crossPositive(shift, trigger):
+
+	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+
+	if (trigger.direction == Direction.LONG):
+		if (ch_idx > VARIABLES['cci_entry_cross']):
+			return True
+	
+	else:
+		if (ch_idx < VARIABLES['cci_entry_cross']):
+			return True
+
+	return False
+
 def crossNegative(shift, trigger):
 	''' Checks for swing to be in positive direction '''
 
@@ -985,66 +1003,18 @@ def crossNegative(shift, trigger):
 
 	return False
 
-def onOBOS(shift, trigger):
-
-	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
-	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
-
-	if (trigger.direction == Direction.LONG):
-
-		if (str_idx < VARIABLES['rsi_overbought']):
-			if (str_idx > trigger.last_obos and ch_idx > -VARIABLES['cci_obos']):
-				return True
-
-		else:
-			trigger.last_obos = str_idx
-			return False
-
-	else:
-
-		if (str_idx > VARIABLES['rsi_oversold']):
-			if (str_idx < trigger.last_obos and ch_idx < VARIABLES['cci_obos']):
-				return True
-
-		else:
-			trigger.last_obos = str_idx
-			return False
-
 def confirmation(shift, trigger):
 	''' Checks for overbought, oversold and confirm entry '''
 
-	global re_entry_trigger, block_direction
+	global re_entry_trigger
 
 	print("confirmation")
 
-	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
-	
-	if (trigger.direction == Direction.LONG):
-		
-		if (block_direction == Direction.LONG and not trigger.is_re_entry):
-			trigger.state = State.CROSS_NEGATIVE
-			block_direction = None
+	if (len(current_triggers) > 1):
+		del current_triggers[0]
 
-		elif (str_idx >= VARIABLES['rsi_overbought']):
-			trigger.state = State.OBOS
-			current_trigger.last_obos = str_idx
-		
-		else:
-			pending_entries.append(trigger)
-			re_entry_trigger = None
-	
-	else:
-		if (block_direction == Direction.SHORT and not trigger.is_re_entry):
-			trigger.state = State.CROSS_NEGATIVE
-			block_direction = None
-
-		elif (str_idx <= VARIABLES['rsi_oversold']):
-			trigger.state = State.OBOS
-			current_trigger.last_obos = str_idx
-		
-		else:
-			pending_entries.append(trigger)
-			re_entry_trigger = None
+	pending_entries.append(trigger)
+	re_entry_trigger = None
 
 def resetPositionStrands(direction):
 	global position_strands
@@ -1058,9 +1028,7 @@ def getPositionStrand():
 	position_strands.append(strands[0])
 
 def momentumEntry(shift):
-	global re_entry_trigger, position_strands, current_trigger
-
-	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+	global re_entry_trigger, position_strands
 
 	if (len(utils.positions) <= 0):
 
@@ -1098,9 +1066,7 @@ def getMomentumCrossStrand(count, direction):
 	return cross_strand
 
 def handleMomentumEntry(shift, direction):
-	global current_trigger, re_entry_trigger, position_strands
-
-	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+	global re_entry_trigger, position_strands
 
 	cross_strand = getMomentumCrossStrand(VARIABLES['num_paras_momentum'], direction)
 
@@ -1110,25 +1076,18 @@ def handleMomentumEntry(shift, direction):
 
 		if (checkMomentumCrossed(shift, cross_strand)):
 
-			if (current_trigger.direction == direction):
-				if (current_trigger.state.value >= State.OBOS.value):
-					print("Swing entry blocked momentum entry short!")
-					position_strands = []
-					return
+			for trigger in current_triggers:
+				if (trigger.direction == direction):
+					if (trigger.stage >= Stage.SC2):
+						print("Swing entry blocked momentum entry", str(direction)+"!")
+						position_strands = []
+						return
 
-			if (not isObos(shift, direction)):
-				print("Entering on momentum entry short!")
-				
-				entry = Trigger(direction, 0, tradable = True)
-				pending_entries.append(entry)
-				re_entry_trigger = None
-
-			else:
-				print("Oversold on momentum entry")
-
-				current_trigger = Trigger(direction, 0, tradable = True)
-				current_trigger.state = State.OBOS
-				current_trigger.last_obos = str_idx
+			print("Entering on momentum entry short!")
+			
+			entry = Trigger(direction, 0, tradable = True)
+			pending_entries.append(entry)
+			re_entry_trigger = None
 		
 			resetPositionStrands(direction)
 
@@ -1138,38 +1097,14 @@ def checkMomentumCrossed(shift, strand):
 	else:
 		return hasCrossedBelow(shift, strand)
 
-def isObos(shift, direction):
-
-	str_idx = rsi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
-
-	if (direction == Direction.LONG):
-
-		if (str_idx >= VARIABLES['rsi_overbought']):
-			return True
-		else:
-			return False
-
-	else:
-
-		if (str_idx <= VARIABLES['rsi_oversold']):
-			return True
-		else:
-			return False
-
-
 def report():
 	''' Prints report for debugging '''
 
-	if (not current_trigger == None):
-		print("CURRENT TRIGGER:", str(current_trigger))
-	else:
-		print("CURRENT TRIGGER: None")
+	for trigger in current_triggers:
+		print("CURRENT TRIGGER:", str(trigger))
 
 	if (not re_entry_trigger == None):
 		print("RE-ENTRY TRIGGER:", str(re_entry_trigger))
-
-	if (not block_direction == None):
-		print("BLOCK DIRECTION:", str(block_direction))
 
 	print("CLOSED POSITIONS:")
 	count = 0
@@ -1183,8 +1118,6 @@ def report():
 		count += 1
 		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit())
 
-	print("GLOB:", str([globals()[attr[0]] for i in globals() for attr in utils.save_state.save_state if i is attr[0]]) + "\n")
-	print("SAVE:", str([attr[1] for attr in utils.save_state.save_state]) + "\n")
 	print("--|\n")
 
 def onMissedEntry(*args, **kwargs):

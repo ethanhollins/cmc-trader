@@ -79,7 +79,7 @@ class Position(object):
 		self.ordertype = ordertype
 		self.direction = direction
 
-		self.driver = None
+		self.driver = self.utils.driver
 		self.modifyBtn = None
 		self.openTime = None
 		self.closeTime = None
@@ -221,25 +221,18 @@ class Position(object):
 
 	@Backtester.redirect_backtest
 	def modifyTrailing(self, stop_loss):
-		print("modifyTrailing")
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
-				print("update")
 				self.utils.updatePositions()
 				return
-			print("getbtn")
 			self._getModifyTicketBtns()
-
-
-		print('1')
 
 		self.driver.execute_script(
 				'arguments[0].textContent = arguments[1]',
 				self._getStopLossPointsElem(), str(float(stop_loss))
 			)
-		print('2')
 
-		print("Modified stoploss to " + str(stop_loss) + ".")
+		print("Modified trailing stoploss to " + str(stop_loss) + ".")
 
 		self._clickTrailingStop()
 
