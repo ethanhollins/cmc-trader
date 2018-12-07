@@ -419,7 +419,7 @@ class Backtester(object):
 
 		history = self.utils.historyLog.getFilteredHistory()
 
-		listenedTypes = [
+		listened_types = [
 				'Buy Trade', 'Sell Trade',
 				'Buy SE Order', 'Sell SE Order',
 				'Take Profit', 'Stop Loss', 
