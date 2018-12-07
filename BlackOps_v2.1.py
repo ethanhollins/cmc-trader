@@ -64,7 +64,7 @@ current_brown = None
 pending_entries = []
 pending_breakevens = []
 pending_exits = []
-
+momentum_cross_strands = []
 is_position_breakeven = False
 
 momentum_active_long = False
@@ -364,7 +364,7 @@ def handleStopAndReverse(pos, entry):
 	and check if tradable conditions are met.
 	'''
 
-	global is_position_breakeven, trailing_state
+	global is_position_breakeven
 
 	current_profit = utils.getTotalProfit() + pos.getProfit()
 	loss_limit = -VARIABLES['stoprange'] * 2
@@ -379,7 +379,6 @@ def handleStopAndReverse(pos, entry):
 		
 		is_position_breakeven = False
 
-	trailing_state = TrailingState.NONE
 	del pending_entries[pending_entries.index(entry)]
 
 @Backtester.skip_on_recover
@@ -389,7 +388,7 @@ def handleRegularEntry(entry):
 	and check if tradable conditions are met.
 	'''
 
-	global is_position_breakeven, trailing_state
+	global is_position_breakeven
 
 	current_profit = utils.getTotalProfit()
 	loss_limit = -VARIABLES['stoprange'] * 2
@@ -406,7 +405,6 @@ def handleRegularEntry(entry):
 		
 		is_position_breakeven = False
 
-	trailing_state = TrailingState.NONE
 	del pending_entries[pending_entries.index(entry)]
 
 @Backtester.skip_on_recover
@@ -441,10 +439,22 @@ def handleStop():
 					stop_state = StopState.BREAKEVEN
 					del pending_breakevens[pending_breakevens.index(pos)]
 
+def handleMomentumOrder():
+	
+	for order in utils.orders:
+		for strand in momentum_cross_strands:
+
+			if order.direction == 'buy' and strand.direction == Direction.LONG:
+				
+				
+		order.cancel()
+
+
+
 @Backtester.skip_on_recover
 def handleExits(shift):
 
-	global pending_exits, trailing_state
+	global pending_exits
 
 	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 	is_exit = False
@@ -465,7 +475,6 @@ def handleExits(shift):
 
 	if (is_exit):
 		pending_exits = []
-		trailing_state = TrailingState.NONE
 
 def onStopLoss(pos):
 	print("onStopLoss")
@@ -493,7 +502,7 @@ def onNews(title, time):
 	be_time = time - datetime.timedelta(minutes = VARIABLES['time_threshold_no_trades'])
 	no_trade_time = time - datetime.timedelta(minutes = VARIABLES['time_threshold_no_trades'])
 	
-	if (be_time <= utils.getLondonTime() < time and trailing_state.value == TrailingState.NONE.value):
+	if (be_time <= utils.getLondonTime() < time and stop_state.value < StopState.BREAKEVEN.value):
 		print(str(title), "done")
 		for pos in utils.positions:
 			if not pos in pending_breakevens:
