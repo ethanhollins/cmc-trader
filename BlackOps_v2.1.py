@@ -23,8 +23,7 @@ VARIABLES = {
 	'full_profit' : 200,
 	'rounding' : 100,
 	'breakeven_min_pips' : 3,
-	'trailing_pips_profit' : 80,
-	'trailing_pips_stop' : 40,
+	'momentum_strand_margin' : 2,
 	'CLOSING SEQUENCE' : None,
 	'no_more_trades_in_profit' : '16:00',
 	'no_more_trades' : '18:00',
@@ -1044,6 +1043,12 @@ def getMomentumCrossStrand(direction):
 		cross_strand = sorted(last_strands, key=lambda x: x.start, reverse=True)[0]
 	else:
 		cross_strand = sorted(last_strands, key=lambda x: x.start)[0]
+
+	if (cross_strand == sorted(last_strands, key=lambda x: x.count, reverse=True)[0]):
+		next_cross_strand = sorted(last_strands, key=lambda x: x.start, reverse=True)[1]
+
+		if (utils.convertToPips(abs(cross_strand.start - next_cross_strand.start)) > VARIABLES['momentum_strand_margin']):
+			cross_strand = None
 
 	return cross_strand
 
