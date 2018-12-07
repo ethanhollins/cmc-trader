@@ -613,7 +613,8 @@ def runSequence(shift):
 
 	entrySetup(shift, re_entry_trigger, no_conf = True)
 
-	momentumEntry(shift)
+	if (isCompletedStrand()):
+		momentumEntry(shift)
 
 def getTrigger(shift):
 	''' Form trigger in direction of black cross '''
