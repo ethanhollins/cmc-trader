@@ -439,15 +439,15 @@ def handleStop():
 					stop_state = StopState.BREAKEVEN
 					del pending_breakevens[pending_breakevens.index(pos)]
 
-def handleMomentumOrder():
+# def handleMomentumOrder():
 	
-	for order in utils.orders:
-		for strand in momentum_cross_strands:
+# 	for order in utils.orders:
+# 		for strand in momentum_cross_strands:
 
-			if order.direction == 'buy' and strand.direction == Direction.LONG:
+# 			if order.direction == 'buy' and strand.direction == Direction.LONG:
 				
 				
-		order.cancel()
+# 		order.cancel()
 
 
 
