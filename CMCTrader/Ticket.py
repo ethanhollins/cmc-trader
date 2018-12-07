@@ -213,7 +213,7 @@ class Ticket(object):
 			wait.until(lambda driver : "disabled" not in self.getActionBtnElem().get_attribute("class"))
 		except Exception as e:
 			print("ERROR: " + str(e))
-			return -1
+			return 0
 
 		if (failed):
 			return 0

@@ -57,10 +57,11 @@ def init(utilities):
 	cci = utils.CCI(6, 1)
 	macd = utils.MACD(7, 1)
 
-	pos = utils.buy(400)
+	pos = utils.buy(400, ordertype = 'se', entry = 1.3, sl = 20, tp = 40)
+	pos.cancel()
 	# pos.apply()
-	pos.modifyTrailing(40)
-	pos.modifyTrailing(60)
+	# pos.modifyTrailing(40)
+	# pos.modifyTrailing(60)
 	# pos.trailingReg(50)
 	# time.sleep(3)
 	# pos.trailingReg()
@@ -70,7 +71,19 @@ def onLoop():
 	return
 
 def onNewBar():
-	print("onNewBar")
+	print("onNewBar\n")
+
+	print("POSITIONS:")
+	count = 0
+	for pos in utils.positions:
+		count += 1
+		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit())
+
+	print("ORDERS:")
+	count = 0
+	for order in utils.orders:
+		count += 1
+		print(str(count) + ":", str(order.direction), str(order.entryprice))
 
 def onRecovery():
 	print("onRecovery")

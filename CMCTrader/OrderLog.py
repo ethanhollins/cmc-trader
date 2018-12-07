@@ -35,3 +35,19 @@ class OrderLog(object):
 				'return null;',
 				orderLogTableElem, position.orderID
 			)
+
+	def orderExists(self, position):
+		orderLogTableElem = self.getOrderLogTableElem()
+		return self.driver.execute_script(
+				'var rows = arguments[0].querySelectorAll(\'[class="row clickable"]\');' +
+				'for (let i = 0; i < rows.length; i++)' +
+				'{' +
+				'  var orderID = rows[i].querySelectorAll(\'div span\')[1].innerHTML;' +
+				'  if (orderID.localeCompare(arguments[1]) == 0)' +
+				'  {' +
+				'    return true;' +
+				'  }' +
+				'}' +
+				'return false;',
+				orderLogTableElem, position.orderID
+			)

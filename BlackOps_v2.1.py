@@ -18,9 +18,11 @@ VARIABLES = {
 	'PLAN' : None,
 	'stoprange' : 17,
 	'breakeven_point' : 34,
+	'first_stop_pips' : 50,
+	'first_stop_profit' : 17,
 	'full_profit' : 200,
 	'rounding' : 100,
-	'breakeven_min_pips' : 2,
+	'breakeven_min_pips' : 3,
 	'trailing_pips_profit' : 80,
 	'trailing_pips_stop' : 40,
 	'CLOSING SEQUENCE' : None,
@@ -182,11 +184,12 @@ class BrownStrand(dict):
 		print("Brown sar end:", str(brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]))
 		return brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]
 
-class TrailingState(Enum):
+class StopState(Enum):
 	NONE = 1
-	ACTIVE = 2
+	BREAKEVEN = 2
+	FIRST = 3
 
-trailing_state = TrailingState.NONE
+stop_state = StopState.NONE
 
 def init(utilities):
 	''' Initialize utilities and indicators '''
@@ -275,8 +278,7 @@ def onLoop():
 		return
 
 	handleEntries()		# Handle all pending entries
-	handleTrailingStop() # Handle all trailing stops
-	handleBreakeven()	# Handle all pending breakeven
+	handleStop()	# Handle all stop modifications
 
 def handleEntries():
 	''' Handle all pending entries '''
@@ -428,31 +430,36 @@ def handleRegularEntry(entry):
 	del pending_entries[pending_entries.index(entry)]
 
 @Backtester.skip_on_recover
-def handleBreakeven():
+def handleStop():
 	''' 
 	Handle all pending breakevens
 	and positions that have exceeded breakeven threshold
 	'''
 
-	global is_position_breakeven, trailing_state
+	global stop_state
 
 	for pos in utils.positions:
 		
-		if (not trailing_state.value > TrailingState.NONE.value):
-			if (pos.getProfit() >= VARIABLES['breakeven_point'] and not is_position_breakeven):
-				print("Reached BREAKEVEN point:", str(pos.getProfit()))
-				is_position_breakeven = True
-				pos.breakeven()
-				if (not pos.apply()):
-					pending_breakevens.append(pos)
-					trailing_state = TrailingState.NONE
+		if (pos.getProfit() >= VARIABLES['breakeven_point'] and stop_state.value < StopState.BREAKEVEN.value):
+			print("Reached BREAKEVEN point:", str(pos.getProfit()))
+			stop_state = StopState.BREAKEVEN
+			pos.breakeven()
+			if (not pos.apply()):
+				pending_breakevens.append(pos)
+		
+		elif (pos.getProfit() >= VARIABLES['first_stop_pips'] and stop_state.value < StopState.FIRST.value):
+			print("Reached FIRST STOP point:", str(pos.getProfit()))
+			
+			pos.modifySL(VARIABLES['first_stop_profit'])
+			if (pos.apply()):
+				stop_state = StopState.FIRST
 
-			if pos in pending_breakevens:
-				if (pos.getProfit() > VARIABLES['breakeven_min_pips']):
-					pos.breakeven()
-					if (pos.apply()):
-						del pending_breakevens[pending_breakevens.index(pos)]
-						trailing_state = TrailingState.NONE
+		if pos in pending_breakevens:
+			if (pos.getProfit() > VARIABLES['breakeven_min_pips']):
+				pos.breakeven()
+				if (pos.apply()):
+					stop_state = StopState.BREAKEVEN
+					del pending_breakevens[pending_breakevens.index(pos)]
 
 @Backtester.skip_on_recover
 def handleExits(shift):
@@ -481,17 +488,6 @@ def handleExits(shift):
 		trailing_state = TrailingState.NONE
 		resetPositionStrands(Direction.LONG)
 		resetPositionStrands(Direction.SHORT)
-
-@Backtester.skip_on_recover
-def handleTrailingStop():
-
-	global trailing_state
-
-	for pos in utils.positions:
-		if (pos.getProfit() >= VARIABLES['trailing_pips_profit'] and trailing_state.value < TrailingState.ACTIVE.value):
-			
-			pos.modifyTrailing(VARIABLES['trailing_pips_stop'])
-			trailing_state = TrailingState.ACTIVE
 
 def onStopLoss(pos):
 	print("onStopLoss")
@@ -1136,6 +1132,12 @@ def report():
 	for pos in utils.closedPositions:
 		count += 1
 		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit())
+
+	print("ORDERS:")
+	count = 0
+	for order in utils.orders:
+		count += 1
+		print(str(count) + ":", str(order.direction), str(order.entryprice))
 
 	print("POSITIONS:")
 	count = 0

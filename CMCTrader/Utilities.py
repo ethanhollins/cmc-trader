@@ -56,6 +56,7 @@ class Utilities:
 		self.barReader = BarReader(self, self.driver)
 		self.backtester = Backtester(self, self.plan)
 
+		self.orders = []
 		self.positions = []
 		self.closedPositions = []
 
@@ -256,65 +257,158 @@ class Utilities:
 
 	def updatePositions(self):
 		print("Updating Positions")
-		listenedTypes = ['Buy Trade', 'Sell Trade', 'Close Trade', 'Take Profit', 'Stop Loss', 'SE Order Sell Trade', 'SE Order Buy Trade', 'Limit Order Buy Trade', 'Limit Order Sell Trade']
+		listenedTypes = [
+				'Buy Trade', 'Sell Trade',
+				'Buy SE Order', 'Sell SE Order',
+				'Take Profit', 'Stop Loss', 
+				'Close Trade', 'Order Cancelled',
+				'SE Order Sell Trade', 'SE Order Buy Trade', 'Limit Order Buy Trade', 'Limit Order Sell Trade',
+				'Buy Trade Modified', 'Sell Trade Modified',
+				'Buy SE Order Modified', 'Sell SE Order Modified',
+				'Stop Loss Modified', 'Take Profit Modified'
+			]
 		history = self.historyLog.updateHistory(listenedTypes)
-		for value in history:
-			if value[2] == 'Buy Trade':
-				position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
+		for event in history:
+			self.updateEvent(event)
+		
+	def updateEvent(self, event):
+		if event[2] == 'Buy Trade':
+			position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
 
-				if not value[0] in position_id_list:
-					pos = self.createPosition(utils = self, ticket = self.tickets[value[3]], orderID = value[0], pair = value[3], ordertype = 'market', direction = 'buy')
-					pos.entryprice = float(value[5])
-					pos.lotsize = int(value[4])
-					pos.sl = float(value[6])
-					pos.tp = float(value[7])
-					self.positions.append(pos)
+			if not event[0] in position_id_list:
+				pos = self.createPosition(utils = self, ticket = self.tickets[event[3]], orderID = event[0], pair = event[3], ordertype = 'market', direction = 'buy')
+				pos.openTime = event[1]
+				pos.entryprice = float(event[5])
+				pos.lotsize = int(event[4])
+				pos.sl = float(event[6])
+				pos.tp = float(event[7])
+				pos.isTrailing = event[9]
+				self.positions.append(pos)
 
-			elif value[2] == 'Sell Trade':
-				position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
+		elif event[2] == 'Sell Trade':
+			position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
 
-				if not value[0] in position_id_list:
-					pos = self.createPosition(utils = self, ticket = self.tickets[value[3]], orderID = value[0], pair = value[3], ordertype = 'market', direction = 'sell')
-					pos.entryprice = float(value[5])
-					pos.lotsize = int(value[4])
-					pos.sl = float(value[6])
-					pos.tp = float(value[7])
-					self.positions.append(pos)
+			if not event[0] in position_id_list:
+				pos = self.createPosition(utils = self, ticket = self.tickets[event[3]], orderID = event[0], pair = event[3], ordertype = 'market', direction = 'sell')
+				pos.openTime = event[1]
+				pos.entryprice = float(event[5])
+				pos.lotsize = int(event[4])
+				pos.sl = float(event[6])
+				pos.tp = float(event[7])
+				pos.isTrailing = event[9]
+				self.positions.append(pos)
 
-			elif value[2] == 'Close Trade':
-				for pos in self.positions:
-					if value[8] == pos.orderID:
-						del self.positions[self.positions.index(pos)]
-						pos.closeprice = float(value[5])
-						self.closedPositions.append(pos)
+		elif event[2] == 'Buy SE Order':
+			order_id_list = [i.orderID for i in self.orders]
 
-			elif value[2] == 'Take Profit' or value[2] == 'Stop Loss':
-				for pos in self.positions:
-					if value[0] == pos.orderID:
-						print(str(pos.orderID), str(value[2]))
-						pos.closeprice = float(value[5])
-						self.closedPositions.append(pos)
-						del self.positions[self.positions.index(pos)]
+			if not event[0] in order_id_list:
+				pos = self.createPosition(utils = self, ticket = self.tickets[event[3]], orderID = event[0], pair = event[3], ordertype = 'stopentry', direction = 'buy')
+				pos.openTime = event[1]
+				pos.entryprice = float(event[5])
+				pos.lotsize = int(event[4])
+				pos.sl = float(event[6])
+				pos.tp = float(event[7])
+				pos.isPending = True
+				pos.isTrailing = event[9]
+				self.orders.append(pos)
 
-						if value[2] == 'Take Profit':
-							try:
-								self.plan.onTakeProfit(pos)
-							except AttributeError as e:
-								pass
-						elif value[2] == 'Stop Loss':
-							try:
-								self.plan.onStopLoss(pos)
-							except AttributeError as e:
-								pass
+		elif event[2] == 'Sell SE Order':
+			order_id_list = [i.orderID for i in self.orders]
 
-			elif (value[2] == 'SE Order Sell Trade' or value[2] == 'SE Order Buy Trade' or
-				value[2] == 'Limit Order Sell Trade' or value[2] == 'Limit Order Buy Trade'):
-				for pos in self.positions:
-					if value[0] == pos.orderID:
-				 		print(str(pos.orderID), str(value[2]))
-				 		properties = self.historyLog.getHistoryPropertiesById(pos.orderID)[0]
-				 		pos.entryprice = self.properties[5]
-				 		pos.isPending = False
+			if not event[0] in order_id_list:
+				pos = self.createPosition(utils = self, ticket = self.tickets[event[3]], orderID = event[0], pair = event[3], ordertype = 'stopentry', direction = 'sell')
+				pos.openTime = event[1]
+				pos.entryprice = float(event[5])
+				pos.lotsize = int(event[4])
+				pos.sl = float(event[6])
+				pos.tp = float(event[7])
+				pos.isPending = True
+				pos.isTrailing = event[9]
+				self.orders.append(pos)
+
+		elif event[2] == 'Close Trade':
+			for pos in self.positions:
+				if event[8] == pos.orderID:
+					del self.positions[self.positions.index(pos)]
+					pos.closeTime = event[1]
+					pos.closeprice = float(event[5])
+					self.closedPositions.append(pos)
+
+		elif event[2] == 'Order Cancelled':
+			for order in self.orders:
+				if event[0] == order.orderID:
+					del self.orders[self.orders.index(order)]
+
+		elif event[2] == 'Take Profit' or event[2] == 'Stop Loss':
+			for pos in self.positions:
+				if event[0] == pos.orderID:
+					print(str(pos.orderID), str(event[2]))
+					pos.closeTime = event[1]
+					pos.closeprice = float(event[5])
+					self.closedPositions.append(pos)
+					del self.positions[self.positions.index(pos)]
+
+					if event[2] == 'Take Profit':
+						try:
+							self.plan.onTakeProfit(pos)
+						except AttributeError as e:
+							pass
+					elif event[2] == 'Stop Loss':
+						try:
+							self.plan.onStopLoss(pos)
+						except AttributeError as e:
+							pass
+
+		elif (event[2] == 'SE Order Sell Trade' or event[2] == 'SE Order Buy Trade' or
+			event[2] == 'Limit Order Sell Trade' or event[2] == 'Limit Order Buy Trade'):
+			for order in self.orders:
+				if event[0] == order.orderID:
+					print(str(order.orderID), str(event[2]))
+
+					properties = self.historyLog.getHistoryPropertiesById(order.orderID)[0]
+					order.entryprice = properties[5]
+					order.isPending = False
+
+					self.positions.append(order)
+					del self.orders[self.orders.index(order)]
+
+		elif event[2] == 'Buy Trade Modified' or event[2] == 'Sell Trade Modified':
+			positions_list = self.positions + self.closedPositions
+			for pos in positions_list:
+				if event[0] == pos.orderID:
+					print(str(pos.orderID), str(event[2]))
+
+					properties = self.historyLog.getHistoryPropertiesById(pos.orderID)[0]
+					pos.entryprice = properties[5]
+					pos.sl = float(event[6])
+					pos.tp = float(event[7])
+					pos.isTrailing = event[9]
+
+		elif event[2] == 'Buy SE Order Modified' or event[2] == 'Sell SE Order Modified':
+			for order in self.orders:
+				if event[0] == order.orderID:
+					print(str(order.orderID), str(event[2]))
+
+					properties = self.historyLog.getHistoryPropertiesById(order.orderID)[0]
+					order.entryprice = properties[5]
+					order.sl = float(event[6])
+					order.tp = float(event[7])
+					pos.isTrailing = event[9]
+
+		elif event[2] == 'Stop Loss Modified':
+			complete_list = self.positions + self.closedPositions + self.orders
+			for pos in complete_list:
+				if event[0] == pos.orderID:
+					print(str(pos.orderID), str(event[2]))
+					pos.sl = float(event[6])
+					pos.isTrailing = event[9]
+
+		elif event[2] == 'Take Profit Modified':
+			complete_list = self.positions + self.closedPositions + self.orders
+			for pos in complete_list:
+				if event[0] == pos.orderID:
+					print(str(pos.orderID), str(event[2]))
+					pos.tp = float(event[7])
 
 	def checkPosition(self, pos):
 		history = self.historyLog.getHistoryPropertiesById(pos.orderID)
@@ -394,9 +488,11 @@ class Utilities:
 			ticket.setTakeProfit(float(tp))
 
 		orderID = ticket.placeOrder()
-		if (orderID == -1):
-			print("ERROR: unable to fullfil order, shutting down CMCTrader!")
-			sys.exit()
+
+		if (orderID == 0):
+			print("Error occured on market order!")
+			self.updatePositions()
+			return None
 
 		pos = Position(utils = self, ticket = ticket, orderID = orderID, pair = pair, ordertype = 'market', direction = direction)
 
@@ -411,7 +507,6 @@ class Utilities:
 
 		properties = self.historyLog.getHistoryPropertiesById(orderID)[0]
 
-		pos.driver = self.driver
 		pos.openTime = self.getAustralianTime()
 		pos.lotsize = int(properties[4])
 		pos.sl = float(properties[6])
@@ -428,15 +523,10 @@ class Utilities:
 		ticket.makeVisible()
 
 		if (direction == 'buy'):
-			if (self.convertToPips(entry - ticket.getAskPrice()) < 1.0):
-				print("ERROR (stopentry buy): entry must be atleast 1 pip above current price!")
-				return None
 			ticket.selectBuy()
 		elif (direction == 'sell'):
-			if (self.convertToPips(ticket.getBidPrice() - entry) < 1.0):
-				print("ERROR (stopentry sell): entry must be atleast 1 pip below current price!")
-				return None
 			ticket.selectSell()
+
 		ticket.setStopEntryOrder(float(entry))
 		ticket.setLotsize(int(lotsize))
 
@@ -451,24 +541,11 @@ class Utilities:
 			ticket.setTakeProfit(float(tp))
 
 		orderID = ticket.placeOrder()
-		if (orderID == -1):
-			print("ERROR: unable to fullfil order, shutting down CMCTrader!")
-			sys.exit()
-		elif (orderID == 0):
-			if (direction == 'buy'):
-				if (self.getAsk(pair) > entryprice):
-					self._limitOrder(direction, ticket, pair, lotsize, entry, sl, tp)
-				else:
-					while (self.getAsk(pair) == entryprice):
-						pass
-					self._stopentryOrder(direction, ticket, pair, lotsize, entry, sl, tp)
-			else:
-				if (self.getBid(pair) < entryprice):
-					self._limitOrder(direction, ticket, pair, lotsize, entry, sl, tp)
-				else:
-					while (self.getBid(pair) == entryprice):
-						pass
-					self._stopentryOrder(direction, ticket, pair, lotsize, entry, sl, tp)
+
+		if (orderID == 0):
+			print("Error occured on stop entry order!")
+			self.updatePositions()
+			return None
 
 		wait = ui.WebDriverWait(self.driver, 10)
 
@@ -482,7 +559,6 @@ class Utilities:
 
 		pos.modifyBtn = orderModifyBtn
 
-		pos.driver = self.driver
 		pos.openTime = self.getAustralianTime()
 		pos.lotsize = int(lotsize)
 		pos.sl = float(sl)
@@ -490,7 +566,7 @@ class Utilities:
 		pos.entryprice = float(entry)
 		pos.isPending = True
 
-		self.positions.append(pos)
+		self.orders.append(pos)
 
 		print("Stopentry " + str(direction) + " at " + str(pos.entryprice))
 
@@ -500,15 +576,10 @@ class Utilities:
 		ticket.makeVisible()
 
 		if (direction == 'buy'):
-			if (self.convertToPips(ticket.getAskPrice() - entry) < 1.0):
-				print("ERROR (limit buy): entry must be atleast 1 pip below current price!")
-				return None
 			ticket.selectBuy()
 		elif (direction == 'sell'):
-			if (self.convertToPips(entry - ticket.getBidPrice()) < 1.0):
-				print("ERROR (limit sell): entry must be atleast 1 pip above current price!")
-				return None
 			ticket.selectSell()
+
 		ticket.setLimitOrder(float(entry))
 		ticket.setLotsize(int(lotsize))
 
@@ -523,24 +594,11 @@ class Utilities:
 			ticket.setTakeProfit(float(tp))
 
 		orderID = ticket.placeOrder()
-		if (orderID == -1):
-			print("ERROR: unable to fullfil order, shutting down CMCTrader!")
-			sys.exit()
-		elif (orderID == 0):
-			if (direction == 'buy'):
-				if (self.getAsk(pair) < entryprice):
-					self._stopentryOrder(direction, ticket, pair, lotsize, entry, sl, tp)
-				else:
-					while (self.getAsk(pair) == entryprice):
-						pass
-					self._limitOrder(direction, ticket, pair, lotsize, entry, sl, tp)
-			else:
-				if (self.getBid(pair) > entryprice):
-					self._stopentryOrder(direction, ticket, pair, lotsize, entry, sl, tp)
-				else:
-					while (self.getBid(pair) == entryprice):
-						pass
-					self._limitOrder(direction, ticket, pair, lotsize, entry, sl, tp)
+
+		if (orderID == 0):
+			print("Error occured on limit order!")
+			self.updatePositions()
+			return None
 
 		pos = Position(utils = self, ticket = ticket, orderID = orderID, pair = pair, ordertype = 'limit', direction = direction)
 
@@ -554,7 +612,6 @@ class Utilities:
 		
 		pos.modifyBtn = orderModifyBtn
 
-		pos.driver = self.driver
 		pos.openTime = self.getAustralianTime()
 		pos.lotsize = int(lotsize)
 		pos.sl = float(sl)

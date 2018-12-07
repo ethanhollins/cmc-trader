@@ -54,7 +54,7 @@ class HistoryLog(object):
 				'  {'
 				'    tp = "0";'
 				'  }'
-				# list = [0: id, 1: time, 2: type, 3: product, 4: units, 5: price, 6: sl, 7: tp, 8: closed id]
+				# list = [0: id, 1: time, 2: type, 3: product, 4: units, 5: price, 6: sl, 7: tp, 8: closed id, 9: is_trailing]
 				'  list.push(['
 				'      cols[2].querySelector(\'span\').innerHTML,'
 				'      cols[0].querySelector(\'span\').innerHTML,'
@@ -63,7 +63,8 @@ class HistoryLog(object):
 				'      cols[6].querySelector(\'span\').innerHTML,'
 				'      cols[7].querySelector(\'span\').innerHTML,' 
 				'      sl, tp,'
-				'      cols[4].querySelector(\'span\').innerHTML'
+				'      cols[4].querySelector(\'span\').innerHTML,'
+				'      false'
 				'    ]);'
 				'}'
 				'return list;',
@@ -76,6 +77,11 @@ class HistoryLog(object):
 			else:
 				i[1] = self._convertTime(i[1])
 				i[3] = self._convertPair(i[3])
+
+				if (i[4].startswith("(T) ")):
+					i[4].strip("(T) ")
+					i[9] = True
+				
 				if (i[4] == '-'):
 					i[4] = 0
 				else:
@@ -102,15 +108,26 @@ class HistoryLog(object):
 
 		return history
 
-
-	def getClosedPosition(self, pos):
-		self.makeVisible()
+	def getEvent(self, pos, event_type):
 		history = self.getFilteredHistory()
-		for i in history:
-			if (i[2].strip() == 'Close Trade' and pos.orderID == i[8].strip()):
-				return i
 
-		return None
+		if (type(event_type) == list):
+			events = []
+			for e in event_type:
+				for i in history:
+					if (i[2].strip() == e and pos.orderID == i[8].strip()):
+						events.append(i)
+						break
+			
+			if len(events <= 0):
+				return None
+			else:
+				return events
+
+		else:
+			for i in history:
+				if (i[2].strip() == event_type and pos.orderID == i[8].strip()):
+					return i
 
 	def _convertTime(self, time):
 		time.strip()

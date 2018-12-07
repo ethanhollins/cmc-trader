@@ -276,7 +276,7 @@ class Backtester(object):
 					if (len(position_logs) > 0):
 						for log in position_logs:
 							if log[1] < timestamp:
-								self.updatePosition(position_logs[0])
+								self.utils.updateEvent(position_logs[0])
 								del position_logs[position_logs.index(log)]
 					
 					self.insertValuesByTimestamp(timestamp, pair, ohlc, indicators)
@@ -419,72 +419,22 @@ class Backtester(object):
 
 		history = self.utils.historyLog.getFilteredHistory()
 
-		listened_types = ['Take Profit', 'Stop Loss', 'Buy Trade', 'Sell Trade', 'Close Trade']
+		listenedTypes = [
+				'Buy Trade', 'Sell Trade',
+				'Buy SE Order', 'Sell SE Order',
+				'Take Profit', 'Stop Loss', 
+				'Close Trade', 'Order Cancelled',
+				'SE Order Sell Trade', 'SE Order Buy Trade', 'Limit Order Buy Trade', 'Limit Order Sell Trade'
+			]
 		sorted_history = [i for i in history if int(i[1]) >= timestamp and i[2] in listened_types]
 		sorted_history.sort(key=lambda i: i[1])
 
 		print("history:", str(sorted_history))
 
 		if (sorted_history == None):
-			print("this")
 			return []
 		else:
-			print("this2")
 			return sorted_history
-
-	def updatePosition(self, i):
-
-		if i[2] == 'Buy Trade':
-			pos = self.utils.createPosition(utils = self.utils, ticket = self.utils.tickets[i[3]], orderID = i[0], pair = i[3], ordertype = 'market', direction = 'buy')
-			pos.entryprice = float(i[5])
-			pos.lotsize = int(i[4])
-			pos.sl = float(i[6])
-			pos.tp = float(i[7])
-			self.utils.positions.append(pos)
-
-		elif i[2] == 'Sell Trade':
-			pos = self.utils.createPosition(utils = self.utils, ticket = self.utils.tickets[i[3]], orderID = i[0], pair = i[3], ordertype = 'market', direction = 'sell')
-			pos.entryprice = float(i[5])
-			pos.lotsize = int(i[4])
-			pos.sl = float(i[6])
-			pos.tp = float(i[7])
-			self.utils.positions.append(pos)
-
-		elif i[2] == 'Close Trade':
-			for pos in self.utils.positions:
-				if i[8] == pos.orderID:
-					del self.utils.positions[self.utils.positions.index(pos)]
-					pos.closeprice = float(i[5])
-					self.utils.closedPositions.append(pos)
-					break
-
-		elif i[2] == 'Take Profit':
-			for pos in self.utils.positions:
-				if i[0] == pos.orderID:
-					del self.utils.positions[self.utils.positions.index(pos)]
-					pos.closeprice = float(i[5])
-					self.utils.closedPositions.append(pos)
-
-					try:
-						self.plan.onTakeProfit(pos)
-					except AttributeError as e:
-						pass
-
-					break
-
-		elif i[2] == 'Stop Loss':
-			for pos in self.utils.positions:
-				if i[0] == pos.orderID:
-					del self.utils.positions[self.utils.positions.index(pos)]
-					pos.closeprice = float(i[5])
-					self.utils.closedPositions.append(pos)
-
-					try:
-						self.plan.onStopLoss(pos)
-					except AttributeError as e:
-						pass
-
-					break
 
 	def checkStopLoss(self):
 		high = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][1]

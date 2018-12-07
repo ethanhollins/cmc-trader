@@ -90,6 +90,7 @@ class Position(object):
 		self.entryprice = 0
 		self.closeprice = 0
 
+		self.isTrailing = False
 		self.isPending = False
 
 		self.modifyTicket = None
@@ -146,8 +147,13 @@ class Position(object):
 			print("ERROR: Unable to change position size, check if size change is greater than 400!")
 
 	def _getModifyBtn(self):
-		wait = ui.WebDriverWait(self.driver, 10)
-		wait.until(lambda driver : self.utils.positionLog.getPositionModifyButton(self) is not None)
+
+		if (self.isPending):
+			wait = ui.WebDriverWait(self.driver, 10)
+			wait.until(lambda driver : self.utils.orderLog.getOrderModifyBtn(self) is not None)
+		else:
+			wait = ui.WebDriverWait(self.driver, 10)
+			wait.until(lambda driver : self.utils.positionLog.getPositionModifyButton(self) is not None)
 
 		print("found modify btn")
 
@@ -209,14 +215,23 @@ class Position(object):
 				'ticket_elements[\'TRAILING\'] = elem_limit;'
 				'elem_take_profit = arguments[0].querySelector(\'[class="takeProfit"]\').querySelector(\'[class*="add-child-order"]\');'
 				'ticket_elements[\'TAKE_PROFIT\'] = elem_take_profit;'
-				'elem_close_position_btn = arguments[0].querySelector(\'[class*="primary-order-side-button"]\');'
-				'ticket_elements[\'CLOSE_POSITION_BTN\'] = elem_close_position_btn;'
+				'if (arguments[1])'
+				'{'
+				'  elem_cancel_order_btn = arguments[0].querySelector(\'a[class="primary-order-side-button"]\');'
+				'  ticket_elements[\'CANCEL_ORDER_BTN\'] = elem_cancel_order_btn;'
+				'}'
+				'else'
+				'{'
+				'  elem_close_position_btn = arguments[0].querySelector(\'[class*="primary-order-side-button"]\');'
+				'  ticket_elements[\'CLOSE_POSITION_BTN\'] = elem_close_position_btn;'
+				'}'
 				'elem_submit_btn = arguments[0].querySelector(\'button[class*="submit-button"]\');'
 				'ticket_elements[\'MODIFY_BTN\'] = elem_submit_btn;'
+				'var elem_close_btn = null;'
 				'elem_close_btn = arguments[0].querySelector(\'button[class*="close-button"]\');'
 				'ticket_elements[\'CLOSE_BTN\'] = elem_close_btn;'
 				'return ticket_elements;',
-				self.modifyTicket
+				self.modifyTicket, self.isPending
 			)
 
 	@Backtester.redirect_backtest
@@ -420,12 +435,29 @@ class Position(object):
 			self.modifyTicket = None
 			self.modifyTicketElements = None
 
+			wait = ui.WebDriverWait(self.driver, 10)
+
+			if (self.isPending):
+				wait.until(lambda driver : self.utils.historyLog.getEvent(self, ['Buy SE Order Modified', 'Sell SE Order Modified', 'Stop Loss Modified', 'Take Profit Modified']) is not None)
+				events = self.utils.historyLog.getClosedPosition(self, 'Close Trade')	
+			else:
+				wait.until(lambda driver : self.utils.historyLog.getEvent(self, ['Buy Trade Modified', 'Sell Trade Modified', 'Stop Loss Modified', 'Take Profit Modified']) is not None)
+				events = self.utils.historyLog.getClosedPosition(self, 'Close Trade')	
+
+			for event in events:
+				self.utils.updateEvent(event)
+
 			print("Position modifications applied")
 			return True
 
 	@close_redirect_backtest
 	def close(self):
+		if (self.isPending):
+			print("Cannot close an order!")
+			return
+
 		if (not self.utils.positionExists(self)):
+			print("Position doesn't exist!")
 			self.utils.updatePositions()
 			return
 
@@ -458,18 +490,62 @@ class Position(object):
 		self.modifyTicket = None
 		self.modifyTicketElements = None
 
-		self.utils.closedPositions.append(self)
-		del self.utils.positions[self.utils.positions.index(self)]
-
 		wait = ui.WebDriverWait(self.driver, 10)
-		wait.until(lambda driver : self.utils.historyLog.getClosedPosition(self) is not None)
+		wait.until(lambda driver : self.utils.historyLog.getEvent(self, 'Close Trade') is not None)
 
-		values = self.utils.historyLog.getClosedPosition(self)
+		event = self.utils.historyLog.getClosedPosition(self, 'Close Trade')
 
-		self.closeprice = values[5]
-		self.closeTime = self.utils.getAustralianTime()
+		self.utils.updateEvent(event)
 
 		print("Position closed (" + str(self.closeTime) + ") at " + str(self.closeprice))
+
+	def cancel(self):
+		if (not self.isPending):
+			print("Cannot cancel a position!")
+			return
+
+		if (not self.utils.orderLog.orderExists(self)):
+			print("Order doesn't exist!")
+			self.utils.updatePositions()
+			return
+
+		if self.modifyTicket is None:
+			self._getModifyTicketBtns()
+		
+		self.driver.execute_script(
+			'arguments[0].click();',
+			self.modifyTicketElements['CANCEL_ORDER_BTN']
+		)
+
+		wait = ui.WebDriverWait(self.driver, 10)
+
+		wait.until(lambda driver : self._findCloseTradeButton())
+
+		self.driver.execute_script(
+				'arguments[0].click();',
+				self.modifyTicketElements['MODIFY_BTN']
+			)
+
+		wait = ui.WebDriverWait(self.driver, 10)
+
+		wait.until(lambda driver : self._findCloseButton())
+
+		self.driver.execute_script(
+				'arguments[0].click();',
+				self.modifyTicketElements['CLOSE_BTN']
+			)			
+
+		self.modifyTicket = None
+		self.modifyTicketElements = None
+
+		wait = ui.WebDriverWait(self.driver, 10)
+		wait.until(lambda driver : self.utils.historyLog.getEvent(self, 'Order Cancelled') is not None)
+
+		event = self.utils.historyLog.getEvent(self, 'Order Cancelled')
+		
+		self.utils.updateEvent(event)
+
+		print("Order cancelled at", str(self.closeTime))
 
 	def _findCloseTradeButton(self):
 		btnTextList = ["Close Sell Trade", "Close Buy Trade", "Cancel Buy Stop Entry Order", "Cancel Sell Stop Entry Order"]
@@ -507,16 +583,12 @@ class Position(object):
 
 		self.ticket.placeOrder()
 
-		self.utils.closedPositions.append(self)
-		del self.utils.positions[self.utils.positions.index(self)]
-
 		wait = ui.WebDriverWait(self.driver, 10)
 		wait.until(lambda driver : self.utils.historyLog.getClosedPosition(self) is not None)
 
-		values = self.utils.historyLog.getClosedPosition(self)
+		event = self.utils.historyLog.getClosedPosition(self)
 
-		self.closeprice = values[5]
-		self.closeTime = self.utils.getAustralianTime()
+		self.utils.updateEvent(event)
 
 		print("Position closed (" + str(self.closeTime) + ") at " + str(self.closeprice))
 
