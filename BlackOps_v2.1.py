@@ -226,9 +226,6 @@ def onStartTrading():
 	is_nnt = False
 	is_be = False
 
-	# resetPositionStrands(Direction.LONG)
-	# resetPositionStrands(Direction.SHORT)
-
 def onFinishTrading():
 	''' Function called on trade end time '''
 
@@ -308,10 +305,6 @@ def handleEntries():
 					print("Attempting position enter long: stop and reverse")
 					handleStopAndReverse(pos, entry)
 
-					resetPositionStrands(Direction.LONG)
-					resetPositionStrands(Direction.SHORT)
-					getPositionStrand()
-
 			else:
 
 				if (no_new_trades):
@@ -327,10 +320,6 @@ def handleEntries():
 				else:
 					print("Attempting position enter long: regular")
 					handleRegularEntry(entry)
-
-					resetPositionStrands(Direction.LONG)
-					resetPositionStrands(Direction.SHORT)
-					getPositionStrand()
 
 		else:
 
@@ -353,10 +342,6 @@ def handleEntries():
 				else:
 					print("Attempting position enter short: stop and reverse")
 					handleStopAndReverse(pos, entry)
-
-					resetPositionStrands(Direction.LONG)
-					resetPositionStrands(Direction.SHORT)
-					getPositionStrand()
 			else:
 
 				if (no_new_trades):
@@ -371,10 +356,6 @@ def handleEntries():
 				else:
 					print("Attempting position enter short: regular")
 					handleRegularEntry(entry)
-
-					resetPositionStrands(Direction.LONG)
-					resetPositionStrands(Direction.SHORT)
-					getPositionStrand()
 
 @Backtester.skip_on_recover
 def handleStopAndReverse(pos, entry):
@@ -485,8 +466,6 @@ def handleExits(shift):
 	if (is_exit):
 		pending_exits = []
 		trailing_state = TrailingState.NONE
-		resetPositionStrands(Direction.LONG)
-		resetPositionStrands(Direction.SHORT)
 
 def onStopLoss(pos):
 	print("onStopLoss")
@@ -709,9 +688,6 @@ def onNewCycle(shift):
 		strands.append(strand)
 
 		print("New Strand:", str(strand.direction), str(strand.start))
-
-		getPositionStrand()
-
 
 	global current_brown
 	
@@ -1009,7 +985,7 @@ def getPositionStrand():
 	position_strands.append(strands[0])
 
 def momentumEntry(shift):
-	global re_entry_trigger, position_strands
+	global re_entry_trigger
 
 	if (len(utils.positions) <= 0):
 
@@ -1029,7 +1005,7 @@ def getMomentumCrossStrand(direction):
 
 	last_strands = []
 
-	for strand in position_strands.getSorted():
+	for strand in strands.getSorted():
 		if (len(last_strands) >= VARIABLES['num_paras_momentum']):
 			break
 
@@ -1053,7 +1029,7 @@ def getMomentumCrossStrand(direction):
 	return cross_strand
 
 def handleMomentumEntry(shift, direction):
-	global re_entry_trigger, position_strands
+	global re_entry_trigger
 
 	cross_strand = getMomentumCrossStrand(direction)
 	is_momentum_active = isMomentumActive(shift, strands[0].direction, direction)
@@ -1079,9 +1055,6 @@ def handleMomentumEntry(shift, direction):
 					pending_entries.append(entry)
 					re_entry_trigger = None
 				
-				resetPositionStrands(direction)
-
-
 def isMomentumActive(shift, strand_direction, direction):
 
 	global momentum_active_long, momentum_active_short
@@ -1090,7 +1063,7 @@ def isMomentumActive(shift, strand_direction, direction):
 	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
 
 	count = 0
-	for strand in position_strands.getSorted():
+	for strand in strands.getSorted():
 
 		if (strand.direction == strand_direction):
 			count += 1
