@@ -1021,7 +1021,7 @@ def getMomentumCrossStrand(direction):
 		cross_strand = sorted(last_strands, key=lambda x: x.start)[0]
 
 	if (cross_strand == sorted(last_strands, key=lambda x: x.count, reverse=True)[0]):
-		next_cross_strand = sorted(last_strands, key=lambda x: x.start, reverse=True)[1]
+		next_cross_strand = sorted(last_strands, key=lambda x: x.count, reverse=True)[1]
 
 		if (utils.convertToPips(abs(cross_strand.start - next_cross_strand.start)) > VARIABLES['momentum_strand_margin']):
 			cross_strand = None
