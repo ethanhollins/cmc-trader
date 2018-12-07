@@ -219,6 +219,8 @@ class Position(object):
 				'{'
 				'  elem_cancel_order_btn = arguments[0].querySelector(\'a[class="primary-order-side-button"]\');'
 				'  ticket_elements[\'CANCEL_ORDER_BTN\'] = elem_cancel_order_btn;'
+				'  elem_stop_entry_price = arguments[0].querySelector(\'div[name="stopEntry"]\');'
+				'  ticket_elements[\'STOP_ENTRY_PRICE\'] = elem_stop_entry_price;'
 				'}'
 				'else'
 				'{'
@@ -439,10 +441,10 @@ class Position(object):
 
 			if (self.isPending):
 				wait.until(lambda driver : self.utils.historyLog.getEvent(self, ['Buy SE Order Modified', 'Sell SE Order Modified', 'Stop Loss Modified', 'Take Profit Modified']) is not None)
-				events = self.utils.historyLog.getClosedPosition(self, 'Close Trade')	
+				events = self.utils.historyLog.getEvent(self, ['Buy SE Order Modified', 'Sell SE Order Modified', 'Stop Loss Modified', 'Take Profit Modified'])
 			else:
 				wait.until(lambda driver : self.utils.historyLog.getEvent(self, ['Buy Trade Modified', 'Sell Trade Modified', 'Stop Loss Modified', 'Take Profit Modified']) is not None)
-				events = self.utils.historyLog.getClosedPosition(self, 'Close Trade')	
+				events = self.utils.historyLog.getEvent(self, ['Buy Trade Modified', 'Sell Trade Modified', 'Stop Loss Modified', 'Take Profit Modified'])	
 
 			for event in events:
 				self.utils.updateEvent(event)
@@ -498,6 +500,33 @@ class Position(object):
 		self.utils.updateEvent(event)
 
 		print("Position closed (" + str(self.closeTime) + ") at " + str(self.closeprice))
+
+	@Backtester.redirect_backtest
+	def modifyEntryPrice(self, price):
+		if (not self.isPending):
+			print("Cannot modify entry price of a position!")
+			return
+
+		if self.modifyTicket is None:
+			if (not self.utils.orderLog.orderExists(self)):
+				self.utils.updatePositions()
+				return
+			self._getModifyTicketBtns()
+
+		self.driver.execute_script(
+				'arguments[0].textContent = arguments[1]',
+				self.modifyTicketElements['STOP_ENTRY_PRICE'], str(float(price))
+			)
+
+		print(self.sl)
+		print(self.tp)
+
+		sl_points = self.utils.convertToPips(abs(self.entryprice - self.sl))
+		self.modifySL(sl_points)
+		tp_points = self.utils.convertToPips(abs(self.entryprice - self.tp))
+		self.modifyTP(tp_points)
+
+		print("Modified entry price to " + str(price) + ".")
 
 	def cancel(self):
 		if (not self.isPending):

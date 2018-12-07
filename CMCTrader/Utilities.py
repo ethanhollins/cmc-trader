@@ -393,7 +393,7 @@ class Utilities:
 					order.entryprice = properties[5]
 					order.sl = float(event[6])
 					order.tp = float(event[7])
-					pos.isTrailing = event[9]
+					order.isTrailing = event[9]
 
 		elif event[2] == 'Stop Loss Modified':
 			complete_list = self.positions + self.closedPositions + self.orders
@@ -507,7 +507,7 @@ class Utilities:
 
 		properties = self.historyLog.getHistoryPropertiesById(orderID)[0]
 
-		pos.openTime = self.getAustralianTime()
+		pos.openTime = properties[1]
 		pos.lotsize = int(properties[4])
 		pos.sl = float(properties[6])
 		pos.tp = float(properties[7])
@@ -559,11 +559,13 @@ class Utilities:
 
 		pos.modifyBtn = orderModifyBtn
 
-		pos.openTime = self.getAustralianTime()
-		pos.lotsize = int(lotsize)
-		pos.sl = float(sl)
-		pos.tp = float(tp)
-		pos.entryprice = float(entry)
+		properties = self.historyLog.getHistoryPropertiesById(orderID)[0]
+
+		pos.openTime = properties[1]
+		pos.lotsize = int(properties[4])
+		pos.sl = float(properties[6])
+		pos.tp = float(properties[7])
+		pos.entryprice = float(properties[5])
 		pos.isPending = True
 
 		self.orders.append(pos)
@@ -612,14 +614,16 @@ class Utilities:
 		
 		pos.modifyBtn = orderModifyBtn
 
-		pos.openTime = self.getAustralianTime()
-		pos.lotsize = int(lotsize)
-		pos.sl = float(sl)
-		pos.tp = float(tp)
-		pos.entryprice = float(entry)
+		properties = self.historyLog.getHistoryPropertiesById(orderID)[0]
+
+		pos.openTime = properties[1]
+		pos.lotsize = int(properties[4])
+		pos.sl = float(properties[6])
+		pos.tp = float(properties[7])
+		pos.entryprice = float(properties[5])
 		pos.isPending = True
 
-		self.positions.append(pos)
+		self.orders.append(pos)
 
 		print("Limit " + str(direction) + " at " + str(pos.entryprice))
 

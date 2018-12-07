@@ -115,18 +115,18 @@ class HistoryLog(object):
 			events = []
 			for e in event_type:
 				for i in history:
-					if (i[2].strip() == e and pos.orderID == i[8].strip()):
+					if (i[2].strip() == e and (pos.orderID == i[0].strip() or pos.orderID == i[8].strip())):
 						events.append(i)
 						break
 			
-			if len(events <= 0):
+			if len(events) <= 0:
 				return None
 			else:
 				return events
 
 		else:
 			for i in history:
-				if (i[2].strip() == event_type and pos.orderID == i[8].strip()):
+				if (i[2].strip() == event_type and (pos.orderID == i[0].strip() or pos.orderID == i[8].strip())):
 					return i
 
 	def _convertTime(self, time):

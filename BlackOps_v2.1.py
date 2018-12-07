@@ -439,15 +439,24 @@ def handleStop():
 					stop_state = StopState.BREAKEVEN
 					del pending_breakevens[pending_breakevens.index(pos)]
 
+# @Backtester.skip_on_recover
 # def handleMomentumOrder():
 	
-# 	for order in utils.orders:
-# 		for strand in momentum_cross_strands:
+# 	long_strands = [i for i in momentum_cross_strands if i.direction == Direction.LONG]
+# 	buy_orders = [j for j in utils.orders if j.direction == 'buy']
 
-# 			if order.direction == 'buy' and strand.direction == Direction.LONG:
-				
-				
-# 		order.cancel()
+# 	short_strands = [i for i in momentum_cross_strands if i.direction == Direction.SHORT]
+# 	sell_orders = [j for j in utils.orders if j.direction == 'sell']
+
+# 	if (len(long_strands) <= 0):
+# 		for order in buy_orders:
+# 			order.cancel()
+# 	else:
+# 		strand = long_strands[0]
+# 		order = buy_orders[0]
+
+# 		if (not strand.start == order.entryprice):
+
 
 
 
