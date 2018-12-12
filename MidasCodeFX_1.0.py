@@ -673,7 +673,7 @@ def hasSlowCrossed(shift, direction):
 def entrySetup(shift, trigger, no_conf = False):
 	''' Checks for swing sequence once trigger has been formed '''
 
-	if not trigger == None and trigger.tradable:
+	if not trigger == None:
 
 		if trigger.state == State.SWING_ONE:
 			if swingOne(shift, trigger.direction):
@@ -693,6 +693,9 @@ def entrySetup(shift, trigger, no_conf = False):
 		elif trigger.state == State.HIT_PARA:
 			if paraHit(shift, trigger.direction, no_conf):
 				trigger.state = State.ENTERED
+
+		elif trigger.state == State.ENTERED:
+			if (trigger.tradable):
 				confirmation(shift, trigger)
 
 def swingOne(shift, direction):
