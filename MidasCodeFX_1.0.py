@@ -393,8 +393,9 @@ def handleExits(shift):
 def onEntry(pos):
 	print("onEntry")
 
-	global re_entry_trigger, cross_strand_long, cross_strand_short
+	global current_triggers, re_entry_trigger, cross_strand_long, cross_strand_short
 
+	current_triggers = []
 	re_entry_trigger = None
 
 	cross_strand_long = None
@@ -764,9 +765,6 @@ def confirmation(shift, trigger):
 	print("confirmation")
 
 	pending_entries.append(trigger)
-	
-	if not trigger.is_re_entry:
-		del current_triggers[current_triggers.index(trigger)]
 
 
 def report():
