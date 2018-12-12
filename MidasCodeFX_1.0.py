@@ -32,17 +32,6 @@ VARIABLES = {
 	'time_threshold_no_trades' : 5,
 	'TRIGGER' : None,
 	'sar_size' : 30,
-	'RSI' : None,
-	'rsi_overbought' : 75,
-	'rsi_oversold' : 25,
-	'rsi_threshold' : 50,
-	'CCI' : None,
-	'cci_t_cross' : 75,
-	'cci_ct_cross' : 50,
-	'cci_entry_cross' : 0,
-	'cci_obos' : 70,
-	'MACD' : None,
-	'macd_threshold' : 0
 }
 
 class SortedList(list):
@@ -381,19 +370,18 @@ def handleExits(shift):
 
 	global pending_exits
 
-	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 	is_exit = False
 
 	for exit in pending_exits:
 
 		if exit.direction == Direction.LONG:
-			if ch_idx < VARIABLES['cci_entry_cross']:
+			if isBrownParaConfirmation(shift, Direction.LONG, reverse = True):
 				is_exit = True
 				for pos in utils.positions:
 					pos.quickExit()
 
 		else:
-			if ch_idx > VARIABLES['cci_entry_cross']:
+			if isBrownParaConfirmation(shift, Direction.SHORT, reverse = True):
 				is_exit = True
 				for pos in utils.positions:
 					pos.quickExit()
