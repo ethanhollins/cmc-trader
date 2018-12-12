@@ -675,7 +675,7 @@ def hasCrossedAbove(shift, item):
 
 def hasSlowCrossed(shift, direction):
 
-	slow_val = slow_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]
+	slow_val = slow_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 	if direction == Direction.LONG and not cross_strand_long == None:
 		if slow_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
