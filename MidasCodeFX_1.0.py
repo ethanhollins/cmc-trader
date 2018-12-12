@@ -504,7 +504,9 @@ def runSequence(shift):
 	onSlowCross(shift)
 
 	onNewCycle(shift)
-	getTrigger(shift)
+
+	if (isCompletedStrand()):
+		getTrigger(shift)
 
 	for trigger in current_triggers:
 		entrySetup(shift, trigger)
