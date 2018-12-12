@@ -393,9 +393,12 @@ def handleExits(shift):
 def onEntry(pos):
 	print("onEntry")
 
-	global re_entry_trigger
+	global re_entry_trigger, cross_strand_long, cross_strand_short
 
 	re_entry_trigger = None
+
+	cross_strand_long = None
+	cross_strand_short = None
 
 def onStopLoss(pos):
 	print("onStopLoss")
@@ -545,7 +548,6 @@ def getTrigger(shift):
 				setCurrentTrigger(direction)
 
 	for t in current_triggers:
-		print(current_triggers)
 		if not t.tradable:
 		
 			if t.direction == Direction.LONG:
@@ -648,7 +650,7 @@ def hasCrossedBelow(shift, item):
 	
 	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
 
-	if not item == None and low < item.start:
+	if low < item.start:
 		print("has crossed below")
 		return True
 
@@ -659,7 +661,7 @@ def hasCrossedAbove(shift, item):
 
 	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
 
-	if not item == None and high > item.start:
+	if high > item.start:
 		print("has crossed above")
 		return True
 
@@ -764,9 +766,7 @@ def confirmation(shift, trigger):
 	pending_entries.append(trigger)
 	
 	if not trigger.is_re_entry:
-		current_triggers = []
-		cross_strand_long = None
-		cross_strand_short = None
+		del current_triggers[current_triggers.index(trigger)]
 
 
 def report():
