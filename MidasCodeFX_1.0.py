@@ -592,25 +592,18 @@ def onNewCycle(shift):
 		else:
 			direction = Direction.LONG
 		
-		if len(strands) <= 0:
+		if len(strands) > 0:
 
-			if direction == Direction.LONG:
-				strand = Strand(Direction.SHORT, 0)
+			strands[0].is_completed = True
+			strands[0].end = black_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
+
+			if strands[0].direction == Direction.LONG:
+				if cross_strand_long == None or strands[0].end < cross_strand_long:
+					cross_strand_long = strands[0].end
 			else:
-				strand = Strand(Direction.LONG, 0)
-
-			strands.append(strand)
-		
-		strands[0].is_completed = True
-		strands[0].end = black_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
-
-		if strands[0].direction == Direction.LONG:
-			if cross_strand_long == None or strands[0].end < cross_strand_long:
-				cross_strand_long = strands[0].end
-		else:
-			if cross_strand_short == None or strands[0].end > cross_strand_short:
-				cross_strand_short = strands[0].end
-
+				if cross_strand_short == None or strands[0].end > cross_strand_short:
+					cross_strand_short = strands[0].end
+	
 		strand = Strand(direction, black_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
 		strands.append(strand)
 
