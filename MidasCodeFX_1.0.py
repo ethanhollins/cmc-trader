@@ -547,17 +547,6 @@ def getTrigger(shift):
 				direction = Direction.SHORT
 				setCurrentTrigger(direction)
 
-	for t in current_triggers:
-		if not t.tradable:
-		
-			if t.direction == Direction.LONG:
-				if hasCrossedAbove(shift, t):
-					t.tradable = True
-
-			else:
-				if hasCrossedBelow(shift, t):
-					t.tradable = True
-
 def setCurrentTrigger(direction):
 
 	if triggerExists(direction):
