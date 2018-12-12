@@ -108,6 +108,7 @@ class Trigger(dict):
 		self.state = State.SWING_ONE
 		self.tradable = tradable
 		self.is_re_entry = is_re_entry
+		self.slow_crossed = False
 
 	@classmethod
 	def fromDict(cls, dic):
@@ -500,7 +501,7 @@ def checkTime():
 
 def runSequence(shift):
 	''' Main trade plan sequence '''
-	cancelOnSlowCross(shift)
+	onSlowCross(shift)
 
 	onNewCycle(shift)
 	getTrigger(shift)
@@ -546,11 +547,11 @@ def getTrigger(shift):
 		if not trigger.tradable:
 		
 			if trigger.direction == Direction.LONG:
-				if hasCrossedAbove(shift, trigger) or hasSlowCrossed(shift, trigger.direction):
+				if hasCrossedAbove(shift, trigger):
 					trigger.tradable = True
 
 			else:
-				if hasCrossedBelow(shift, trigger) or hasSlowCrossed(shift, trigger.direction):
+				if hasCrossedBelow(shift, trigger):
 					trigger.tradable = True
 
 def setCurrentTrigger(direction):
@@ -609,18 +610,26 @@ def onNewCycle(shift):
 
 		print("New Strand:", str(strand.direction), str(strand.start))
 
-def cancelOnSlowCross(shift):
+def onSlowCross(shift):
 
 	global cross_strand_long, cross_strand_short
 
 	if hasSlowCrossed(shift, Direction.LONG):
 		for trigger in current_triggers:
-			if trigger.direction == Direction.SHORT:
+
+			if trigger.direction == Direction.LONG:
+				trigger.slow_crossed = True
+
+			elif trigger.direction == Direction.SHORT:
 				del current_triggers[current_triggers.index(trigger)]
 				cross_strand_short = None
 
 	if hasSlowCrossed(shift, Direction.SHORT):
 		for trigger in current_triggers:
+
+			if trigger.direction == Direction.SHORT:
+				trigger.slow_crossed = True
+
 			if trigger.direction == Direction.LONG:
 				del current_triggers[current_triggers.index(trigger)]
 				cross_strand_long = None
@@ -637,8 +646,8 @@ def hasCrossedBelow(shift, item):
 	
 	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
 
-	if low < item.start:
-		print("black para crossed below")
+	if not item == None and low < item.start:
+		print("has crossed below")
 		return True
 
 	return False
@@ -648,8 +657,8 @@ def hasCrossedAbove(shift, item):
 
 	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
 
-	if (high > item.start):
-		print("black para crossed above")
+	if not item == None and high > item.start:
+		print("has crossed above")
 		return True
 
 	return False
@@ -673,7 +682,7 @@ def hasSlowCrossed(shift, direction):
 def entrySetup(shift, trigger, no_conf = False):
 	''' Checks for swing sequence once trigger has been formed '''
 
-	if not trigger == None:
+	if not trigger == None and trigger.tradable:
 
 		if trigger.state == State.SWING_ONE:
 			if swingOne(shift, trigger.direction):
@@ -681,21 +690,11 @@ def entrySetup(shift, trigger, no_conf = False):
 
 		elif trigger.state == State.SWING_TWO:
 			if swingTwo(shift, trigger.direction):
-				trigger.state = State.SWING_THREE
-
-		elif trigger.state == State.SWING_THREE:
-			
-			if swingThree(shift, trigger.direction):
 				trigger.state = State.HIT_PARA
 
-				entrySetup(shift, trigger, no_conf = no_conf)
-
-		elif trigger.state == State.HIT_PARA:
+		elif trigger.state == State.HIT_PARA and trigger.slow_crossed:
 			if paraHit(shift, trigger.direction, no_conf):
 				trigger.state = State.ENTERED
-
-		elif trigger.state == State.ENTERED:
-			if (trigger.tradable):
 				confirmation(shift, trigger)
 
 def swingOne(shift, direction):
@@ -713,15 +712,6 @@ def swingTwo(shift, direction):
 	print("swingTwo")
 
 	if isBrownParaConfirmation(shift, direction, reverse = True):
-		return True
-
-	return False
-
-def swingThree(shift, direction):
-
-	print("swingThree")
-
-	if isBrownParaConfirmation(shift, direction):
 		return True
 
 	return False
