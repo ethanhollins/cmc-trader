@@ -576,7 +576,7 @@ def setCurrentTrigger(direction):
 	return trigger
 
 def triggerExists(direction):
-	return len([i for i in current_triggers if current_triggers.direction == direction]) > 0
+	return len([i for i in current_triggers if i.direction == direction]) > 0
 
 def getLastStrandStart(direction):
 	for strand in strands.getSorted():
