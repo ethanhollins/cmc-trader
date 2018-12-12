@@ -1,5 +1,6 @@
 from selenium import webdriver
 import selenium.webdriver.support.ui as ui
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
@@ -285,6 +286,11 @@ class Utilities:
 				pos.isTrailing = event[9]
 				self.positions.append(pos)
 
+				try:
+					self.plan.onEntry(pos)
+				except AttributeError as e:
+					pass
+
 		elif event[2] == 'Sell Trade':
 			position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
 
@@ -297,6 +303,11 @@ class Utilities:
 				pos.tp = float(event[7])
 				pos.isTrailing = event[9]
 				self.positions.append(pos)
+
+				try:
+					self.plan.onEntry(pos)
+				except AttributeError as e:
+					pass
 
 		elif event[2] == 'Buy SE Order':
 			order_id_list = [i.orderID for i in self.orders]
@@ -334,6 +345,10 @@ class Utilities:
 					pos.closeprice = float(event[5])
 					self.closedPositions.append(pos)
 
+			for order in self.orders:
+				if event[0] == order.orderID:
+					del self.orders[self.orders.index(order)]
+
 		elif event[2] == 'Order Cancelled':
 			for order in self.orders:
 				if event[0] == order.orderID:
@@ -365,12 +380,16 @@ class Utilities:
 				if event[0] == order.orderID:
 					print(str(order.orderID), str(event[2]))
 
-					properties = self.historyLog.getHistoryPropertiesById(order.orderID)[0]
-					order.entryprice = properties[5]
+					order.entryprice = float(event[5])
 					order.isPending = False
 
 					self.positions.append(order)
 					del self.orders[self.orders.index(order)]
+
+					try:
+						self.plan.onEntry(order)
+					except AttributeError as e:
+						pass
 
 		elif event[2] == 'Buy Trade Modified' or event[2] == 'Sell Trade Modified':
 			positions_list = self.positions + self.closedPositions
@@ -378,8 +397,7 @@ class Utilities:
 				if event[0] == pos.orderID:
 					print(str(pos.orderID), str(event[2]))
 
-					properties = self.historyLog.getHistoryPropertiesById(pos.orderID)[0]
-					pos.entryprice = properties[5]
+					pos.entryprice = float(event[5])
 					pos.sl = float(event[6])
 					pos.tp = float(event[7])
 					pos.isTrailing = event[9]
@@ -389,8 +407,7 @@ class Utilities:
 				if event[0] == order.orderID:
 					print(str(order.orderID), str(event[2]))
 
-					properties = self.historyLog.getHistoryPropertiesById(order.orderID)[0]
-					order.entryprice = properties[5]
+					order.entryprice = float(event[5])
 					order.sl = float(event[6])
 					order.tp = float(event[7])
 					order.isTrailing = event[9]
@@ -400,6 +417,7 @@ class Utilities:
 			for pos in complete_list:
 				if event[0] == pos.orderID:
 					print(str(pos.orderID), str(event[2]))
+					pos.entryprice = float(event[5])
 					pos.sl = float(event[6])
 					pos.isTrailing = event[9]
 
@@ -408,6 +426,7 @@ class Utilities:
 			for pos in complete_list:
 				if event[0] == pos.orderID:
 					print(str(pos.orderID), str(event[2]))
+					pos.entryprice = float(event[5])
 					pos.tp = float(event[7])
 
 	def checkPosition(self, pos):
@@ -1012,6 +1031,8 @@ class Utilities:
 		))
 
 		refresh_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'feature-window-saved-states')]//li[contains(@title, '"+str(chart_title)+"')]")
+
+		ActionChains(self.driver).move_to_element(refresh_btn).perform()
 
 		refresh_btn.click()
 

@@ -268,16 +268,13 @@ class Backtester(object):
 					
 					current_timestamp = timestamp
 
-					if (position_logs == None):
-						position_logs = self.getPositionLogs(timestamp)
+					position_logs = self.getPositionLogs(timestamp)
 					
-					print(position_logs)
-
 					if (len(position_logs) > 0):
-						for log in position_logs:
-							if log[1] < timestamp:
-								self.utils.updateEvent(position_logs[0])
-								del position_logs[position_logs.index(log)]
+						print("LOG:", str(position_logs))
+
+					for log in position_logs:
+						self.utils.updateEvent(log)
 					
 					self.insertValuesByTimestamp(timestamp, pair, ohlc, indicators)
 					
@@ -413,28 +410,22 @@ class Backtester(object):
 				history[pair][timestamp] = indicator[pair][timestamp]
 			except:
 				history[pair][timestamp] = indicator[pair][timestamp - 60]
-	@runOnce
+
 	def getPositionLogs(self, timestamp):
 		print("getPositionLogs")
 
-		history = self.utils.historyLog.getFilteredHistory()
-
-		listened_types = [
+		listenedTypes = [
 				'Buy Trade', 'Sell Trade',
 				'Buy SE Order', 'Sell SE Order',
 				'Take Profit', 'Stop Loss', 
 				'Close Trade', 'Order Cancelled',
-				'SE Order Sell Trade', 'SE Order Buy Trade', 'Limit Order Buy Trade', 'Limit Order Sell Trade'
+				'SE Order Sell Trade', 'SE Order Buy Trade', 'Limit Order Buy Trade', 'Limit Order Sell Trade',
+				'Buy Trade Modified', 'Sell Trade Modified',
+				'Buy SE Order Modified', 'Sell SE Order Modified',
+				'Stop Loss Modified', 'Take Profit Modified'
 			]
-		sorted_history = [i for i in history if int(i[1]) >= timestamp and i[2] in listened_types]
-		sorted_history.sort(key=lambda i: i[1])
 
-		print("history:", str(sorted_history))
-
-		if (sorted_history == None):
-			return []
-		else:
-			return sorted_history
+		return self.utils.historyLog.updateHistoryByTimestamp(listenedTypes, timestamp)
 
 	def checkStopLoss(self):
 		high = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][1]

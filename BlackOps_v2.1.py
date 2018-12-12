@@ -19,11 +19,12 @@ VARIABLES = {
 	'stoprange' : 17,
 	'breakeven_point' : 34,
 	'first_stop_pips' : 50,
-	'first_stop_profit' : 17,
+	'first_stop_points' : -17,
 	'full_profit' : 200,
 	'rounding' : 100,
 	'breakeven_min_pips' : 3,
-	'momentum_strand_margin' : 2,
+	'valid_momentum_strand_margin' : 2,
+	'momentum_strand_entry_margin' : 2,
 	'CLOSING SEQUENCE' : None,
 	'no_more_trades_in_profit' : '16:00',
 	'no_more_trades' : '18:00',
@@ -197,13 +198,11 @@ def init(utilities):
 	global reg_sar, slow_sar, black_sar, brown_sar, rsi, cci, macd
 
 	utils = utilities
-	reg_sar = utils.SAR(1)
-	black_sar = utils.SAR(2)
-	slow_sar = utils.SAR(3)
-	brown_sar = utils.SAR(4)
+	black_sar = utils.SAR(1)
+	slow_sar = utils.SAR(2)
+	brown_sar = utils.SAR(3)
+	cci = utils.CCI(4, 1)
 	rsi = utils.RSI(5, 1)
-	cci = utils.CCI(6, 1)
-	macd = utils.MACD(7, 1)
 
 def onStartTrading():
 	''' Function called on trade start time '''
@@ -245,6 +244,8 @@ def onNewBar():
 
 	utils.printTime(utils.getAustralianTime())
 
+	print(momentum_cross_strands)
+
 	runSequence(0)
 	handleExits(0)
 
@@ -275,6 +276,7 @@ def onLoop():
 
 	handleEntries()		# Handle all pending entries
 	handleStop()	# Handle all stop modifications
+	handleMomentumOrder()
 
 def handleEntries():
 	''' Handle all pending entries '''
@@ -298,7 +300,8 @@ def handleEntries():
 				elif (news_trade_block):
 					print("Trade blocked on NEWS! Trigger reset.")
 					re_entry_trigger = Trigger(entry.direction, entry.start, 0, tradable = False, is_re_entry = True)
-					re_entry_trigger.state = State.CROSS_NEGATIVE
+					re_entry_trigger.state = State.SWING_TWO
+					re_entry_trigger.stage = Stage.SC2
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
@@ -314,7 +317,8 @@ def handleEntries():
 				elif (news_trade_block):
 					print("Trade blocked on NEWS! Trigger reset.")
 					re_entry_trigger = Trigger(entry.direction, entry.start, 0, tradable = False, is_re_entry = True)
-					re_entry_trigger.state = State.CROSS_NEGATIVE
+					re_entry_trigger.state = State.SWING_TWO
+					re_entry_trigger.stage = Stage.SC2
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
@@ -336,7 +340,8 @@ def handleEntries():
 				elif (news_trade_block):
 					print("Trade blocked on NEWS! Trigger reset.")
 					re_entry_trigger = Trigger(entry.direction, entry.start, 0, tradable = False, is_re_entry = True)
-					re_entry_trigger.state = State.CROSS_NEGATIVE
+					re_entry_trigger.state = State.SWING_TWO
+					re_entry_trigger.stage = Stage.SC2
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
@@ -350,7 +355,8 @@ def handleEntries():
 				elif (news_trade_block):
 					print("Trade blocked on NEWS! Trigger reset.")
 					re_entry_trigger = Trigger(entry.direction, entry.start, 0, tradable = False, is_re_entry = True)
-					re_entry_trigger.state = State.CROSS_NEGATIVE
+					re_entry_trigger.state = State.SWING_TWO
+					re_entry_trigger.stage = Stage.SC2
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
@@ -428,7 +434,7 @@ def handleStop():
 		elif (pos.getProfit() >= VARIABLES['first_stop_pips'] and stop_state.value < StopState.FIRST.value):
 			print("Reached FIRST STOP point:", str(pos.getProfit()))
 			
-			pos.modifySL(VARIABLES['first_stop_profit'])
+			pos.modifySL(VARIABLES['first_stop_points'])
 			if (pos.apply()):
 				stop_state = StopState.FIRST
 
@@ -439,26 +445,111 @@ def handleStop():
 					stop_state = StopState.BREAKEVEN
 					del pending_breakevens[pending_breakevens.index(pos)]
 
-# @Backtester.skip_on_recover
-# def handleMomentumOrder():
+@Backtester.skip_on_recover
+def handleMomentumOrder():
 	
-# 	long_strands = [i for i in momentum_cross_strands if i.direction == Direction.LONG]
-# 	buy_orders = [j for j in utils.orders if j.direction == 'buy']
+	global momentum_cross_strands
 
-# 	short_strands = [i for i in momentum_cross_strands if i.direction == Direction.SHORT]
-# 	sell_orders = [j for j in utils.orders if j.direction == 'sell']
+	long_strands = [i for i in momentum_cross_strands if i.direction == Direction.LONG]
+	buy_orders = [j for j in utils.orders if j.direction == 'buy']
 
-# 	if (len(long_strands) <= 0):
-# 		for order in buy_orders:
-# 			order.cancel()
-# 	else:
-# 		strand = long_strands[0]
-# 		order = buy_orders[0]
+	if (len(long_strands) <= 0):
+		for order in buy_orders:
+			order.cancel()
 
-# 		if (not strand.start == order.entryprice):
+			for pos in utils.positions:
+				if pos.direction == 'sell':
+					if (stop_state == StopState.NONE):
+						price = pos.entryprice + utils.convertToPrice(VARIABLES['stoprange'])
+						if (not pos.sl == price):
+							pos.modifySL(VARIABLES['stoprange'])
+					
+					elif (stop_state == StopState.BREAKEVEN):
+						if (not pos.sl == pos.entryprice):
+							pos.breakeven()
+					
+					elif (stop_state == StopState.FIRST):
+						price = pos.entryprice + utils.convertToPrice(VARIABLES['first_stop_points'])
+						if (not pos.sl == price):
+							pos.modifySL(VARIABLES['first_stop_points'])
+						
+					pos.apply()
+	else:
+		strand = long_strands[0]
+		entry_line = strand.start + utils.convertToPrice(VARIABLES['momentum_strand_entry_margin'])
 
+		if (len(buy_orders) > 0):
+			order = buy_orders[0]
 
+			if (not entry_line == order.entryprice):
+				order.modifyEntryPrice(entry_line)
+				order.apply()
 
+				for pos in utils.positions:
+					if pos.direction == 'sell':
+						if (pos.sl > entry_line):
+							sl_points = utils.convertToPips(entry_line - pos.entryprice)
+
+							pos.modifySL(sl_points)
+							pos.apply()
+		else:
+			if (checkMomentumCrossed(strand)):
+				utils.buy(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
+			else:
+				pos = utils.buy(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), ordertype = 'se', entry = entry_line, sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
+				if (pos == None):
+					utils.buy(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
+
+	short_strands = [i for i in momentum_cross_strands if i.direction == Direction.SHORT]
+	sell_orders = [j for j in utils.orders if j.direction == 'sell']
+
+	if (len(short_strands) <= 0):
+		for order in sell_orders:
+			order.cancel()
+
+			for pos in utils.positions:
+				if pos.direction == 'buy':
+					if (stop_state == StopState.NONE):
+						price = pos.entryprice - utils.convertToPrice(VARIABLES['stoprange'])
+						if (not pos.sl == price):
+							pos.modifySL(VARIABLES['stoprange'])
+					
+					elif (stop_state == StopState.BREAKEVEN):
+						if (not pos.sl == pos.entryprice):
+							pos.breakeven()
+					
+					elif (stop_state == StopState.FIRST):
+						price = pos.entryprice - utils.convertToPrice(VARIABLES['first_stop_points'])
+						if (not pos.sl == price):
+							pos.modifySL(VARIABLES['first_stop_points'])
+
+					pos.apply()
+
+	else:
+		strand = short_strands[0]
+		entry_line = strand.start - utils.convertToPrice(VARIABLES['momentum_strand_entry_margin'])
+
+		if (len(sell_orders) > 0):
+			order = sell_orders[0]
+
+			if (not entry_line == order.entryprice):
+				order.modifyEntryPrice(entry_line)
+				order.apply()
+
+				for pos in utils.positions:
+					if pos.direction == 'buy':
+						if (pos.sl > entry_line):
+							sl_points = utils.convertToPips(pos.entryprice - entry_line)
+
+							pos.modifySL(sl_points)
+							pos.apply()
+		else:
+			if (checkMomentumCrossed(strand)):
+				utils.sell(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
+			else:
+				pos = utils.sell(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), ordertype = 'se', entry = entry_line, sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
+				if (pos == None):
+					utils.sell(utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), sl = VARIABLES['stoprange'], tp = VARIABLES['full_profit'])
 
 @Backtester.skip_on_recover
 def handleExits(shift):
@@ -485,6 +576,13 @@ def handleExits(shift):
 	if (is_exit):
 		pending_exits = []
 
+def onEntry(pos):
+	print("onEntry")
+
+	global re_entry_trigger
+
+	re_entry_trigger = None
+
 def onStopLoss(pos):
 	print("onStopLoss")
 
@@ -494,10 +592,12 @@ def onStopLoss(pos):
 		
 		if (pos.direction == 'buy'):
 			re_entry_trigger = Trigger(Direction.LONG, 0, 0, tradable = True, is_re_entry = True)
-			re_entry_trigger.state = State.CROSS_NEGATIVE
+			re_entry_trigger.state = State.SWING_TWO
+			re_entry_trigger.stage = Stage.SC2
 		else:
 			re_entry_trigger = Trigger(Direction.SHORT, 0, 0, tradable = True, is_re_entry = True)
-			re_entry_trigger.state = State.CROSS_NEGATIVE
+			re_entry_trigger.state = State.SWING_TWO
+			re_entry_trigger.stage = Stage.SC2
 
 def onNews(title, time):
 	''' 
@@ -981,7 +1081,6 @@ def crossNegative(shift, trigger):
 def confirmation(shift, trigger):
 	''' Checks for overbought, oversold and confirm entry '''
 
-	global re_entry_trigger
 
 	print("confirmation")
 
@@ -989,7 +1088,6 @@ def confirmation(shift, trigger):
 		del current_triggers[0]
 
 	pending_entries.append(trigger)
-	re_entry_trigger = None
 
 def resetPositionStrands(direction):
 	global position_strands
@@ -1003,7 +1101,10 @@ def getPositionStrand():
 	position_strands.append(strands[0])
 
 def momentumEntry(shift):
-	global re_entry_trigger
+
+	global momentum_cross_strands
+
+	momentum_cross_strands = []
 
 	if (len(utils.positions) <= 0):
 
@@ -1041,38 +1142,36 @@ def getMomentumCrossStrand(direction):
 	if (cross_strand == sorted(last_strands, key=lambda x: x.count, reverse=True)[0]):
 		next_cross_strand = sorted(last_strands, key=lambda x: x.count, reverse=True)[1]
 
-		if (utils.convertToPips(abs(cross_strand.start - next_cross_strand.start)) > VARIABLES['momentum_strand_margin']):
+		if (utils.convertToPips(abs(cross_strand.start - next_cross_strand.start)) > VARIABLES['valid_momentum_strand_margin']):
 			cross_strand = None
 
 	return cross_strand
 
 def handleMomentumEntry(shift, direction):
-	global re_entry_trigger
 
 	cross_strand = getMomentumCrossStrand(direction)
 	is_momentum_active = isMomentumActive(shift, strands[0].direction, direction)
 
 	print("Cross Strand:", str(cross_strand))
 	
+
 	for trigger in current_triggers:
 
 		print("MOMEM ACTIVE:", str(isMomentumActive(shift, strands[0].direction, direction)))
 
 		if (not cross_strand == None):
 
-			if (checkMomentumCrossed(shift, cross_strand)):
+			if (trigger.direction == direction and trigger.stage == Stage.SC2):
+				print("Swing entry blocked momentum entry", str(direction)+"!")
+				return
 
-				if (trigger.direction == direction and trigger.stage == Stage.SC2):
-					print("Swing entry blocked momentum entry", str(direction)+"!")
-					return
-
-				if (is_momentum_active):
-					print("Entering on momentum entry short!")
-					
-					entry = Trigger(direction, 0, 0, tradable = True)
-					pending_entries.append(entry)
-					re_entry_trigger = None
+			if (is_momentum_active):
+				print("Adding momentum cross strand")
 				
+				momentum_cross_strands.append(cross_strand)
+
+				print(momentum_cross_strands)
+	
 def isMomentumActive(shift, strand_direction, direction):
 
 	global momentum_active_long, momentum_active_short
@@ -1107,11 +1206,15 @@ def isMomentumActive(shift, strand_direction, direction):
 	else:
 		return momentum_active_short
 
-def checkMomentumCrossed(shift, strand):
+def checkMomentumCrossed(strand):
+	price = utils.getBid(VARIABLES['TICKETS'][0])
+
 	if (strand.direction == Direction.LONG):
-		return hasCrossedAbove(shift, strand)
+		if (price > strand.start + utils.convertToPrice(VARIABLES['momentum_strand_entry_margin'])):
+			return True
 	else:
-		return hasCrossedBelow(shift, strand)
+		if (price < strand.start - utils.convertToPrice(VARIABLES['momentum_strand_entry_margin'])):
+			return True
 
 def report():
 	''' Prints report for debugging '''
@@ -1153,8 +1256,9 @@ def onMissedEntry(*args, **kwargs):
 	else:
 		direction = Direction.SHORT
 
-	re_entry_trigger = Trigger(direction, 0, 0, tradable = True)
-	re_entry_trigger.state = State.CROSS_NEGATIVE
+	re_entry_trigger = Trigger(entry.direction, entry.start, 0, tradable = False, is_re_entry = True)
+	re_entry_trigger.state = State.SWING_TWO
+	re_entry_trigger.stage = Stage.SC2
 
 	pending_entries = []
 
@@ -1164,8 +1268,9 @@ def onBacktestFinish():
 	if (len(pending_entries) > 0):
 		entry = pending_entries[-1]
 
-		re_entry_trigger = Trigger(entry.direction, entry.start, 0, tradable = True)
-		re_entry_trigger.state = State.CROSS_NEGATIVE
+		re_entry_trigger = Trigger(entry.direction, entry.start, 0, tradable = False, is_re_entry = True)
+		re_entry_trigger.state = State.SWING_TWO
+		re_entry_trigger.stage = Stage.SC2
 
 		pending_entries = []
 

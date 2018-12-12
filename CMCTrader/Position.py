@@ -108,12 +108,11 @@ class Position(object):
 		del self.utils.positions[self.utils.positions.index(self)]
 
 		wait = ui.WebDriverWait(self.driver, 10)
-		wait.until(lambda driver : self.utils.historyLog.getClosedPosition(self) is not None)
+		wait.until(lambda driver : self.utils.historyLog.getEvent(self, ['Buy Trade', 'Sell Trade', 'Close Trade']) is not None)
+		events = self.utils.historyLog.getEvent(self, ['Buy Trade', 'Sell Trade', 'Close Trade'])	
 
-		values = self.utils.historyLog.getClosedPosition(self)
-
-		self.closeprice = values[5]
-		self.closeTime = self.utils.getAustralianTime()
+		for event in events:
+			self.utils.updateEvent(event)
 
 		return newPos
 
@@ -151,13 +150,14 @@ class Position(object):
 		if (self.isPending):
 			wait = ui.WebDriverWait(self.driver, 10)
 			wait.until(lambda driver : self.utils.orderLog.getOrderModifyBtn(self) is not None)
+			print("found order modify btn")
+			self.modifyBtn = self.utils.orderLog.getOrderModifyBtn(self)
 		else:
 			wait = ui.WebDriverWait(self.driver, 10)
 			wait.until(lambda driver : self.utils.positionLog.getPositionModifyButton(self) is not None)
+			print("found position modify btn")
+			self.modifyBtn = self.utils.positionLog.getPositionModifyButton(self)
 
-		print("found modify btn")
-
-		self.modifyBtn = self.utils.positionLog.getPositionModifyButton(self)
 
 	def _getModifyTicket(self):
 		self.modifyTicket = self.driver.execute_script(
@@ -192,8 +192,7 @@ class Position(object):
 		return self.modifyTicket
 
 	def _getModifyTicketBtns(self):
-		if (self.modifyBtn == None):
-			self._getModifyBtn()
+		self._getModifyBtn()
 
 		wait = ui.WebDriverWait(self.driver, 10)
 		wait.until(lambda driver : self._getModifyTicket() is not None)
@@ -406,6 +405,7 @@ class Position(object):
 		else:
 			if ("disabled" in self.modifyTicketElements['MODIFY_BTN'].get_attribute("class")):
 				print("Failed to apply changes.")
+				self.utils.updatePositions()
 				return False
 
 			self.driver.execute_script(
@@ -427,6 +427,7 @@ class Position(object):
 					self.modifyTicketElements['MODIFY_BTN']
 				)
 				print("Failed to apply changes.")
+				self.utils.updatePositions()
 				return False
 
 			self.driver.execute_script(
@@ -495,7 +496,7 @@ class Position(object):
 		wait = ui.WebDriverWait(self.driver, 10)
 		wait.until(lambda driver : self.utils.historyLog.getEvent(self, 'Close Trade') is not None)
 
-		event = self.utils.historyLog.getClosedPosition(self, 'Close Trade')
+		event = self.utils.historyLog.getEvent(self, 'Close Trade')
 
 		self.utils.updateEvent(event)
 
@@ -518,13 +519,15 @@ class Position(object):
 				self.modifyTicketElements['STOP_ENTRY_PRICE'], str(float(price))
 			)
 
-		print(self.sl)
-		print(self.tp)
-
-		sl_points = self.utils.convertToPips(abs(self.entryprice - self.sl))
-		self.modifySL(sl_points)
-		tp_points = self.utils.convertToPips(abs(self.entryprice - self.tp))
-		self.modifyTP(tp_points)
+		if (not self.sl == 0):
+			sl_points = self.utils.convertToPips(abs(float(self.entryprice) - float(self.sl)))
+			sl_points = round(sl_points, 1)
+			self.modifySL(sl_points)
+		
+		if (not self.tp == 0):
+			tp_points = self.utils.convertToPips(abs(float(self.entryprice) - float(self.tp)))
+			tp_points = round(tp_points, 1)
+			self.modifyTP(tp_points)
 
 		print("Modified entry price to " + str(price) + ".")
 
@@ -613,9 +616,9 @@ class Position(object):
 		self.ticket.placeOrder()
 
 		wait = ui.WebDriverWait(self.driver, 10)
-		wait.until(lambda driver : self.utils.historyLog.getClosedPosition(self) is not None)
+		wait.until(lambda driver : self.utils.historyLog.getEvent(self, 'Close Trade') is not None)
 
-		event = self.utils.historyLog.getClosedPosition(self)
+		event = self.utils.historyLog.getEvent(self, 'Close Trade')
 
 		self.utils.updateEvent(event)
 

@@ -57,7 +57,7 @@ def init(utilities):
 	cci = utils.CCI(6, 1)
 	macd = utils.MACD(7, 1)
 
-	pos = utils.buy(400, ordertype = 'se', entry = 1.3, sl = 20, tp = 40)
+	pos = utils.buy(400, ordertype = 'se', entry = 1.3)
 	pos.modifyEntryPrice(1.459)
 	pos.apply()
 	# pos.apply()

@@ -92,12 +92,12 @@ class HistoryLog(object):
 	def getHistoryPropertiesById(self, historyID):
 		return [i for i in self.getFilteredHistory() if i[0] == historyID]
 
-	def getReleventPositions(self, listenedTypes):
+	def getReleventPositions(self, listened_types):
 		history = self.getFilteredHistory()
-		return [i for i in history if i[2].strip() in listenedTypes]
+		return [i for i in history if i[2].strip() in listened_types]
 
-	def updateHistory(self, listenedTypes):
-		history = self.getReleventPositions(listenedTypes)
+	def updateHistory(self, listened_types):
+		history = self.getReleventPositions(listened_types)
 		history = [j for j in history if j[1] > self.current_timestamp]
 		history.sort(key = lambda x : x[1])
 
@@ -108,6 +108,17 @@ class HistoryLog(object):
 
 		return history
 
+	def updateHistoryByTimestamp(self, listened_types, timestamp):
+		history = self.getReleventPositions(listened_types)
+		print(str(self.current_timestamp), str(timestamp))
+		history = [j for j in history if j[1] > self.current_timestamp and j[1] <= timestamp]
+		history.sort(key = lambda x : x[1])
+
+		if (len(history) > 0):
+			self.current_timestamp = history[-1][1]
+
+		return history
+
 	def getEvent(self, pos, event_type):
 		history = self.getFilteredHistory()
 
@@ -115,7 +126,7 @@ class HistoryLog(object):
 			events = []
 			for e in event_type:
 				for i in history:
-					if (i[2].strip() == e and (pos.orderID == i[0].strip() or pos.orderID == i[8].strip())):
+					if (i[2].strip() == e and (pos.orderID == i[0].strip() or pos.orderID == i[8].strip()) and i[1] > self.current_timestamp):
 						events.append(i)
 						break
 			
@@ -126,7 +137,7 @@ class HistoryLog(object):
 
 		else:
 			for i in history:
-				if (i[2].strip() == event_type and (pos.orderID == i[0].strip() or pos.orderID == i[8].strip())):
+				if (i[2].strip() == event_type and (pos.orderID == i[0].strip() or pos.orderID == i[8].strip()) and i[1] > self.current_timestamp):
 					return i
 
 	def _convertTime(self, time):
