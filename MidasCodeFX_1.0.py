@@ -73,9 +73,8 @@ class Direction(Enum):
 class State(Enum):
 	SWING_ONE = 1
 	SWING_TWO = 2
-	SWING_THREE = 3
-	HIT_PARA = 5
-	ENTERED = 6
+	HIT_PARA = 3
+	ENTERED = 4
 
 class Strand(dict):
 	def __init__(self, direction, start):
@@ -623,6 +622,7 @@ def onSlowCross(shift):
 		for trigger in current_triggers:
 
 			if trigger.direction == Direction.LONG:
+				trigger.tradable = True
 				trigger.slow_crossed = True
 
 			elif trigger.direction == Direction.SHORT:
@@ -633,6 +633,7 @@ def onSlowCross(shift):
 		for trigger in current_triggers:
 
 			if trigger.direction == Direction.SHORT:
+				trigger.tradable = True
 				trigger.slow_crossed = True
 
 			if trigger.direction == Direction.LONG:
