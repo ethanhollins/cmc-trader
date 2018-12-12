@@ -111,7 +111,7 @@ class Trigger(dict):
 
 	@classmethod
 	def fromDict(cls, dic):
-		cpy = cls(dic['direction'], dic['start'], dic['count'], tradable = dic['tradable'], is_re_entry = dic['is_re_entry'])
+		cpy = cls(dic['direction'], dic['start'], tradable = dic['tradable'], is_re_entry = dic['is_re_entry'])
 		for key in dic:
 			cpy[key] = dic[key]
 		return cpy
@@ -687,7 +687,7 @@ def entrySetup(shift, trigger, no_conf = False):
 				trigger.state = State.SWING_TWO
 
 		elif trigger.state == State.SWING_TWO:
-			if swingTwo(shift, trigger):
+			if swingTwo(shift, trigger.direction):
 				trigger.state = State.SWING_THREE
 
 		elif trigger.state == State.SWING_THREE:
@@ -712,7 +712,7 @@ def swingOne(shift, direction):
 
 	return False
 
-def swingTwo(shift, trigger):
+def swingTwo(shift, direction):
 
 	print("swingTwo")
 
