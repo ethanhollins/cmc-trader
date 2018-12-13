@@ -99,7 +99,7 @@ class HistoryLog(object):
 	def updateHistory(self, listened_types):
 		history = self.getReleventPositions(listened_types)
 		history = [j for j in history if j[1] > self.current_timestamp]
-		history = sortEvents(history)
+		history = self.sortEvents(history)
 
 		if (len(history) > 0):
 			self.current_timestamp = history[-1][1]
@@ -112,7 +112,7 @@ class HistoryLog(object):
 		history = self.getReleventPositions(listened_types)
 		print(str(self.current_timestamp), str(timestamp))
 		history = [j for j in history if j[1] > self.current_timestamp and j[1] <= timestamp]
-		history = sortEvents(history)
+		history = self.sortEvents(history)
 
 		if (len(history) > 0):
 			self.current_timestamp = history[-1][1]
@@ -133,7 +133,7 @@ class HistoryLog(object):
 			if len(events) <= 0:
 				return None
 			else:
-				return sortEvents(events)
+				return self.sortEvents(events)
 
 		else:
 			for i in history:
