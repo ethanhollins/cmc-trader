@@ -99,7 +99,7 @@ class HistoryLog(object):
 	def updateHistory(self, listened_types):
 		history = self.getReleventPositions(listened_types)
 		history = [j for j in history if j[1] > self.current_timestamp]
-		history.sort(key = lambda x : x[1])
+		history = sortEvents(history)
 
 		if (len(history) > 0):
 			self.current_timestamp = history[-1][1]
@@ -112,7 +112,7 @@ class HistoryLog(object):
 		history = self.getReleventPositions(listened_types)
 		print(str(self.current_timestamp), str(timestamp))
 		history = [j for j in history if j[1] > self.current_timestamp and j[1] <= timestamp]
-		history.sort(key = lambda x : x[1])
+		history = sortEvents(history)
 
 		if (len(history) > 0):
 			self.current_timestamp = history[-1][1]
@@ -133,12 +133,25 @@ class HistoryLog(object):
 			if len(events) <= 0:
 				return None
 			else:
-				return events
+				return sortEvents(events)
 
 		else:
 			for i in history:
 				if (i[2].strip() == event_type and (pos.orderID == i[0].strip() or pos.orderID == i[8].strip()) and i[1] > self.current_timestamp):
 					return i
+
+	def sortEvents(self, events):
+		type_order = [
+				'Buy Trade', 'Sell Trade',
+				'Buy SE Order', 'Sell SE Order',
+				'SE Order Sell Trade', 'SE Order Buy Trade', 'Limit Order Buy Trade', 'Limit Order Sell Trade',
+				'Buy Trade Modified', 'Sell Trade Modified',
+				'Buy SE Order Modified', 'Sell SE Order Modified',
+				'Stop Loss Modified', 'Take Profit Modified',
+				'Take Profit', 'Stop Loss', 
+				'Close Trade', 'Order Cancelled'
+			]
+		return sorted(events, key = lambda x : (x[1], type_order.index(x[2])))
 
 	def _convertTime(self, time):
 		time.strip()

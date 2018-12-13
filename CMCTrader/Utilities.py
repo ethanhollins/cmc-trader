@@ -122,7 +122,7 @@ class Utilities:
 		for i in changed:
 			self.plan.VARIABLES[i] = type(self.plan.VARIABLES[i])(plan_vars[i])
 
-		db_vars[self.plan_name] = plan_vars
+		db_vars[self.plan_name] = { k : v for k,v in sorted(plan_vars.items(), key = lambda kv: self.plan.VARIABLES.keys().index(kv[0])) }
 		update_dict = { 'user_variables' : json.dumps(db_vars) }
 		
 		db.updateItems(self.user_id, update_dict)
@@ -261,12 +261,12 @@ class Utilities:
 		listenedTypes = [
 				'Buy Trade', 'Sell Trade',
 				'Buy SE Order', 'Sell SE Order',
-				'Take Profit', 'Stop Loss', 
-				'Close Trade', 'Order Cancelled',
 				'SE Order Sell Trade', 'SE Order Buy Trade', 'Limit Order Buy Trade', 'Limit Order Sell Trade',
 				'Buy Trade Modified', 'Sell Trade Modified',
 				'Buy SE Order Modified', 'Sell SE Order Modified',
-				'Stop Loss Modified', 'Take Profit Modified'
+				'Stop Loss Modified', 'Take Profit Modified',
+				'Take Profit', 'Stop Loss', 
+				'Close Trade', 'Order Cancelled'
 			]
 		history = self.historyLog.updateHistory(listenedTypes)
 		for event in history:
