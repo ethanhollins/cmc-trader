@@ -122,7 +122,7 @@ class Utilities:
 		for i in changed:
 			self.plan.VARIABLES[i] = type(self.plan.VARIABLES[i])(plan_vars[i])
 
-		db_vars[self.plan_name] = { k : v for k,v in sorted(plan_vars.items(), key = lambda kv: self.plan.VARIABLES.keys().index(kv[0])) }
+		db_vars[self.plan_name] = { k : v for k,v in sorted(plan_vars.items(), key = lambda kv: list(self.plan.VARIABLES.keys()).index(kv[0])) }
 		update_dict = { 'user_variables' : json.dumps(db_vars) }
 		
 		db.updateItems(self.user_id, update_dict)
