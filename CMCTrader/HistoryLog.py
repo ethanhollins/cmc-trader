@@ -142,14 +142,14 @@ class HistoryLog(object):
 
 	def sortEvents(self, events):
 		type_order = [
-				'Close Trade', 'Order Cancelled'
+				'Close Trade', 'Order Cancelled',
 				'Buy Trade', 'Sell Trade',
 				'Buy SE Order', 'Sell SE Order',
 				'SE Order Sell Trade', 'SE Order Buy Trade', 'Limit Order Buy Trade', 'Limit Order Sell Trade',
 				'Buy Trade Modified', 'Sell Trade Modified',
 				'Buy SE Order Modified', 'Sell SE Order Modified',
 				'Stop Loss Modified', 'Take Profit Modified',
-				'Take Profit', 'Stop Loss', 
+				'Take Profit', 'Stop Loss'
 			]
 		return sorted(events, key = lambda x : (x[1], type_order.index(x[2])))
 
