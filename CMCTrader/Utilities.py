@@ -340,10 +340,11 @@ class Utilities:
 		elif event[2] == 'Close Trade':
 			for pos in self.positions:
 				if event[8] == pos.orderID:
-					del self.positions[self.positions.index(pos)]
 					pos.closeTime = event[1]
 					pos.closeprice = float(event[5])
+					print("Close price:", str(pos.closeprice))
 					self.closedPositions.append(pos)
+					del self.positions[self.positions.index(pos)]
 
 			for order in self.orders:
 				if event[0] == order.orderID:
