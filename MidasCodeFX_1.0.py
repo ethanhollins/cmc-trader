@@ -541,10 +541,10 @@ def runSequence(shift):
 	''' Main trade plan sequence '''
 	onSlowCross(shift)
 
-	onNewCycle(shift)
-
 	if (isCompletedStrand()):
 		getTrigger(shift)
+
+	onNewCycle(shift)
 
 	for trigger in current_triggers:
 		entrySetup(shift, trigger)
@@ -605,14 +605,20 @@ def onNewCycle(shift):
 		
 		if len(strands) > 0:
 
+			print(strands[0])
+
 			strands[0].is_completed = True
 			strands[0].end = black_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
 
 			if strands[0].direction == Direction.LONG:
+				print("this1")
 				if cross_strand_long == None or strands[0].end < cross_strand_long:
+					print("cross long")
 					cross_strand_long = strands[0].end
 			else:
+				print("this2")
 				if cross_strand_short == None or strands[0].end > cross_strand_short:
+					print("cross short")
 					cross_strand_short = strands[0].end
 	
 		strand = Strand(direction, black_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
