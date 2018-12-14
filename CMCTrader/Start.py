@@ -88,6 +88,7 @@ class Start(object):
 		options.add_argument('--window-size='+ str(window_size[0]) + ',' + str(window_size[1]))
 
 		self.driver = webdriver.Chrome(self.getChromeDriverPath(), chrome_options=options)
+		self.driver.set_window_position(0, 0)
 		self.driver.get(CMC_WEBSITE)
 		self.driver.implicitly_wait(1)
 		

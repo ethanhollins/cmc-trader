@@ -53,6 +53,8 @@ pending_entries = []
 pending_breakevens = []
 pending_exits = []
 
+current_brown = None
+
 current_news = None
 news_trade_block = False
 
@@ -124,6 +126,39 @@ class Trigger(dict):
 
 	def __deepcopy__(self, memo):
 		return Trigger.fromDict(dict(self))
+
+class BrownStrand(dict):
+	def __init__(self, shift):
+		self.num_points = 2
+		self.to_hit = self.getToHit(shift)
+		self.is_hit = False
+
+	@classmethod
+	def fromDict(cls, dic):
+		cpy = cls(0)
+		for key in dic:
+			cpy[key] = dic[key]
+		return cpy
+	
+	def __getattr__(self, key):
+		return self[key]
+
+	def __setattr__(self, key, value):
+		self[key] = value
+
+	def __deepcopy__(self, memo):
+		return BrownStrand.fromDict(dict(self))
+	
+	def getToHit(self, shift):
+		for i in range(self.num_points):
+			current_shift = shift + i
+			if (brown_sar.isNewCycle(VARIABLES['TICKETS'][0], current_shift)):
+
+				print("Brown sar:", str(brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]))
+				return brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]
+
+		print("Brown sar end:", str(brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]))
+		return brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]
 
 class StopState(Enum):
 	NONE = 1
@@ -577,7 +612,7 @@ def onNewCycle(shift):
 	a strand has started their new cycle.
 	'''
 	
-	global cross_strand_long, cross_strand_short
+	global cross_strand_long, cross_strand_short, current_brown
 
 	if black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift):
 
@@ -602,6 +637,10 @@ def onNewCycle(shift):
 		strands.append(strand)
 
 		print("New Strand:", str(strand.direction), str(strand.start))
+
+	if (brown_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
+
+		current_brown = BrownStrand(shift + 1)
 
 def onSlowCross(shift):
 
@@ -713,12 +752,27 @@ def swingTwo(shift, direction):
 
 def paraHit(shift, direction, no_conf):
 	
+	brownHit(shift, direction)
+
 	if no_conf:
 		return True
-	elif isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
+	elif current_brown.is_hit and isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
 		return True
 
 	return False
+
+def brownHit(shift, direction):
+
+	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
+	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
+
+	if (direction == Direction.LONG):
+		if (high > current_brown.to_hit):
+			current_brown.is_hit = True
+
+	else:
+		if (low < current_brown.to_hit):
+			current_brown.is_hit = True
 
 def isBrownParaConfirmation(shift, direction, reverse = False):
 	if reverse:
