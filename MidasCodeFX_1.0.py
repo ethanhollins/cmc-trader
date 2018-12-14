@@ -633,7 +633,7 @@ def onNewCycle(shift):
 def onSlowCross(shift):
 
 	global cross_strand_long, cross_strand_short
-	
+
 	to_delete = []
 
 	if hasSlowCrossed(shift, Direction.LONG):
@@ -732,7 +732,7 @@ def entrySetup(shift, trigger, no_conf = False):
 			if swingTwo(shift, trigger.direction):
 				trigger.state = State.HIT_PARA
 
-		elif trigger.state == State.HIT_PARA and trigger.slow_crossed:
+		elif trigger.state == State.HIT_PARA:
 			if paraHit(shift, trigger.direction, no_conf):
 				trigger.state = State.ENTERED
 				confirmation(shift, trigger)
