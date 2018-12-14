@@ -556,31 +556,13 @@ def getTrigger(shift):
 
 	if black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift):
 
-		if black_sar.strandCount(VARIABLES['TICKETS'][0], shift + 1) > VARIABLES['sar_size']:
+		if black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
+			direction = Direction.LONG
+			setCurrentTrigger(direction)
 
-			if black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
-				direction = Direction.LONG
-				trigger = setCurrentTrigger(direction)
-
-				if not trigger == None:
-					trigger.tradable = True
-
-			elif black_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]:
-				direction = Direction.SHORT
-				trigger = setCurrentTrigger(direction)
-
-				if not trigger == None:
-					trigger.tradable = True
-		
-		else:
-			
-			if black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
-				direction = Direction.LONG
-				setCurrentTrigger(direction)
-
-			elif black_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]:
-				direction = Direction.SHORT
-				setCurrentTrigger(direction)
+		elif black_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]:
+			direction = Direction.SHORT
+			setCurrentTrigger(direction)
 
 def setCurrentTrigger(direction):
 

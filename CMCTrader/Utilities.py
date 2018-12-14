@@ -999,11 +999,11 @@ class Utilities:
 		for pair in self.tickets:
 			self.refreshChart(pair)
 
-			timestamp = self.latestTimestamp[pair]
-			changed_timestamps = self.checkTimestampValues(pair, timestamp)
+			# timestamp = self.latestTimestamp[pair]
+			# changed_timestamps = self.checkTimestampValues(pair, timestamp)
 
-			if (len(changed_timestamps) > 0):
-				self.refreshValues(pair, changed_timestamps)
+			# if (len(changed_timestamps) > 0):
+			# 	self.refreshValues(pair, changed_timestamps)
 
 	@Backtester.redirect_backtest
 	def refreshChart(self, pair):
@@ -1032,7 +1032,7 @@ class Utilities:
 		))
 
 		refresh_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'feature-window-saved-states')]//li[contains(@title, '"+str(chart_title)+"')]")
-
+		
 		ActionChains(self.driver).move_to_element(refresh_btn).perform()
 
 		refresh_btn.click()
@@ -1041,6 +1041,8 @@ class Utilities:
 
 		wait = ui.WebDriverWait(self.driver, 60)
 		wait.until(lambda driver : self.chartTimestampCheck(pair))
+		
+		self.barReader.dragCanvases()
 
 	def refreshValues(self, pair, changed_timestamps):
 		# timestamp = self.latestTimestamp[pair]

@@ -10,6 +10,8 @@ import base64
 import datetime
 import numpy as np
 import time
+import pyautogui
+import threading
 
 CANVAS_BAR_WIDTH = 115
 
@@ -93,6 +95,8 @@ class BarReader(object):
 		self.canvasDict = None
 		self.setCanvases(self.chartDict)
 
+		self.dragCanvases()
+
 		self.chartValues = None
 		self.setChartVals(utils.tickets)
 
@@ -137,8 +141,41 @@ class BarReader(object):
 			canvasDict[key] = canvas
 
 		self.canvasDict = canvasDict
-# 
+# 	
+	def dragCanvases(self):
+		
+		self.focusWindow()
+
+		browser_x_off = 1
+		browser_y_off = 124
+		browser_pos = self.driver.get_window_position()
+		browser_size = self.driver.get_window_size()
+
+		for pair in self.canvasDict:
+			canvas = self.canvasDict[pair]
+			canvas_pos = canvas.location
+			canvas_y_off = 35
+			size = canvas.size
+
+			for i in range(2):
+				pyautogui.moveTo(browser_pos['x'] + browser_x_off + canvas_pos['x'] + size['width']/2, browser_pos['y'] + browser_y_off + canvas_pos['y'] + canvas_y_off)
+				pyautogui.dragRel(0, size['height'], 0.25, button='left')
+
+	def focusWindow(self):
+
+		window_pos = self.driver.get_window_position()
+		window_size = self.driver.get_window_size()
+
+		self.driver.minimize_window()
+		self.driver.maximize_window()
+		self.driver.set_window_size(window_size['width'], window_size['height'])
+		self.driver.set_window_position(window_pos['x'], window_pos['y'])
+
+		self.moveMouse()
+
 	def setChartVals(self, tickets):
+		self.moveMouse()
+
 		chartValues = {}
 
 		for key in tickets:
@@ -160,6 +197,8 @@ class BarReader(object):
 					print("ERROR: Incorrect chart values retrieved.. Retrying " + key + " chart...")
 
 		self.chartValues = chartValues
+
+		self.retrieving = False
 
 	def setMins(self):
 		self.mins_elem = self.driver.execute_script(
@@ -208,7 +247,17 @@ class BarReader(object):
 
 		return chartValues
 
+	def moveMouse(self):
+		window_pos = self.driver.get_window_position()
+		window_size = self.driver.get_window_size()
+		cursor_pos = pyautogui.position()
+
+		if ((window_pos['x'] - 5 < cursor_pos[0] < window_pos['x'] + window_size['width'] + 5) and
+			(window_pos['y'] - 5 < cursor_pos[1] < window_pos['y'] + window_size['height'] + 5)):
+			pyautogui.moveTo(window_pos['x'] + window_size['width'] + 5, 0)
+
 	def getCurrentBarInfo(self, pair):
+
 		chart = self.chartDict[pair]
 		canvas = self.canvasDict[pair]
 
@@ -221,6 +270,7 @@ class BarReader(object):
 			return True
 		else:
 			return False
+
 
 	# def getBarInfo(self, pair, shift, amount):
 	# 	chart = self.chartDict[pair]
@@ -256,6 +306,7 @@ class BarReader(object):
 	# 	print("done")
 
 	def getBarInfoByTimestamp(self, pair, timestamps):
+
 		chart = self.chartDict[pair]
 		canvas = self.canvasDict[pair]
 
@@ -281,6 +332,7 @@ class BarReader(object):
 					self._insertValues(pair, fillValues)
 
 	def checkBarInfoByTimestamp(self, pair, timestamps):
+
 		chart = self.chartDict[pair]
 		canvas = self.canvasDict[pair]
 
@@ -448,6 +500,8 @@ class BarReader(object):
 		return values
 
 	def _performBarInfoCapture(self, chart, canvas, pair, xOff, exactTimestamp = None, values = None):
+		self.moveMouse()
+
 		start_time = time.time()
 
 		if (values == None):
@@ -584,6 +638,9 @@ class BarReader(object):
 
 		elapsed_time = time.time() - start_time
 		print("Elaspsed time:", elapsed_time)
+
+		self.retrieving = False
+
 		return values
 
 	def _getImage(self, chart, canvas, xOff, yOff):
@@ -695,6 +752,8 @@ class BarReader(object):
 		return True
 
 	def _isCurrentBar(self, chart, canvas, xOff):
+		self.moveMouse()
+
 		try:
 			wait = ui.WebDriverWait(self.driver, 59, poll_frequency=0.05)
 			wait.until(lambda driver : self._checkTimestampIsCurrent(chart, canvas, xOff))

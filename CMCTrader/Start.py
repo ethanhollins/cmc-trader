@@ -350,6 +350,7 @@ class Start(object):
 						second_is_zero = True
 						
 						self.utils.updatePositions()
+						self.utils.refreshAll()
 						isUpdated = self.utils.updateValues()
 						
 						if (isUpdated):
@@ -399,7 +400,6 @@ class Start(object):
 										self.utils.closedPositions = []
 									self.isDowntime = True
 
-							self.utils.refreshAll()
 							self.utils.updateRecovery()
 					
 					elif (seconds != 0):
