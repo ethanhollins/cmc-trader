@@ -1053,7 +1053,7 @@ class Utilities:
 
 		print(changed_timestamps)
 
-		self.save_state.load()
+		# self.save_state.load()
 
 		print("Backtesting changed timestamps")
 		
