@@ -95,6 +95,8 @@ class BarReader(object):
 		self.canvasDict = None
 		self.setCanvases(self.chartDict)
 
+		pyautogui.FAILSAFE = False
+
 		self.dragCanvases()
 
 		self.chartValues = None
