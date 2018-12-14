@@ -633,8 +633,11 @@ def onNewCycle(shift):
 def onSlowCross(shift):
 
 	global cross_strand_long, cross_strand_short
+	
+	to_delete = []
 
 	if hasSlowCrossed(shift, Direction.LONG):
+
 		for trigger in current_triggers:
 
 			if trigger.direction == Direction.LONG:
@@ -642,8 +645,10 @@ def onSlowCross(shift):
 				trigger.slow_crossed = True
 
 			elif trigger.direction == Direction.SHORT:
-				del current_triggers[current_triggers.index(trigger)]
-				cross_strand_short = None
+				to_delete.append(current_triggers.index(trigger))
+
+		cross_strand_long = None
+		cross_strand_short = None
 
 	if hasSlowCrossed(shift, Direction.SHORT):
 		for trigger in current_triggers:
@@ -653,8 +658,13 @@ def onSlowCross(shift):
 				trigger.slow_crossed = True
 
 			if trigger.direction == Direction.LONG:
-				del current_triggers[current_triggers.index(trigger)]
-				cross_strand_long = None
+				to_delete.append(current_triggers.index(trigger))
+		
+		cross_strand_long = None
+		cross_strand_short = None
+
+	for index in to_delete:
+		del current_triggers[index]
 
 def isCompletedStrand():
 	for strand in strands:
@@ -687,16 +697,24 @@ def hasCrossedAbove(shift, item):
 
 def hasSlowCrossed(shift, direction):
 
+	print(str(cross_strand_long), str(cross_strand_short))
+
 	slow_val = slow_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 	if direction == Direction.LONG and not cross_strand_long == None:
+		print("long")
 		if slow_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
+			print("1")
 			if slow_val > cross_strand_long:
+				print("2")
 				return True
 
 	elif direction == Direction.SHORT and not cross_strand_short == None:
+		print("short")
 		if slow_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]:
+			print("1")
 			if slow_val < cross_strand_short:
+				print("2")
 				return True
 
 	return False
