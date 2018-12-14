@@ -161,7 +161,7 @@ class BarReader(object):
 
 			for i in range(2):
 				pyautogui.moveTo(browser_pos['x'] + browser_x_off + canvas_pos['x'] + size['width']/2, browser_pos['y'] + browser_y_off + canvas_pos['y'] + canvas_y_off)
-				pyautogui.dragRel(100, size['height'], 0.25, button='left')
+				pyautogui.dragRel(-100, size['height'], 0.25, button='left')
 
 	def focusWindow(self):
 
