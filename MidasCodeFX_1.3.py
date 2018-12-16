@@ -32,6 +32,9 @@ VARIABLES = {
 	'time_threshold_no_trades' : 5,
 	'TRIGGER' : None,
 	'sar_size' : 30,
+	'TRIPLE SWING' : None,
+	'triple_cross' : 100,
+	'triple_final_cross' : 0
 }
 
 class SortedList(list):
@@ -42,6 +45,7 @@ class SortedList(list):
 		return sorted(list(self), key=lambda x: x.count, reverse = True)
 
 current_triggers = SortedList()
+triple_trigger = None
 re_entry_trigger = None
 
 strands = SortedList()
@@ -77,6 +81,13 @@ class State(Enum):
 	HIT_PARA = 3
 	ENTERED = 4
 
+class TripleState(Enum):
+	TREND = 0
+	COUNTER = 1
+	FINAL = 2
+	PARA = 3
+	COMPLETE = 4
+
 class Strand(dict):
 	def __init__(self, direction, start):
 		self.direction = direction
@@ -102,17 +113,19 @@ class Strand(dict):
 		return Strand.fromDict(dict(self))
 
 class Trigger(dict):
-	def __init__(self, direction, start, tradable = False, is_re_entry = False):
+	def __init__(self, direction, start, tradable = False, is_regular = True):
 		self.direction = direction
 		self.start = start
 		self.state = State.SWING_ONE
 		self.tradable = tradable
-		self.is_re_entry = is_re_entry
-		self.slow_crossed = False
+		self.is_regular = is_regular
+
+		self.triple_state = TripleState.TREND
+		self.triple_count = 0
 
 	@classmethod
 	def fromDict(cls, dic):
-		cpy = cls(dic['direction'], dic['start'], tradable = dic['tradable'], is_re_entry = dic['is_re_entry'])
+		cpy = cls(dic['direction'], dic['start'], tradable = dic['tradable'], is_regular = dic['is_regular'])
 		for key in dic:
 			cpy[key] = dic[key]
 		return cpy
@@ -170,13 +183,14 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global reg_sar, slow_sar, black_sar, brown_sar
+	global reg_sar, slow_sar, black_sar, brown_sar, cci
 
 	utils = utilities
 	brown_sar = utils.SAR(1)
 	reg_sar = utils.SAR(2)
 	slow_sar = utils.SAR(3)
 	black_sar = utils.SAR(4)
+	cci = utils.CCI(5, 1)
 
 def onStartTrading():
 	''' Function called on trade start time '''
@@ -265,8 +279,10 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif news_trade_block:
 					print("Trade blocked on NEWS! Trigger reset.")
-					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
+					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_regular = False)
 					re_entry_trigger.state = State.SWING_ONE
+
+					pos.quickExit()
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
@@ -281,8 +297,10 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif news_trade_block:
 					print("Trade blocked on NEWS! Trigger reset.")
-					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
+					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_regular = False)
 					re_entry_trigger.state = State.SWING_ONE
+
+					pos.quickExit()
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
@@ -303,8 +321,10 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif news_trade_block:
 					print("Trade blocked on NEWS! Trigger reset.")
-					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
+					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_regular = False)
 					re_entry_trigger.state = State.SWING_ONE
+
+					pos.quickExit()
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
@@ -317,8 +337,10 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif news_trade_block:
 					print("Trade blocked on NEWS! Trigger reset.")
-					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
+					re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_regular = False)
 					re_entry_trigger.state = State.SWING_ONE
+
+					pos.quickExit()
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
@@ -442,10 +464,10 @@ def onStopLoss(pos):
 	if pos.getProfit() <= 0:
 		
 		if pos.direction == 'buy':
-			re_entry_trigger = Trigger(Direction.LONG, 0, tradable = True, is_re_entry = True)
+			re_entry_trigger = Trigger(Direction.LONG, 0, tradable = True, is_regular = False)
 			re_entry_trigger.state = State.SWING_ONE
 		else:
-			re_entry_trigger = Trigger(Direction.SHORT, 0, tradable = True, is_re_entry = True)
+			re_entry_trigger = Trigger(Direction.SHORT, 0, tradable = True, is_regular = False)
 			re_entry_trigger.state = State.SWING_ONE
 
 def onNews(title, time):
@@ -467,7 +489,7 @@ def onNews(title, time):
 				print(str(time), "current pos to breakeven on NEWS")
 				pending_breakevens.append(pos)
 	
-	if no_trade_time <= utils.getLondonTime() < time:
+	if no_trade_time <= utils.getLondonTime() < time + datetime.timedelta(minutes = 1):
 		print("no trades, 5 mins")
 		current_news = time
 	
@@ -549,6 +571,7 @@ def runSequence(shift):
 		entrySetup(shift, trigger)
 
 	entrySetup(shift, re_entry_trigger, no_conf = True)
+	tripleSetup(shift)
 
 def getTrigger(shift):
 	''' Form trigger in direction of black cross '''
@@ -565,15 +588,19 @@ def getTrigger(shift):
 
 def setCurrentTrigger(direction):
 
-	if triggerExists(direction):
-		return None
-			
+	global triple_trigger
+
 	start = getLastStrandStart(direction)
 
-	if len(current_triggers) > 0:
-		trigger = Trigger(direction, start)
-	else:
-		trigger = Trigger(direction, start)
+	trigger = Trigger(direction, start)
+	
+	triple_trigger = trigger
+	triple_trigger.is_regular = False
+	
+	if triggerExists(direction):
+		return None
+
+	trigger = Trigger(direction, start)
 
 	current_triggers.append(trigger)
 
@@ -631,7 +658,7 @@ def onNewCycle(shift):
 
 def onSlowCross(shift):
 
-	global cross_strand_long, cross_strand_short
+	global cross_strand_long, cross_strand_short, triple_trigger
 
 	to_delete = []
 
@@ -641,10 +668,12 @@ def onSlowCross(shift):
 
 			if trigger.direction == Direction.LONG:
 				trigger.tradable = True
-				trigger.slow_crossed = True
 
 			elif trigger.direction == Direction.SHORT:
 				to_delete.append(current_triggers.index(trigger))
+
+		if not triple_trigger == None and triple_trigger.direction == Direction.LONG:
+			triple_trigger = None
 
 		cross_strand_long = None
 		cross_strand_short = None
@@ -654,10 +683,12 @@ def onSlowCross(shift):
 
 			if trigger.direction == Direction.SHORT:
 				trigger.tradable = True
-				trigger.slow_crossed = True
 
 			if trigger.direction == Direction.LONG:
 				to_delete.append(current_triggers.index(trigger))
+
+		if not triple_trigger == None and triple_trigger.direction == Direction.SHORT:
+			triple_trigger = None
 		
 		cross_strand_long = None
 		cross_strand_short = None
@@ -732,6 +763,33 @@ def entrySetup(shift, trigger, no_conf = False):
 				trigger.state = State.ENTERED
 				confirmation(shift, trigger)
 
+def tripleSetup(shift):
+
+	if not triple_trigger == None:
+		
+		if triple_trigger.triple_state == TripleState.TREND:
+			if tripleTrend(shift, triple_trigger.direction):
+				triple_trigger.triple_state = TripleState.COUNTER
+
+		elif triple_trigger.triple_state == TripleState.COUNTER:
+			if tripleCounter(shift, triple_trigger.direction):
+				triple_trigger.triple_count += 1
+
+				if triple_trigger.triple_count >= 3:
+					triple_trigger.triple_state = TripleState.FINAL
+				else:
+					triple_trigger.triple_state = TripleState.TREND
+
+		elif triple_trigger.triple_state == TripleState.FINAL:
+			if tripleFinal(shift, triple_trigger.direction):
+				triple_trigger.triple_state = TripleState.PARA
+				tripleSetup(shift)
+
+		elif triple_trigger.triple_state == TripleState.PARA:
+			if paraHit(shift, triple_trigger.direction, False):
+				triple_trigger.state = TripleState.COMPLETE
+				confirmation(shift, triple_trigger)
+
 def swingOne(shift, direction):
 
 	print("swingOne")
@@ -792,6 +850,48 @@ def isRegParaConfirmation(shift, direction):
 	else:
 		return reg_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
+def tripleTrend(shift, direction):
+
+	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+
+	if direction == Direction.LONG:
+		if ch_idx > VARIABLES['triple_cross']:
+			return True
+
+	else:
+		if ch_idx < -VARIABLES['triple_cross']:
+			return True
+
+	return False
+
+def tripleCounter(shift, direction):
+
+	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+
+	if direction == Direction.LONG:
+		if ch_idx < -VARIABLES['triple_cross']:
+			return True
+
+	else:
+		if ch_idx > VARIABLES['triple_cross']:
+			return True
+
+	return False
+
+def tripleFinal(shift, direction):
+
+	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+
+	if direction == Direction.LONG:
+		if ch_idx > VARIABLES['triple_final_cross']:
+			return True
+
+	else:
+		if ch_idx < VARIABLES['triple_final_cross']:
+			return True
+
+	return False
+
 def confirmation(shift, trigger):
 	''' Checks for overbought, oversold and confirm entry '''
 
@@ -801,7 +901,7 @@ def confirmation(shift, trigger):
 
 	pending_entries.append(trigger)
 
-	if not trigger.is_re_entry:
+	if trigger.is_regular:
 		del current_triggers[current_triggers.index(trigger)]
 
 def report():
@@ -814,6 +914,8 @@ def report():
 
 	if not re_entry_trigger == None:
 		print("RE-ENTRY TRIGGER:\n ", str(re_entry_trigger))
+
+	print("TRIPLE SWING TRIGGER:\n", str(triple_trigger))
 
 	print("CLOSED POSITIONS:")
 	count = 0
@@ -844,7 +946,7 @@ def onMissedEntry(*args, **kwargs):
 	else:
 		direction = Direction.SHORT
 
-	re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
+	re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_regular = False)
 	re_entry_trigger.state = State.SWING_ONE
 
 	pending_entries = []
@@ -855,7 +957,7 @@ def onBacktestFinish():
 	if len(pending_entries) > 0:
 		entry = pending_entries[-1]
 
-		re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_re_entry = True)
+		re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_regular = False)
 		re_entry_trigger.state = State.SWING_ONE
 
 		pending_entries = []

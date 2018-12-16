@@ -430,54 +430,10 @@ class Utilities:
 					pos.entryprice = float(event[5])
 					pos.tp = float(event[7])
 
-	def checkPosition(self, pos):
-		history = self.historyLog.getHistoryPropertiesById(pos.orderID)
-		listenedTypes = ['Buy Trade', 'Sell Trade']
-		
-		for i in history:
-			if i[2] in listenedTypes:
-
-				# Check Stop loss
-				if (not pos.sl == i[6] or i[6] <= 0):
-					sl = pos.sl
-					
-					if (sl <= 0):
-						if ('FIXED_SL' in self.plan.VARIABLES):
-							sl_points = self.plan.VARIABLES['FIXED_SL']
-
-							pos.modifySL(sl_points)
-					else:
-						if (pos.direction == 'buy'):
-							sl_points = self.convertToPips(pos.entryprice - sl)
-						else:
-							sl_points = self.convertToPips(sl - pos.entryprice)
-
-						if ('FIXED_SL' in self.plan.VARIABLES and sl_points > self.plan.VARIABLES['FIXED_SL']):
-							sl_points = self.plan.VARIABLES['FIXED_SL']
-
-						pos.modifySL(sl_points)
-
-				# Check Take Profit
-				if (not pos.tp == i[7] or i[7] <= 0):
-					tp = pos.tp
-					
-					if (tp <= 0):
-						if ('FIXED_TP' in self.plan.VARIABLES):
-							tp_points = self.plan.VARIABLES['FIXED_TP']
-
-							pos.modifyTP(tp_points)
-					else:
-						if (pos.direction == 'buy'):
-							tp_points = self.convertToPips(tp - pos.entryprice)
-						else:
-							tp_points = self.convertToPips(pos.entryprice - tp)
-
-						if ('FIXED_TP' in self.plan.VARIABLES and tp_points > self.plan.VARIABLES['FIXED_TP']):
-							tp_points = self.plan.VARIABLES['FIXED_TP']
-
-						pos.modifyTP(tp_points)
-
-				pos.apply()
+	def resetPositions(self):
+		self.positions = []
+		self.closedPositions = []
+		self.orders = []
 
 	def getPositionAmount(self, pair):
 		return self.positionLog.getPairPositionAmount(pair)

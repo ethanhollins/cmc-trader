@@ -287,6 +287,8 @@ class Backtester(object):
 		# except AttributeError as e:
 		# 	pass
 
+		self.utils.historyLog.resetTimestamp()
+
 		state = State.NONE
 
 	def getAustralianTime(self, timestamp):
