@@ -10,8 +10,7 @@ class HistoryLog(object):
 		self.utils = utils
 		self.historyLogElem = self.getHistoryLogElem()
 
-		self.current_timestamp = 0
-		self.resetTimestamp()
+		self.current_timestamp = self.setTimestamp()
 
 	def reinit(self):
 		self.historyLogElem = self.getHistoryLogElem()
@@ -31,8 +30,8 @@ class HistoryLog(object):
 				'return feature.querySelector(\'[class="tables"]\').querySelector(\'[class="rows"]\');'
 			)
 
-	def resetTimestamp(self):
-		self.current_timestamp = self.utils.convertDateTimeToTimestamp(self.utils.startTime)
+	def setTimestamp(self):
+		return self.utils.convertDateTimeToTimestamp(self.utils.startTime)
 
 	def getFilteredHistory(self):
 		row_list = self.driver.execute_script(
@@ -98,12 +97,12 @@ class HistoryLog(object):
 		return [i for i in history if i[2].strip() in listened_types]
 
 	def updateHistory(self, listened_types):
-		self.resetTimestamp()
-		self.utils.resetPositions()
-
 		history = self.getReleventPositions(listened_types)
 		history = [j for j in history if j[1] > self.current_timestamp]
 		history = self.sortEvents(history)
+
+		if (len(history) > 0):
+			self.current_timestamp = history[-1][1]
 
 		print("HISTORY:", str(history))
 
