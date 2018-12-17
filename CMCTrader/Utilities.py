@@ -277,6 +277,7 @@ class Utilities:
 			position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
 
 			if not event[0] in position_id_list:
+				print("UTILITIES:", str(event))
 				pos = self.createPosition(utils = self, ticket = self.tickets[event[3]], orderID = event[0], pair = event[3], ordertype = 'market', direction = 'buy')
 				pos.openTime = event[1]
 				pos.entryprice = float(event[5])
@@ -295,6 +296,7 @@ class Utilities:
 			position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
 
 			if not event[0] in position_id_list:
+				print("UTILITIES:", str(event))
 				pos = self.createPosition(utils = self, ticket = self.tickets[event[3]], orderID = event[0], pair = event[3], ordertype = 'market', direction = 'sell')
 				pos.openTime = event[1]
 				pos.entryprice = float(event[5])
@@ -340,6 +342,7 @@ class Utilities:
 		elif event[2] == 'Close Trade':
 			for pos in self.positions:
 				if event[8] == pos.orderID:
+					print("UTILITIES:", str(event))
 					pos.closeTime = event[1]
 					pos.closeprice = float(event[5])
 					print("Close price:", str(pos.closeprice))
