@@ -775,8 +775,26 @@ class BarReader(object):
 
 		cropped_image = img.crop(TIMESTAMP_CROP)
 		timestamp_mins = int(performOCR(cropped_image).split(':')[1])
+
+		if (timestamp_mins) < mins - 2:
+			self.moveChartToStart(canvas)
+			return False
+
 		return (mins - 1) == timestamp_mins
 
+	def moveChartToStart(self, canvas):
+		browser_x_off = 1
+		browser_y_off = 124
+		browser_pos = self.driver.get_window_position()
+		browser_size = self.driver.get_window_size()
+
+		canvas_pos = canvas.location
+		canvas_y_off = 35
+		size = canvas.size
+
+		for i in range(1):
+			pyautogui.moveTo(browser_pos['x'] + browser_x_off + canvas_pos['x'] + size['width']/2, browser_pos['y'] + browser_y_off + canvas_pos['y'] + canvas_y_off)
+			pyautogui.dragRel(-size['width']/2, 0, 0.25, button='left')
 
 	def getChart(self, pair):
 		return self.chartDict[pair]
