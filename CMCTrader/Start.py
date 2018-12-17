@@ -345,7 +345,7 @@ class Start(object):
 					seconds = int(self.seconds_elem.text)
 					second_is_zero = False
 					if (seconds == 0 and not second_is_zero):
-						self.reinitTicketBtns()
+						self.reinitBtns()
 
 						second_is_zero = True
 						
@@ -500,7 +500,7 @@ class Start(object):
 	# 		print("Could not find saved data at that time.")
 	# 		return
 
-	def reinitTicketBtns(self):
+	def reinitBtns(self):
 		self.tickets = {}
 		try:
 			for t in self.plan.VARIABLES['TICKETS']:
@@ -512,6 +512,7 @@ class Start(object):
 
 		self.utils.setTickets(self.tickets)
 		self.utils.setAUDUSDTicket(self.tAUDUSD)
+		self.utils.reinit(init_bar_reader = False)
 
 
 	def handleLostConnection(self):

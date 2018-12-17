@@ -84,11 +84,13 @@ class Utilities:
 		
 		self._startPrompt()
 
-	def reinit(self):
+	def reinit(self, init_bar_reader = True):
 		self.historyLog.reinit()
 		self.positionLog.reinit()
 		self.orderLog.reinit()
-		self.barReader.reinit()
+
+		if (init_bar_reader):
+			self.barReader.reinit()
 
 	def _initOHLC(self):
 		temp = {}
