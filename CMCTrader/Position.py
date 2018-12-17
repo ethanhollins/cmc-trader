@@ -104,12 +104,10 @@ class Position(object):
 		elif (self.direction == 'sell'):
 			newPos = self.utils.buy(int(self.lotsize + lotsize), pairs = [self.pair], sl = sl, tp = tp)
 
-		self.utils.closedPositions.append(self)
-		del self.utils.positions[self.utils.positions.index(self)]
-
 		wait = ui.WebDriverWait(self.driver, 10)
 		wait.until(lambda driver : self.utils.historyLog.getEvent(self, ['Buy Trade', 'Sell Trade', 'Close Trade']) is not None)
 		events = self.utils.historyLog.getEvent(self, ['Buy Trade', 'Sell Trade', 'Close Trade'])	
+		print("EVENTS: ", str(events))
 
 		for event in events:
 			self.utils.updateEvent(event)
