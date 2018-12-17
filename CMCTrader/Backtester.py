@@ -263,6 +263,7 @@ class Backtester(object):
 			print(str(self.utils.startTime), str(self.utils.endTime))
 
 			for timestamp in sorted_timestamps:
+				print(timestamp)
 
 				if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
 					
