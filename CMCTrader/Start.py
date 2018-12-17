@@ -373,10 +373,10 @@ class Start(object):
 										pass
 									self.isDowntime = False
 
-								try:
-									self.plan.onNewBar()
-								except AttributeError as e:
-									pass
+								# try:
+								self.plan.onNewBar()
+								# except AttributeError as e:
+								# 	pass
 								try:
 									for key in self.utils.newsTimes.copy():
 										self.plan.onNews(key, self.utils.newsTimes[key])
