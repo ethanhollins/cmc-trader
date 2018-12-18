@@ -192,8 +192,6 @@ def init(utilities):
 	black_sar = utils.SAR(4)
 	cci = utils.CCI(5, 1)
 
-	utils.buy(400)
-
 def onStartTrading():
 	''' Function called on trade start time '''
 
