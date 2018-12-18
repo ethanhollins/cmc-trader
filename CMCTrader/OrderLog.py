@@ -6,7 +6,8 @@ class OrderLog(object):
 		self.driver = driver
 		self.orderLogBodyElem = self.getOrderLogBodyElem()
 
-	def reinit(self):
+	def reinit(self, driver):
+		self.driver = driver
 		self.orderLogBodyElem = self.getOrderLogBodyElem()
 
 	def getOrderLogBodyElem(self):

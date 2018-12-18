@@ -85,12 +85,12 @@ class Utilities:
 		self._startPrompt()
 
 	def reinit(self, init_bar_reader = True):
-		self.historyLog.reinit()
-		self.positionLog.reinit()
-		self.orderLog.reinit()
+		self.historyLog.reinit(self.driver)
+		self.positionLog.reinit(self.driver)
+		self.orderLog.reinit(self.driver)
 
 		if (init_bar_reader):
-			self.barReader.reinit()
+			self.barReader.reinit(self.driver)
 
 	def _initOHLC(self):
 		temp = {}
@@ -970,6 +970,8 @@ class Utilities:
 	def refreshChart(self, pair):
 		chart = self.barReader.getChart(pair)
 
+		self.barReader.moveToChart(pair)
+
 		chart_id = self.driver.execute_script(
 						'return arguments[0].getAttribute("id");',
 						chart
@@ -993,8 +995,6 @@ class Utilities:
 		))
 
 		refresh_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'feature-window-saved-states')]//li[contains(@title, '"+str(chart_title)+"')]")
-		
-		ActionChains(self.driver).move_to_element(refresh_btn).perform()
 
 		refresh_btn.click()
 

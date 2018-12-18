@@ -12,7 +12,8 @@ class HistoryLog(object):
 
 		self.current_timestamp = self.setTimestamp()
 
-	def reinit(self):
+	def reinit(self, driver):
+		self.driver = driver
 		self.historyLogElem = self.getHistoryLogElem()
 
 	def makeVisible(self):

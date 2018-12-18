@@ -102,7 +102,8 @@ class BarReader(object):
 		self.chartValues = None
 		self.setChartVals(utils.tickets)
 
-	def reinit(self):
+	def reinit(self, driver):
+		self.driver = driver
 		self.setMins()
 		self.setCharts(self.utils.tickets)
 		self.setCanvases(self.chartDict)
@@ -265,7 +266,7 @@ class BarReader(object):
 
 		xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
 
-		if (self._isCurrentBar(chart, canvas, xOff)):
+		if (self._isCurrentBar(chart, canvas, pair, xOff)):
 			values = self._performBarInfoCapture(chart, canvas, pair, xOff)
 
 			self._insertValues(pair, values)
@@ -314,7 +315,7 @@ class BarReader(object):
 
 		xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
 
-		if (self._isCurrentBar(chart, canvas, xOff)):
+		if (self._isCurrentBar(chart, canvas, pair, xOff)):
 			timestamps.sort(reverse=True)
 
 			fillValues = None
@@ -753,19 +754,19 @@ class BarReader(object):
 
 		return True
 
-	def _isCurrentBar(self, chart, canvas, xOff):
+	def _isCurrentBar(self, chart, canvas, pair, xOff):
 		self.moveMouse()
 
 		try:
 			wait = ui.WebDriverWait(self.driver, 59, poll_frequency=0.05)
-			wait.until(lambda driver : self._checkTimestampIsCurrent(chart, canvas, xOff))
+			wait.until(lambda driver : self._checkTimestampIsCurrent(chart, canvas, pair, xOff))
 		except:
 			return False
 			pass
 
 		return True
 
-	def _checkTimestampIsCurrent(self, chart, canvas, xOff):
+	def _checkTimestampIsCurrent(self, chart, canvas, pair, xOff):
 		mins = int(self.mins_elem.text)
 
 		if (mins == 0):
@@ -777,24 +778,23 @@ class BarReader(object):
 		timestamp_mins = int(performOCR(cropped_image).split(':')[1])
 
 		if (timestamp_mins) < mins - 2:
-			self.moveChartToStart(canvas)
+			self.utils.refreshChart(pair)
 			return False
 
 		return (mins - 1) == timestamp_mins
 
-	def moveChartToStart(self, canvas):
-		browser_x_off = 1
-		browser_y_off = 124
-		browser_pos = self.driver.get_window_position()
-		browser_size = self.driver.get_window_size()
+	def moveToChart(self, pair):
+		chart = self.chartDict[pair]
+		canvas = self.canvasDict[pair]
 
-		canvas_pos = canvas.location
-		canvas_y_off = 35
-		size = canvas.size
+		self.driver.execute_script(
+			'var attr = arguments[0].getAttribute("style");'
+			'attr = attr.replace("display: none;", "");'
+			'arguments[0].setAttribute("style", attr);',
+			chart
+		)
 
-		for i in range(1):
-			pyautogui.moveTo(browser_pos['x'] + browser_x_off + canvas_pos['x'] + size['width']/2, browser_pos['y'] + browser_y_off + canvas_pos['y'] + canvas_y_off)
-			pyautogui.dragRel(-size['width']/2, 0, 0.25, button='left')
+		ActionChains(self.driver).move_to_element_with_offset(canvas, 100, 100).click().perform()
 
 	def getChart(self, pair):
 		return self.chartDict[pair]

@@ -11,7 +11,8 @@ class PositionLog(object):
 		self.parentElemDict = {}
 		self.childPositionDict = {}
 
-	def reinit(self):
+	def reinit(self, driver):
+		self.driver = driver
 		self.positionLogBodyElem = self.getPositionLogBodyElem()
 		self.parentPositionGroupElems = None
 		self.parentElemDict = {}

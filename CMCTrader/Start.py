@@ -49,6 +49,7 @@ class Start(object):
 		self.account_name = json.loads(user_info)['account_name']
 		self.account_id = json.loads(user_info)['account_id']
 
+		self.driver = None
 		self.initDriver()
 
 		self.initMainProgram()
@@ -84,13 +85,15 @@ class Start(object):
 
 
 	def initDriver(self, isHeadless=False, window_size=[1920,1080]):
+		if not self.driver == None:
+			self.driver.close()
+
 		options = webdriver.ChromeOptions()
 		options.add_argument('--window-size='+ str(window_size[0]) + ',' + str(window_size[1]))
 
 		self.driver = webdriver.Chrome(self.getChromeDriverPath(), chrome_options=options)
 		self.driver.set_window_position(0, 0)
 		self.driver.get(CMC_WEBSITE)
-		self.driver.implicitly_wait(1)
 		
 	def initMainProgram(self):
 		try:
@@ -106,6 +109,7 @@ class Start(object):
 
 	def reinitMainProgram(self):
 		self.utils.isLive = False
+		self.utils.driver = self.driver
 		try:
 			self.login()
 			self.tickets = {}
@@ -333,6 +337,7 @@ class Start(object):
 			if (not self.utils.isStopped):
 				self.utils.isLive = True
 				try:
+					self.timedRestart()
 					self.checkIfInApp()
 					# try:
 					if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
@@ -500,6 +505,15 @@ class Start(object):
 	# 		print("Could not find saved data at that time.")
 	# 		return
 
+	def timedRestart(self):
+		tz = pytz.timezone('Europe/London')
+		time = datetime.datetime.now(tz = tz)
+
+		if (time.hour - self.utils.startTime.hour) % 3 == 0:
+			if (time.minute == 10):
+				print("Scheduled restart commencing...")
+				self.restartCMC()
+
 	def reinitBtns(self):
 		self.tickets = {}
 		try:
@@ -549,11 +563,13 @@ class Start(object):
 			self.restartCMC()
 
 	def restartCMC(self, firstInit = False):
-		self.driver.get(CMC_WEBSITE);
-		time.sleep(2)
+		self.initDriver()
+
 		while 'login' not in self.driver.current_url:
 			pass
+		
 		print("Logging back in...")
+		
 		if (firstInit):
 			self.initMainProgram()
 		else:
