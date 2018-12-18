@@ -794,7 +794,7 @@ class BarReader(object):
 			chart
 		)
 
-		ActionChains(self.driver).move_to_element_with_offset(canvas, 100, 100).click().perform()
+		ActionChains(self.driver).move_to_element_with_offset(canvas, 500, 300).click().perform()
 
 	def getChart(self, pair):
 		return self.chartDict[pair]

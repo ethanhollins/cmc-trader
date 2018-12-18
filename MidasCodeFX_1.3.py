@@ -139,10 +139,15 @@ class Trigger(dict):
 	def __deepcopy__(self, memo):
 		return Trigger.fromDict(dict(self))
 
-class BrownStrand(dict):
-	def __init__(self, shift):
+class HitStrand(dict):
+	def __init__(self, shift, hit_val = 0):
 		self.num_points = 2
-		self.to_hit = self.getToHit(shift)
+
+		if hit_val == 0:
+			self.to_hit = self.getToHit(shift)
+		else:
+			self.to_hit = hit_val
+
 		self.is_hit = False
 
 	@classmethod
@@ -159,7 +164,7 @@ class BrownStrand(dict):
 		self[key] = value
 
 	def __deepcopy__(self, memo):
-		return BrownStrand.fromDict(dict(self))
+		return HitStrand.fromDict(dict(self))
 	
 	def getToHit(self, shift):
 		for i in range(self.num_points):
@@ -655,9 +660,9 @@ def onNewCycle(shift):
 
 		print("New Strand:", str(strand.direction), str(strand.start))
 
-	if (brown_sar.isNewCycle(VARIABLES['TICKETS'][0], shift)):
+	if brown_sar.isNewCycle(VARIABLES['TICKETS'][0], shift):
 
-		current_brown = BrownStrand(shift + 1)
+		current_brown = HitStrand(shift + 1)
 
 def onSlowCross(shift):
 
