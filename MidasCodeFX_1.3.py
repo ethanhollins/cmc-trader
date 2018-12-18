@@ -192,6 +192,8 @@ def init(utilities):
 	black_sar = utils.SAR(4)
 	cci = utils.CCI(5, 1)
 
+	utils.buy(400)
+
 def onStartTrading():
 	''' Function called on trade start time '''
 
@@ -432,12 +434,15 @@ def handleExits(shift):
 
 		if exit.direction == Direction.LONG:
 			if isBrownParaConfirmation(shift, Direction.LONG, reverse = True):
+				print("Attempting exit")
 				is_exit = True
 				for pos in utils.positions:
 					pos.quickExit()
 
 		else:
 			if isBrownParaConfirmation(shift, Direction.SHORT, reverse = True):
+				print("Attempting exit")
+				
 				is_exit = True
 				for pos in utils.positions:
 					pos.quickExit()

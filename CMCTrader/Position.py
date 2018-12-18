@@ -608,8 +608,8 @@ class Position(object):
 		self.ticket.setMarketOrder()
 		self.ticket.setLotsize(int(self.lotsize))
 
-		self.ticket.setStopLoss(17)
-		self.ticket.closeTakeProfit()
+		# self.ticket.setStopLoss(17)
+		# self.ticket.closeTakeProfit()
 
 		self.ticket.placeOrder()
 
