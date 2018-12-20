@@ -767,21 +767,24 @@ class BarReader(object):
 		return True
 
 	def _checkTimestampIsCurrent(self, chart, canvas, pair, xOff):
-		mins = int(self.mins_elem.text)
+		try:		
+			mins = int(self.mins_elem.text)
 
-		if (mins == 0):
-			mins = 60
+			if (mins == 0):
+				mins = 60
 
-		img = self._getImage(chart, canvas, xOff, 300)
+			img = self._getImage(chart, canvas, xOff, 300)
 
-		cropped_image = img.crop(TIMESTAMP_CROP)
-		timestamp_mins = int(performOCR(cropped_image).split(':')[1])
+			cropped_image = img.crop(TIMESTAMP_CROP)
+			timestamp_mins = int(performOCR(cropped_image).split(':')[1])
 
-		if (timestamp_mins) < mins - 2:
-			self.utils.refreshChart(pair)
+			if (timestamp_mins) < mins - 2:
+				self.utils.refreshChart(pair)
+				return False
+
+			return (mins - 1) == timestamp_mins
+		except:
 			return False
-
-		return (mins - 1) == timestamp_mins
 
 	def moveToChart(self, pair):
 		chart = self.chartDict[pair]

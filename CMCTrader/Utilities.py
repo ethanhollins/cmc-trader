@@ -27,6 +27,7 @@ from CMCTrader.PositionLog import PositionLog
 from CMCTrader.OrderLog import OrderLog
 from CMCTrader.BarReader import BarReader
 from CMCTrader.Backtester import Backtester
+from CMCTrader.SocketManager import SocketManager
 
 from CMCTrader.Indicators.SMA import SMA
 from CMCTrader.Indicators.SAR import SAR
@@ -82,6 +83,9 @@ class Utilities:
 
 		self.save_state = self.plan.SaveState(self)
 		
+		# self.socket_manager = SocketManager(self)
+		# self.socket_manager.send("cmd", "lololol")
+
 		self._startPrompt()
 
 	def reinit(self, init_bar_reader = True):

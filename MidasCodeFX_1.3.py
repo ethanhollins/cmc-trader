@@ -188,7 +188,7 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global reg_sar, slow_sar, black_sar, brown_sar, cci
+	global reg_sar, slow_sar, black_sar, brown_sar, cci, macd
 
 	utils = utilities
 	brown_sar = utils.SAR(1)
@@ -196,6 +196,7 @@ def init(utilities):
 	slow_sar = utils.SAR(3)
 	black_sar = utils.SAR(4)
 	cci = utils.CCI(5, 1)
+	macd = utils.MACD(6, 1)
 
 def onStartTrading():
 	''' Function called on trade start time '''
@@ -808,13 +809,14 @@ def swingOne(shift, direction):
 	return False
 
 def paraHit(shift, direction, no_conf):
-	
+
 	brownHit(shift, direction)
 
 	if no_conf:
 		return True
 	elif current_brown.is_hit and isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
-		return True
+		if isMacdConfirmation(shift, direction):
+			return True
 
 	return False
 
@@ -857,6 +859,15 @@ def isRegParaConfirmation(shift, direction):
 		return reg_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
 	else:
 		return reg_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
+
+def isMacdConfirmation(shift, direction):
+
+	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+
+	if direction == Direction.LONG:
+		return hist > 0
+	else:
+		return hist < 0
 
 def tripleTrend(shift, direction):
 
