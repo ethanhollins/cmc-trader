@@ -93,6 +93,10 @@ class Utilities:
 		self.positionLog.reinit(self.driver)
 		self.orderLog.reinit(self.driver)
 
+		all_positions = self.positions + self.closedPositions + self.orders
+		for i in all_positions:
+			i.driver = self.driver
+
 		if (init_bar_reader):
 			self.barReader.reinit(self.driver)
 
