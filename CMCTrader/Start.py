@@ -360,7 +360,7 @@ class Start(object):
 						
 						if (isUpdated):
 
-							self.utils.save_state = self.plan.SaveState(self.utils)
+							# self.utils.save_state = self.plan.SaveState(self.utils)
 
 							missingTimestamps = self.utils.recoverMissingValues()
 							if (len(missingTimestamps) > 0):
@@ -368,7 +368,7 @@ class Start(object):
 								for pair in missingTimestamps:
 									self.utils.refreshValues(pair, missingTimestamps[pair])
 
-								self.utils.save_state = self.plan.SaveState(self.utils)
+								# self.utils.save_state = self.plan.SaveState(self.utils)
 
 							if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
 								if (self.isDowntime):
@@ -406,13 +406,15 @@ class Start(object):
 									self.isDowntime = True
 
 							self.utils.updateRecovery()
-					
+							
 					elif (seconds != 0):
 						second_is_zero = False
 
 				except StaleElementReferenceException as e:
 					print("ERROR: No internet connection!")
 					print("Refreshing page...")
+					tb = traceback.format_exc()
+					print(tb)
 					self.handleLostConnection()
 					# tb = traceback.format_exc()
 					# self.handleError(e, tb)

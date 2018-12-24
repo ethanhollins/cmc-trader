@@ -81,7 +81,7 @@ class Utilities:
 
 		self.historyLog = HistoryLog(self.driver, self)
 
-		self.save_state = self.plan.SaveState(self)
+		# self.save_state = self.plan.SaveState(self)
 		
 		# self.socket_manager = SocketManager(self)
 		# self.socket_manager.send("cmd", "lololol")
@@ -99,6 +99,8 @@ class Utilities:
 
 		if (init_bar_reader):
 			self.barReader.reinit(self.driver)
+		else:
+			self.barReader.driver = self.driver
 
 	def _initOHLC(self):
 		temp = {}

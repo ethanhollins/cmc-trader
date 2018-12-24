@@ -15,6 +15,8 @@ count = 0
 nums = []
 trig = None
 
+sl = 20
+
 class Trigger(dict):
 	def __init__(self, txt):
 		self.txt1 = txt
@@ -53,20 +55,11 @@ def init(utilities):
 	black_sar = utils.SAR(2)
 	slow_sar = utils.SAR(3)
 	brown_sar = utils.SAR(4)
-	rsi = utils.RSI(5, 1)
-	cci = utils.CCI(6, 1)
-	macd = utils.MACD(7, 1)
+	cci = utils.CCI(5, 1)
+	macd = utils.MACD(6, 1)
 
-	pos = utils.buy(400, ordertype = 'se', entry = 1.3)
-	pos.modifyEntryPrice(1.459)
-	pos.apply()
-	# pos.apply()
-	# pos.modifyTrailing(40)
-	# pos.modifyTrailing(60)
-	# pos.trailingReg(50)
-	# time.sleep(3)
-	# pos.trailingReg()
-	# pos.modifyTrailingSL(10)
+	global pos
+	pos = utils.buy(400)
 
 def onLoop():
 	return
@@ -74,50 +67,12 @@ def onLoop():
 def onNewBar():
 	print("onNewBar\n")
 
-	print("POSITIONS:")
-	count = 0
-	for pos in utils.positions:
-		count += 1
-		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit())
+	global sl
 
-	print("ORDERS:")
-	count = 0
-	for order in utils.orders:
-		count += 1
-		print(str(count) + ":", str(order.direction), str(order.entryprice))
+	pos.modifySL(sl)
+	pos.apply()
 
-def onRecovery():
-	print("onRecovery")
-	global pending_entries
-	pending_entries = []
+	sl += 1
 
 def onDownTime():
 	print("onDownTime")
-
-class SaveState(object):
-	def __init__(self, utils):
-		self.utils = utils
-		self.save_state = self.save()
-		# print("SAVED:", str(self.save_state))
-
-	def save(self):
-		voided_types = [type(i) for sub in self.utils.indicators.values() for i in sub]
-		voided_types.append(type(self.utils))
-		return [
-				copy.deepcopy(attr) for attr in globals().items() 
-				if not attr[0].startswith("__") 
-				and not callable(attr[1]) 
-				and not isinstance(attr[1], types.ModuleType) 
-				and not type(attr[1]) in voided_types 
-				and not attr[0] == 'VARIABLES'
-			]
-
-	def load(self):
-		print("\nLOADING...")
-		print("GLOB:", str([globals()[attr[0]] for i in globals() for attr in self.save_state if i is attr[0]]) + "\n")
-		print("SAVE:", str([attr[1] for attr in self.save_state]) + "\n")
-		for attr in self.save_state:
-			globals()[attr[0]] = attr[1]
-
-		print("NEW\nGLOB:", str([globals()[attr[0]] for i in globals() for attr in self.save_state if i is attr[0]]) + "\n")
-	

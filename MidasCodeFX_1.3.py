@@ -30,8 +30,8 @@ VARIABLES = {
 	'NEWS' : None,
 	'time_threshold_breakeven' : 1,
 	'time_threshold_no_trades' : 5,
-	'TRIGGER' : None,
-	'sar_size' : 30,
+	'CONFIRMATION' : None,
+	'strand_size' : 22,
 	'TRIPLE SWING' : None,
 	'triple_cross' : 100,
 	'triple_final_cross' : 0
@@ -95,6 +95,7 @@ class Strand(dict):
 		self.end = 0
 		self.is_completed = False
 		self.count = len(strands)
+		self.is_hit = False
 
 	@classmethod
 	def fromDict(cls, dic):
@@ -457,7 +458,7 @@ def handleExits(shift):
 def onEntry(pos):
 	print("onEntry")
 
-	global current_triggers, re_entry_trigger, cross_strand_long, cross_strand_short
+	global current_triggers, re_entry_trigger, cross_strand_long, cross_strand_short, stop_state
 
 	current_triggers = []
 	re_entry_trigger = None
@@ -465,12 +466,14 @@ def onEntry(pos):
 	cross_strand_long = None
 	cross_strand_short = None
 
+	stop_state = StopState.NONE
+
 def onStopLoss(pos):
 	print("onStopLoss")
 
 	global re_entry_trigger
 
-	if pos.getProfit() <= 0:
+	if stop_state == StopState.BREAKEVEN:
 		
 		if pos.direction == 'buy':
 			re_entry_trigger = Trigger(Direction.LONG, 0, tradable = True, is_regular = False)
@@ -815,7 +818,7 @@ def paraHit(shift, direction, no_conf):
 	if no_conf:
 		return True
 	elif current_brown.is_hit and isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
-		if isMacdConfirmation(shift, direction):
+		if isMacdConfirmation(shift, direction) and isStrandSizeConfirmation(shift, direction):
 			return True
 
 	return False
@@ -868,6 +871,25 @@ def isMacdConfirmation(shift, direction):
 		return hist > 0
 	else:
 		return hist < 0
+
+def isStrandSizeConfirmation(shift, direction):
+	
+	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
+	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
+
+	if strands[0].direction == Direction.LONG:
+		if high > strands[0].start:
+			strands[0].is_hit = True
+	else:
+		if low < strands[0].start:
+			strands[0].is_hit = True
+
+
+	if strands[0].direction == direction:
+		if black_sar.strandCount(VARIABLES['TICKETS'][0], shift) <= VARIABLES['strand_size'] and not strands[0].is_hit:
+			return False
+
+	return True
 
 def tripleTrend(shift, direction):
 
