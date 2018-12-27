@@ -8,3 +8,6 @@ ohlc*
 testdrivers.py
 *.stackdump
 *.json
+build
+*.pyx
+setup.py

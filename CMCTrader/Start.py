@@ -279,6 +279,10 @@ class Start(object):
 			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="s"]\');'
 		)
 
+		self.minutes_elem = self.driver.execute_script(
+			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="m"]\');'
+		)
+
 		self.isDowntime = True
 		
 		self.utils.getRecovery()
@@ -308,6 +312,10 @@ class Start(object):
 
 		self.seconds_elem = self.driver.execute_script(
 			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="s"]\');'
+		)
+
+		self.minutes_elem = self.driver.execute_script(
+			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="m"]\');'
 		)
 
 		self.recoverData()
@@ -347,13 +355,9 @@ class Start(object):
 					# except AttributeError as e:
 					# 	pass
 
-					seconds = int(self.seconds_elem.text)
-					second_is_zero = False
-					if (seconds == 0 and not second_is_zero):
+					if (self.needsUpdate()):
 						self.reinitBtns()
 
-						second_is_zero = True
-						
 						self.utils.updatePositions()
 						self.utils.refreshAll()
 						isUpdated = self.utils.updateValues()
@@ -406,9 +410,6 @@ class Start(object):
 									self.isDowntime = True
 
 							self.utils.updateRecovery()
-							
-					elif (seconds != 0):
-						second_is_zero = False
 
 				except StaleElementReferenceException as e:
 					print("ERROR: No internet connection!")
@@ -506,6 +507,17 @@ class Start(object):
 	# 	except:
 	# 		print("Could not find saved data at that time.")
 	# 		return
+
+	def needsUpdate(self):
+		if len(self.utils.latestTimestamp) <= 0:
+			return True
+
+		for pair in self.utils.latestTimestamp:
+			last_time = self.utils.convertTimestampToTime(self.utils.latestTimestamp[pair])
+			current_minute = int(self.minutes_elem.text)
+			if not last_time.minute == current_minute - 1:
+				return True
+		return False
 
 	def timedRestart(self):
 		tz = pytz.timezone('Europe/London')
