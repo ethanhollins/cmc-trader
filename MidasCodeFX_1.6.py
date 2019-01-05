@@ -13,6 +13,7 @@ VARIABLES = {
 	'FIXED_TP' : 200,
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
+	'maximum_risk' : 1.5,
 	'profit_limit' : 51,
 	'maximum_bank' : 500,
 	'PLAN' : None,
@@ -32,9 +33,10 @@ VARIABLES = {
 	'time_threshold_no_trades' : 5,
 	'CONFIRMATION' : None,
 	'strand_size' : 22,
-	'TRIPLE SWING' : None,
-	'triple_cross' : 100,
-	'triple_final_cross' : 0
+	'DMI' : None,
+	'dmi_t_threshold' : 24,
+	'dmi_ct_threshold' : 18,
+	'dmi_spread' : 10
 }
 
 class SortedList(list):
@@ -45,8 +47,8 @@ class SortedList(list):
 		return sorted(list(self), key=lambda x: x.count, reverse = True)
 
 current_triggers = SortedList()
-triple_trigger = None
 re_entry_trigger = None
+momentum_trigger = None
 
 strands = SortedList()
 
@@ -81,13 +83,6 @@ class State(Enum):
 	HIT_PARA = 3
 	ENTERED = 4
 
-class TripleState(Enum):
-	TREND = 0
-	COUNTER = 1
-	FINAL = 2
-	PARA = 3
-	COMPLETE = 4
-
 class Strand(dict):
 	def __init__(self, direction, start):
 		self.direction = direction
@@ -97,22 +92,6 @@ class Strand(dict):
 		self.count = len(strands)
 		self.is_hit = False
 
-	@classmethod
-	def fromDict(cls, dic):
-		cpy = cls(dic['direction'], dic['start'])
-		for key in dic:
-			cpy[key] = dic[key]
-		return cpy
-
-	def __getattr__(self, key):
-		return self[key]
-
-	def __setattr__(self, key, value):
-		self[key] = value
-
-	def __deepcopy__(self, memo):
-		return Strand.fromDict(dict(self))
-
 class Trigger(dict):
 	def __init__(self, direction, start, tradable = False, is_regular = True):
 		self.direction = direction
@@ -120,25 +99,8 @@ class Trigger(dict):
 		self.state = State.SWING_ONE
 		self.tradable = tradable
 		self.is_regular = is_regular
-
-		self.triple_state = TripleState.TREND
-		self.triple_count = 0
-
-	@classmethod
-	def fromDict(cls, dic):
-		cpy = cls(dic['direction'], dic['start'], tradable = dic['tradable'], is_regular = dic['is_regular'])
-		for key in dic:
-			cpy[key] = dic[key]
-		return cpy
-
-	def __getattr__(self, key):
-		return self[key]
-
-	def __setattr__(self, key, value):
-		self[key] = value
-
-	def __deepcopy__(self, memo):
-		return Trigger.fromDict(dict(self))
+		self.is_size_validated = False
+		self.delete = False
 
 class HitStrand(dict):
 	def __init__(self, shift, hit_val = 0):
@@ -150,22 +112,6 @@ class HitStrand(dict):
 			self.to_hit = hit_val
 
 		self.is_hit = False
-
-	@classmethod
-	def fromDict(cls, dic):
-		cpy = cls(0)
-		for key in dic:
-			cpy[key] = dic[key]
-		return cpy
-	
-	def __getattr__(self, key):
-		return self[key]
-
-	def __setattr__(self, key, value):
-		self[key] = value
-
-	def __deepcopy__(self, memo):
-		return HitStrand.fromDict(dict(self))
 	
 	def getToHit(self, shift):
 		for i in range(self.num_points):
@@ -189,7 +135,7 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global reg_sar, slow_sar, black_sar, brown_sar, cci, macd
+	global reg_sar, slow_sar, black_sar, brown_sar, cci, macd, dmi
 
 	utils = utilities
 	brown_sar = utils.SAR(1)
@@ -198,6 +144,7 @@ def init(utilities):
 	black_sar = utils.SAR(4)
 	cci = utils.CCI(5, 1)
 	macd = utils.MACD(6, 1)
+	dmi = utils.DMI(7, 3)
 
 def onStartTrading():
 	''' Function called on trade start time '''
@@ -362,7 +309,7 @@ def handleStopAndReverse(pos, entry):
 	'''
 
 	current_profit = utils.getTotalProfit() + pos.getProfit()
-	loss_limit = -VARIABLES['stoprange'] * 2
+	loss_limit = -VARIABLES['stoprange'] * VARIABLES['maximum_risk']
 	
 	if current_profit < loss_limit or current_profit > VARIABLES['profit_limit']:
 		print("Tradable conditions not met:", str(current_profit))
@@ -382,7 +329,7 @@ def handleRegularEntry(entry):
 	'''
 
 	current_profit = utils.getTotalProfit()
-	loss_limit = -VARIABLES['stoprange'] * 2
+	loss_limit = -VARIABLES['stoprange'] * VARIABLES['maximum_risk']
 
 	if current_profit < loss_limit or current_profit > VARIABLES['profit_limit']:
 		print("Tradable conditions not met:", str(current_profit))
@@ -582,8 +529,13 @@ def runSequence(shift):
 	for trigger in current_triggers:
 		entrySetup(shift, trigger)
 
+	for trigger in current_triggers:
+		if trigger.delete:
+			del current_triggers[current_triggers.index(trigger)]
+
 	entrySetup(shift, re_entry_trigger, no_conf = True)
-	tripleSetup(shift)
+
+	momentumSetup(shift, momentum_trigger)
 
 def getTrigger(shift):
 	''' Form trigger in direction of black cross '''
@@ -602,15 +554,10 @@ def setCurrentTrigger(direction):
 
 	global triple_trigger
 
-	start = getLastStrandStart(direction)
-
-	trigger = Trigger(direction, start)
-	
-	triple_trigger = trigger
-	triple_trigger.is_regular = False
-	
 	if triggerExists(direction):
 		return None
+
+	start = getLastStrandStart(direction)
 
 	trigger = Trigger(direction, start)
 
@@ -668,11 +615,14 @@ def onNewCycle(shift):
 
 		current_brown = HitStrand(shift + 1)
 
+	for trigger in current_triggers:
+		if not trigger.is_size_validated and not trigger.direction == strands[0].direction:
+			trigger.is_size_validated = True
+			
+
 def onSlowCross(shift):
 
 	global cross_strand_long, cross_strand_short, triple_trigger
-
-	to_delete = []
 
 	if hasSlowCrossed(shift, Direction.LONG):
 
@@ -682,10 +632,11 @@ def onSlowCross(shift):
 				trigger.tradable = True
 
 			elif trigger.direction == Direction.SHORT:
-				to_delete.append(current_triggers.index(trigger))
+				trigger.delete = True
 
-		if not triple_trigger == None and triple_trigger.direction == Direction.LONG:
-			triple_trigger = None
+
+		trigger = Trigger(Direction.LONG, 0)
+		momentum_trigger = trigger
 
 		cross_strand_long = None
 		cross_strand_short = None
@@ -697,16 +648,16 @@ def onSlowCross(shift):
 				trigger.tradable = True
 
 			if trigger.direction == Direction.LONG:
-				to_delete.append(current_triggers.index(trigger))
-
-		if not triple_trigger == None and triple_trigger.direction == Direction.SHORT:
-			triple_trigger = None
+				trigger.delete = True
 		
+		trigger = Trigger(Direction.SHORT, 0)
+		momentum_trigger = trigger
+
 		cross_strand_long = None
 		cross_strand_short = None
 
-	for index in to_delete:
-		del current_triggers[index]
+	for trigger in current_triggers:
+		del current_triggers[current_triggers.index(trigger)]
 
 def isCompletedStrand():
 	for strand in strands:
@@ -766,41 +717,32 @@ def entrySetup(shift, trigger, no_conf = False):
 
 	if not trigger == None and trigger.tradable:
 
+		if not isStrandSizeConfirmation(shift, trigger.direction):
+			trigger.delete = True
+			return
+
 		if trigger.state == State.SWING_ONE:
 			if swingOne(shift, trigger.direction):
 				trigger.state = State.HIT_PARA
 
 		elif trigger.state == State.HIT_PARA:
-			if paraHit(shift, trigger.direction, no_conf):
+			if regularParaHit(shift, trigger.direction, no_conf):
 				trigger.state = State.ENTERED
 				confirmation(shift, trigger)
 
-def tripleSetup(shift):
+def momentumSetup(shift, trigger):
+	''' Checks for swing sequence once trigger has been formed '''
 
-	if not triple_trigger == None:
-		
-		if triple_trigger.triple_state == TripleState.TREND:
-			if tripleTrend(shift, triple_trigger.direction):
-				triple_trigger.triple_state = TripleState.COUNTER
+	if not trigger == None:
 
-		elif triple_trigger.triple_state == TripleState.COUNTER:
-			if tripleCounter(shift, triple_trigger.direction):
-				triple_trigger.triple_count += 1
+		if trigger.state == State.SWING_ONE:
+			if isDmiConfirmation(shift, trigger.direction):
+				trigger.state = State.HIT_PARA
 
-				if triple_trigger.triple_count >= 3:
-					triple_trigger.triple_state = TripleState.FINAL
-				else:
-					triple_trigger.triple_state = TripleState.TREND
-
-		elif triple_trigger.triple_state == TripleState.FINAL:
-			if tripleFinal(shift, triple_trigger.direction):
-				triple_trigger.triple_state = TripleState.PARA
-				tripleSetup(shift)
-
-		elif triple_trigger.triple_state == TripleState.PARA:
-			if paraHit(shift, triple_trigger.direction, False):
-				triple_trigger.state = TripleState.COMPLETE
-				confirmation(shift, triple_trigger)
+		elif trigger.state == State.HIT_PARA:
+			if momentumParaHit(shift, trigger.direction):
+				trigger.state = State.ENTERED
+				confirmation(shift, trigger)
 
 def swingOne(shift, direction):
 
@@ -811,14 +753,24 @@ def swingOne(shift, direction):
 
 	return False
 
-def paraHit(shift, direction, no_conf):
+def regularParaHit(shift, direction, no_conf):
 
 	brownHit(shift, direction)
 
 	if no_conf:
 		return True
 	elif current_brown.is_hit and isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
-		if isMacdConfirmation(shift, direction) and isStrandSizeConfirmation(shift, direction):
+		if isMacdConfirmation(shift, direction) and isCciBiasConfirmation(shift, direction) and isBlackPointHitConfirmation(shift, direction):
+			return True
+
+	return False
+
+def momentumParaHit(shift, direction):
+
+	brownHit(shift, direction)
+
+	if current_brown.is_hit and isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
+		if isCciBiasConfirmation(shift, direction):
 			return True
 
 	return False
@@ -872,66 +824,55 @@ def isMacdConfirmation(shift, direction):
 	else:
 		return hist < 0
 
-def isStrandSizeConfirmation(shift, direction):
+def isCciBiasConfirmation(shift, direction):
+	
+	last_chidx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+	chidx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+
+	if direction == Direction.LONG:
+		if chidx > last_chidx:
+			return True
+	else:
+		if chidx < last_chidx:
+			return True
+
+	return False
+
+def isStrandSizeConfirmation(shift):
+
+	if black_sar.strandCount(VARIABLES['TICKETS'][0], shift) <= VARIABLES['strand_size']:
+		return True
+	else:
+		return False
+
+def isBlackPointHitConfirmation(shift, direction):
 	
 	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
 	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
 
 	if strands[0].direction == Direction.LONG:
-		if high > strands[0].start:
+		if strands[0].is_hit or high > strands[0].start:
 			strands[0].is_hit = True
+			return True
 	else:
-		if low < strands[0].start:
+		if strands[0].is_hit or low < strands[0].start:
 			strands[0].is_hit = True
-
-
-	if strands[0].direction == direction:
-		if black_sar.strandCount(VARIABLES['TICKETS'][0], shift) <= VARIABLES['strand_size'] and not strands[0].is_hit:
-			return False
-
-	return True
-
-def tripleTrend(shift, direction):
-
-	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
-
-	if direction == Direction.LONG:
-		if ch_idx > VARIABLES['triple_cross']:
 			return True
-
-	else:
-		if ch_idx < -VARIABLES['triple_cross']:
-			return True
-
+	
 	return False
 
-def tripleCounter(shift, direction):
-
-	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
-
-	if direction == Direction.LONG:
-		if ch_idx < -VARIABLES['triple_cross']:
-			return True
-
-	else:
-		if ch_idx > VARIABLES['triple_cross']:
-			return True
-
-	return False
-
-def tripleFinal(shift, direction):
-
-	ch_idx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+def isDmiConfirmation(shift, direction):
+	plus, minus, adx = dmi.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
 	if direction == Direction.LONG:
-		if ch_idx > VARIABLES['triple_final_cross']:
-			return True
-
+		if plus > VARIABLES['dmi_t_threshold'] and minus < VARIABLES['dmi_ct_threshold']:
+			if adx >= VARIABLES['dmi_spread']:
+				return True
 	else:
-		if ch_idx < VARIABLES['triple_final_cross']:
-			return True
+		if minus > VARIABLES['dmi_t_threshold'] and plus < VARIABLES['dmi_ct_threshold']:
+			if adx >= VARIABLES['dmi_spread']:
+				return True
 
-	return False
 
 def confirmation(shift, trigger):
 	''' Checks for overbought, oversold and confirm entry '''
@@ -1002,31 +943,3 @@ def onBacktestFinish():
 		re_entry_trigger.state = State.SWING_ONE
 
 		pending_entries = []
-
-class SaveState(object):
-	def __init__(self, utils):
-		self.utils = utils
-		self.save_state = self.save()
-		# print("SAVED:", str(self.save_state))
-
-	def save(self):
-		voided_types = [type(i) for sub in self.utils.indicators.values() for i in sub]
-		voided_types.append(type(self.utils))
-		return [
-				copy.deepcopy(attr) for attr in globals().items() 
-				if not attr[0].startswith("__") 
-				and not callable(attr[1]) 
-				and not isinstance(attr[1], types.ModuleType) 
-				and not type(attr[1]) in voided_types 
-				and not attr[0] == 'VARIABLES'
-			]
-
-	def load(self):
-		print("\nLOADING...")
-		print("GLOB:", str([globals()[attr[0]] for i in globals() for attr in self.save_state if i is attr[0]]) + "\n")
-		print("SAVE:", str([attr[1] for attr in self.save_state]) + "\n")
-		for attr in self.save_state:
-			globals()[attr[0]] = attr[1]
-
-		print("NEW\nGLOB:", str([globals()[attr[0]] for i in globals() for attr in self.save_state if i is attr[0]]) + "\n")
-

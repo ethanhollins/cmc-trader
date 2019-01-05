@@ -35,6 +35,7 @@ from CMCTrader.Indicators.RSI import RSI
 from CMCTrader.Indicators.CCI import CCI
 from CMCTrader.Indicators.MACD import MACD
 from CMCTrader.Indicators.ADXR import ADXR
+from CMCTrader.Indicators.DMI import DMI
 
 CMC_WEBSITE = 'https://platform.cmcmarkets.com/'
 
@@ -62,7 +63,7 @@ class Utilities:
 		self.positions = []
 		self.closedPositions = []
 
-		self.ohlc = self._initOHLC()
+		self.ohlc = self._initOHLC() 
 		self.indicators = {"overlays" : [], "studies" : []}
 
 		self.newsTimes = {}
@@ -179,6 +180,12 @@ class Utilities:
 		self.indicators['studies'].append(adxr)
 		self.indicators['studies'].sort(key = lambda x: x.index)
 		return adxr
+
+	def DMI(self, index, count):
+		dmi = DMI(self, index, count)
+		self.indicators['studies'].append(dmi)
+		self.indicators['studies'].sort(key = lambda x: x.index)
+		return dmi
 
 	def convertToPips(self, price):
 		return price / 0.00001 / 10

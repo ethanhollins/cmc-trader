@@ -11,3 +11,4 @@ testdrivers.py
 build
 *.pyx
 setup.py
+old/

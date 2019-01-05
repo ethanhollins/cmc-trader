@@ -412,13 +412,11 @@ class Start(object):
 							self.utils.updateRecovery()
 
 				except StaleElementReferenceException as e:
-					print("ERROR: No internet connection!")
+					print("ERROR: Element not found! Potentially lost internet connection!")
 					print("Refreshing page...")
-					tb = traceback.format_exc()
-					print(tb)
-					self.handleLostConnection()
-					# tb = traceback.format_exc()
-					# self.handleError(e, tb)
+
+					self.handleError(e, tb)
+					
 				except Exception as e:
 					tb = traceback.format_exc()
 					self.handleError(e, tb)
