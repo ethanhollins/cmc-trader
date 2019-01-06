@@ -641,7 +641,7 @@ def onNewCycle(shift):
 
 def onSlowCross(shift):
 
-	global cross_strand_long, cross_strand_short
+	global cross_strand_long, cross_strand_short, momentum_trigger
 
 	if hasSlowCrossed(shift, Direction.LONG):
 
