@@ -880,7 +880,6 @@ def isBlackPointHitConfirmation(shift, direction):
 			return True
 	elif direction == Direction.SHORT and strands[1].direction == Direction.SHORT:
 		if low < strands[1].start:
-			strands[1].is_hit = True
 			return True
 	
 	return False
