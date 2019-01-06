@@ -310,6 +310,7 @@ class Backtester(object):
 				try:
 					self.plan.onStartTrading()
 				except AttributeError as e:
+					print(str(e), "continuing...")
 					pass
 				except Exception as e:
 					print(str(e), "continuing...")
@@ -320,6 +321,7 @@ class Backtester(object):
 			try:
 				self.plan.onLoop()
 			except AttributeError as e:
+				print(str(e), "continuing...")
 				pass
 			except Exception as e:
 				print(traceback.format_exc())
@@ -340,6 +342,7 @@ class Backtester(object):
 				for key in self.utils.newsTimes.copy():
 					self.plan.onNews(key, self.utils.newsTimes[key])
 			except AttributeError as e:
+				print(str(e), "continuing...")
 				pass
 			except Exception as e:
 				print(str(e), "continuing...")
@@ -350,7 +353,8 @@ class Backtester(object):
 				try:
 					self.plan.onFinishTrading()
 				except AttributeError as e:
-					pass
+				print(str(e), "continuing...")
+				pass
 				except Exception as e:
 					print(str(e), "continuing...")
 					return
@@ -363,6 +367,7 @@ class Backtester(object):
 			try:
 				self.plan.onDownTime()
 			except AttributeError as e:
+				print(str(e), "continuing...")
 				pass
 			except Exception as e:
 				print(str(e), "continuing...")

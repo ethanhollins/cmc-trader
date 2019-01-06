@@ -529,7 +529,7 @@ def runSequence(shift):
 	for trigger in current_triggers:
 		entrySetup(shift, trigger)
 
-	for trigger in current_triggers:
+	for trigger in current_triggers.copy():
 		if trigger.delete:
 			del current_triggers[current_triggers.index(trigger)]
 
@@ -540,7 +540,11 @@ def runSequence(shift):
 def getTrigger(shift):
 	''' Form trigger in direction of black cross '''
 
+	print("GET TRIGGER")
+
 	if black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift):
+
+		print("NEW TRIGGER")
 
 		if black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
 			direction = Direction.LONG
