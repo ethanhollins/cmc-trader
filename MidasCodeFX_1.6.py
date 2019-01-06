@@ -547,10 +547,10 @@ def runSequence(shift):
 	for trigger in current_triggers:
 		entrySetup(shift, trigger)
 
-	for trigger in current_triggers.copy():
-		if trigger.delete:
-			print("DELETED IT IN SEQUENCE")
-			del current_triggers[current_triggers.index(trigger)]
+	# for trigger in current_triggers.copy():
+	# 	if trigger.delete:
+	# 		print("DELETED IT IN SEQUENCE")
+	# 		del current_triggers[current_triggers.index(trigger)]
 
 	entrySetup(shift, re_entry_trigger, no_conf = True)
 
@@ -575,7 +575,7 @@ def getTrigger(shift):
 
 def setCurrentTrigger(direction):
 
-	if triggerExists(direction):
+	if triggerExists(direction) or not isStrandSizeConfirmation(1):
 		return
 
 	start = getLastStrandStart(direction)
@@ -742,10 +742,10 @@ def entrySetup(shift, trigger, no_conf = False):
 
 	if not trigger == None and trigger.tradable:
 
-		if not isStrandSizeConfirmation(shift):
-			print("DELETED IT")
-			trigger.delete = True
-			return
+		# if not isStrandSizeConfirmation(shift):
+		# 	print("DELETED IT")
+		# 	trigger.delete = True
+		# 	return
 
 		if trigger.state == State.SWING_ONE:
 			if swingOne(shift, trigger.direction):
