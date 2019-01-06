@@ -552,11 +552,6 @@ def getTrigger(shift):
 
 def setCurrentTrigger(direction):
 
-	global triple_trigger
-
-	if triggerExists(direction):
-		return None
-
 	start = getLastStrandStart(direction)
 
 	trigger = Trigger(direction, start)
@@ -622,7 +617,7 @@ def onNewCycle(shift):
 
 def onSlowCross(shift):
 
-	global cross_strand_long, cross_strand_short, triple_trigger
+	global cross_strand_long, cross_strand_short
 
 	if hasSlowCrossed(shift, Direction.LONG):
 
@@ -896,8 +891,6 @@ def report():
 
 	if not re_entry_trigger == None:
 		print("RE-ENTRY TRIGGER:\n ", str(re_entry_trigger))
-
-	print("TRIPLE SWING TRIGGER:\n", str(triple_trigger))
 
 	print("CLOSED POSITIONS:")
 	count = 0
