@@ -575,6 +575,9 @@ def getTrigger(shift):
 
 def setCurrentTrigger(direction):
 
+	if triggerExists(direction):
+		return
+
 	start = getLastStrandStart(direction)
 
 	trigger = Trigger(direction, start)
