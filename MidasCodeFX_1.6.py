@@ -759,6 +759,7 @@ def momentumSetup(shift, trigger):
 		if trigger.state == State.SWING_ONE:
 			if isDmiConfirmation(shift, trigger.direction):
 				trigger.state = State.HIT_PARA
+				momentumSetup(shift, trigger)
 
 		elif trigger.state == State.HIT_PARA:
 			if momentumParaHit(shift, trigger.direction):
@@ -883,7 +884,7 @@ def isBlackPointHitConfirmation(shift, direction):
 	return False
 
 def isDmiConfirmation(shift, direction):
-	plus, minus, adx = dmi.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+	plus, minus, adx = dmi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 	if direction == Direction.LONG:
 		if plus > VARIABLES['dmi_t_threshold'] and minus < VARIABLES['dmi_ct_threshold']:
