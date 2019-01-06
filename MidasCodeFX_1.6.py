@@ -791,6 +791,8 @@ def momentumParaHit(shift, direction):
 
 	brownHit(shift, direction)
 
+	print("brown:", str(current_brown.is_hit), "bias:", str(isCciBiasConfirmation(shift, direction)))
+
 	if current_brown.is_hit and isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
 		if isCciBiasConfirmation(shift, direction):
 			return True
