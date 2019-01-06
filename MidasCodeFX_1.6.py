@@ -92,6 +92,12 @@ class Strand(dict):
 		self.count = len(strands)
 		self.is_hit = False
 
+		def __getattr__(self, key):
+		return self[key]
+
+		def __setattr__(self, key, value):
+			self[key] = value
+
 class Trigger(dict):
 	def __init__(self, direction, start, tradable = False, is_regular = True):
 		self.direction = direction
@@ -101,6 +107,12 @@ class Trigger(dict):
 		self.is_regular = is_regular
 		self.is_size_validated = False
 		self.delete = False
+
+		def __getattr__(self, key):
+		return self[key]
+
+		def __setattr__(self, key, value):
+			self[key] = value
 
 class HitStrand(dict):
 	def __init__(self, shift, hit_val = 0):
@@ -113,6 +125,12 @@ class HitStrand(dict):
 
 		self.is_hit = False
 	
+	def __getattr__(self, key):
+		return self[key]
+
+	def __setattr__(self, key, value):
+		self[key] = value
+
 	def getToHit(self, shift):
 		for i in range(self.num_points):
 			current_shift = shift + i
@@ -559,6 +577,7 @@ def setCurrentTrigger(direction):
 	start = getLastStrandStart(direction)
 
 	trigger = Trigger(direction, start)
+	print(trigger)
 
 	current_triggers.append(trigger)
 
