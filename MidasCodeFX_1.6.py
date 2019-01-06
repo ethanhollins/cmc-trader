@@ -655,6 +655,7 @@ def onSlowCross(shift):
 
 
 		trigger = Trigger(Direction.LONG, 0)
+		trigger.is_regular = False
 		momentum_trigger = trigger
 
 		cross_strand_long = None
@@ -670,6 +671,7 @@ def onSlowCross(shift):
 				trigger.delete = True
 		
 		trigger = Trigger(Direction.SHORT, 0)
+		trigger.is_regular = False
 		momentum_trigger = trigger
 
 		cross_strand_long = None
