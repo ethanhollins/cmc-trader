@@ -784,6 +784,8 @@ def regularParaHit(shift, direction, no_conf):
 
 	brownHit(shift, direction)
 
+	print(isBlackPointHitConfirmation(shift, direction))
+
 	if no_conf:
 		return True
 	elif current_brown.is_hit and isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
@@ -879,13 +881,13 @@ def isBlackPointHitConfirmation(shift, direction):
 	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
 	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
 
-	if strands[0].direction == Direction.LONG:
-		if strands[0].is_hit or high > strands[0].start:
-			strands[0].is_hit = True
+	if direction == Direction.LONG and strands[1].direction == Direction.LONG:
+		if strands[1].is_hit or high > strands[1].start:
+			strands[1].is_hit = True
 			return True
-	else:
-		if strands[0].is_hit or low < strands[0].start:
-			strands[0].is_hit = True
+	elif direction == Direction.SHORT and strands[1].direction == Direction.SHORT:
+		if strands[1].is_hit or low < strands[1].start:
+			strands[1].is_hit = True
 			return True
 	
 	return False
