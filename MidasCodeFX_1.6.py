@@ -850,7 +850,7 @@ def isMacdConfirmation(shift, direction):
 
 def isCciBiasConfirmation(shift, direction):
 	
-	last_chidx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+	last_chidx = cci.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0][0]
 	chidx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
 	if direction == Direction.LONG:
