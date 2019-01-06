@@ -353,8 +353,8 @@ class Backtester(object):
 				try:
 					self.plan.onFinishTrading()
 				except AttributeError as e:
-				print(str(e), "continuing...")
-				pass
+					print(str(e), "continuing...")
+					pass
 				except Exception as e:
 					print(str(e), "continuing...")
 					return
