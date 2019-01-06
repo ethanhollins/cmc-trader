@@ -676,7 +676,8 @@ def onSlowCross(shift):
 		cross_strand_short = None
 
 	for trigger in current_triggers:
-		del current_triggers[current_triggers.index(trigger)]
+		if trigger.delete:
+			del current_triggers[current_triggers.index(trigger)]
 
 def isCompletedStrand():
 	for strand in strands:
