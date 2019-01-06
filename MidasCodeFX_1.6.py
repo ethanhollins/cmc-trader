@@ -763,15 +763,10 @@ def momentumSetup(shift, trigger):
 	if not trigger == None:
 
 		if trigger.state == State.SWING_ONE:
-			if isDmiConfirmation(shift, trigger.direction):
-				trigger.state = State.HIT_PARA
-				momentumSetup(shift, trigger)
-
-		elif trigger.state == State.HIT_PARA:
 			if momentumParaHit(shift, trigger.direction):
 				trigger.state = State.ENTERED
 				confirmation(shift, trigger)
-
+				
 def swingOne(shift, direction):
 
 	print("swingOne")
@@ -802,7 +797,7 @@ def momentumParaHit(shift, direction):
 	print("brown:", str(current_brown.is_hit), "bias:", str(isCciBiasConfirmation(shift, direction)))
 
 	if current_brown.is_hit and isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
-		if isCciBiasConfirmation(shift, direction):
+		if isCciBiasConfirmation(shift, direction) and isDmiConfirmation(shift, trigger.direction):
 			return True
 
 	return False
