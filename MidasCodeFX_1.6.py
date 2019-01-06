@@ -737,7 +737,7 @@ def entrySetup(shift, trigger, no_conf = False):
 
 	if not trigger == None and trigger.tradable:
 
-		if not isStrandSizeConfirmation(shift, trigger.direction):
+		if not isStrandSizeConfirmation(shift):
 			print("DELETED IT")
 			trigger.delete = True
 			return
