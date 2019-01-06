@@ -919,6 +919,9 @@ def report():
 	if not re_entry_trigger == None:
 		print("RE-ENTRY TRIGGER:\n ", str(re_entry_trigger))
 
+	if not momentum_trigger == None:
+		print("MOMENTUM TRIGGER:\n", str(momentum_trigger))
+
 	print("CLOSED POSITIONS:")
 	count = 0
 	for pos in utils.closedPositions:
