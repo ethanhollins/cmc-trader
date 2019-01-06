@@ -36,7 +36,8 @@ VARIABLES = {
 	'DMI' : None,
 	'dmi_t_threshold' : 24,
 	'dmi_ct_threshold' : 18,
-	'dmi_spread' : 10
+	'dmi_spread' : 10,
+	'dmi_adx' : 21
 }
 
 class SortedList(list):
@@ -896,12 +897,12 @@ def isDmiConfirmation(shift, direction):
 	plus, minus, adx = dmi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 	if direction == Direction.LONG:
-		if plus > VARIABLES['dmi_t_threshold'] and minus < VARIABLES['dmi_ct_threshold']:
-			if adx >= VARIABLES['dmi_spread']:
+		if plus > VARIABLES['dmi_t_threshold'] and minus < VARIABLES['dmi_ct_threshold'] and abs(plus - minus) >= VARIABLES['dmi_spread']:
+			if adx >= VARIABLES['dmi_adx']:
 				return True
 	else:
-		if minus > VARIABLES['dmi_t_threshold'] and plus < VARIABLES['dmi_ct_threshold']:
-			if adx >= VARIABLES['dmi_spread']:
+		if minus > VARIABLES['dmi_t_threshold'] and plus < VARIABLES['dmi_ct_threshold'] and abs(plus - minus) >= VARIABLES['dmi_spread']:
+			if adx >= VARIABLES['dmi_adx']:
 				return True
 
 
