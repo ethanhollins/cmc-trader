@@ -360,61 +360,61 @@ class Start(object):
 
 						self.utils.updatePositions()
 
-						# try:
-						wait = ui.WebDriverWait(self.driver, 59, poll_frequency=5)
-						wait.until(lambda driver : self.updateBar())
-					
-					
-						# self.utils.save_state = self.plan.SaveState(self.utils)
-
-						missingTimestamps = self.utils.recoverMissingValues()
-						if (len(missingTimestamps) > 0):
-
-							for pair in missingTimestamps:
-								self.utils.refreshValues(pair, missingTimestamps[pair])
-
+						try:
+							wait = ui.WebDriverWait(self.driver, 59, poll_frequency=5)
+							wait.until(lambda driver : self.updateBar())
+						
+						
 							# self.utils.save_state = self.plan.SaveState(self.utils)
 
-						if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
-							if (self.isDowntime):
+							missingTimestamps = self.utils.recoverMissingValues()
+							if (len(missingTimestamps) > 0):
+
+								for pair in missingTimestamps:
+									self.utils.refreshValues(pair, missingTimestamps[pair])
+
+								# self.utils.save_state = self.plan.SaveState(self.utils)
+
+							if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
+								if (self.isDowntime):
+									try:
+										self.plan.onStartTrading()
+									except AttributeError as e:
+										pass
+									self.isDowntime = False
+
+								# try:
+								self.plan.onNewBar()
+								# except AttributeError as e:
+								# 	pass
 								try:
-									self.plan.onStartTrading()
+									for key in self.utils.newsTimes.copy():
+										self.plan.onNews(key, self.utils.newsTimes[key])
 								except AttributeError as e:
 									pass
-								self.isDowntime = False
+							else:
+								self.utils.setTradeTimes()
 
-							# try:
-							self.plan.onNewBar()
-							# except AttributeError as e:
-							# 	pass
-							try:
-								for key in self.utils.newsTimes.copy():
-									self.plan.onNews(key, self.utils.newsTimes[key])
-							except AttributeError as e:
-								pass
-						else:
-							self.utils.setTradeTimes()
-
-							try:
-								self.plan.onDownTime()
-							except AttributeError as e:
-								pass
-								
-							if (not self.isDowntime):
 								try:
-									self.plan.onFinishTrading()
+									self.plan.onDownTime()
 								except AttributeError as e:
 									pass
-								if (len(self.utils.closedPositions) > 0):
-									# for pos in closedPositions:
-									self.utils.closedPositions = []
-								self.isDowntime = True
+									
+								if (not self.isDowntime):
+									try:
+										self.plan.onFinishTrading()
+									except AttributeError as e:
+										pass
+									if (len(self.utils.closedPositions) > 0):
+										# for pos in closedPositions:
+										self.utils.closedPositions = []
+									self.isDowntime = True
 
-						self.utils.updateRecovery()
-						# except Exception as e:
-						# 	print(e)
-						# 	print("Unable to update bar!")
-						# 	pass
+							self.utils.updateRecovery()
+						except Exception as e:
+							print(e)
+							print("Unable to update bar!")
+							pass
 
 				except StaleElementReferenceException as e:
 					print("ERROR: Element not found! Potentially lost internet connection!")
