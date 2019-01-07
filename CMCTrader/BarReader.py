@@ -756,9 +756,10 @@ class BarReader(object):
 
 	def _isCurrentBar(self, chart, canvas, pair, xOff):
 		self.moveMouse()
+		print("Attempting to capture bar!")
 
 		try:
-			wait = ui.WebDriverWait(self.driver, 59, poll_frequency=0.05)
+			wait = ui.WebDriverWait(self.driver, 5, poll_frequency=0.05)
 			wait.until(lambda driver : self._checkTimestampIsCurrent(chart, canvas, pair, xOff))
 		except:
 			return False

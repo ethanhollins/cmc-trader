@@ -359,11 +359,12 @@ class Start(object):
 						self.reinitBtns()
 
 						self.utils.updatePositions()
-						self.utils.refreshAll()
-						isUpdated = self.utils.updateValues()
-						
-						if (isUpdated):
 
+						try:
+							wait = ui.WebDriverWait(self.driver, 59, poll_frequency=5)
+							wait.until(lambda driver : self.updateBar())
+						
+						
 							# self.utils.save_state = self.plan.SaveState(self.utils)
 
 							missingTimestamps = self.utils.recoverMissingValues()
@@ -410,6 +411,9 @@ class Start(object):
 									self.isDowntime = True
 
 							self.utils.updateRecovery()
+						except:
+							print("Unable to update bar!")
+							pass
 
 				except StaleElementReferenceException as e:
 					print("ERROR: Element not found! Potentially lost internet connection!")
@@ -507,15 +511,22 @@ class Start(object):
 	# 		return
 
 	def needsUpdate(self):
-		if len(self.utils.latestTimestamp) <= 0:
+		sorted_timestamps = [i[0] for i in sorted(self.utils.ohlc[Constants.GBPUSD].items(), key=lambda kv: kv[0], reverse=True)]
+		if len(sorted_timestamps) <= 0:
+			return True
+		
+		latest_timestamp = sorted_timestamps[0]
+
+		last_time = self.utils.convertTimestampToTime(latest_timestamp)
+		current_minute = int(self.minutes_elem.text)
+		if not last_time.minute == current_minute - 1:
 			return True
 
-		for pair in self.utils.latestTimestamp:
-			last_time = self.utils.convertTimestampToTime(self.utils.latestTimestamp[pair])
-			current_minute = int(self.minutes_elem.text)
-			if not last_time.minute == current_minute - 1:
-				return True
 		return False
+
+	def updateBar():
+		self.utils.refreshAll()
+		return self.utils.updateValues()
 
 	def timedRestart(self):
 		tz = pytz.timezone('Europe/London')
