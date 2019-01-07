@@ -525,7 +525,7 @@ class Start(object):
 
 		return False
 
-	def updateBar():
+	def updateBar(self):
 		self.utils.refreshAll()
 		return self.utils.updateValues()
 
