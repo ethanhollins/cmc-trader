@@ -758,7 +758,7 @@ class BarReader(object):
 		self.moveMouse()
 		print("Attempting to capture bar!")
 
-		# start_time = time.time()
+		self.start_time = time.time()
 
 		try:
 			wait = ui.WebDriverWait(self.driver, 59, poll_frequency=0.05)
@@ -783,6 +783,9 @@ class BarReader(object):
 
 			if timestamp_mins < mins - 2:
 				self.utils.refreshChart(pair)
+				return False
+			elif time.time() - self.start_time > 5:
+				self.start_time = time.time()
 				return False
 
 			return (mins - 1) == timestamp_mins
