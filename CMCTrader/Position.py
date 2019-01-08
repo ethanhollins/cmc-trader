@@ -9,40 +9,88 @@ import threading
 
 from CMCTrader.Backtester import Backtester
 
-def stopandreverse_redirect_backtest(func):
-	def wrapper(self, lotsize, sl = 0, tp = 0):
-		if (not self.utils.backtester.isNotBacktesting()):
+def close_redirect(func):
+	def wrapper(*args, **kwargs):
+		self = args[0]
+		if self.utils.backtester.isBacktesting():
+			print("IS BACKTESTING")
+
+			self.closeTime = self.utils.getAustralianTime()
+
+			self.utils.closedPositions.append(self)
+			del self.utils.positions[self.utils.positions.index(self)]
+		elif self.utils.backtester.isRecover():
+			print("IS RECOVER")
+			self.utils.backtester.actions.append(self, Backtester.ActionType.CLOSE, Backtester.current_timestamp, args = args, kwargs = kwargs)
+		else:
+			print("IS NONE")
+			return func(*args, **kwargs)
+	return wrapper
+
+def stopandreverse_redirect(func):
+	def wrapper(*args, **kwargs):
+		self = args[0]
+		if self.utils.backtester.isBacktesting():
+			print("IS BACKTESTING")
 			if (self.direction == 'buy'):
-				newPos = self.utils.sell(int(self.lotsize + lotsize), pairs = [self.pair], sl = sl, tp = tp)
+				newPos = self.utils.sell(int(self.lotsize + args[1]), pairs = [self.pair], sl = args[2], tp = args[3])
 			elif (self.direction == 'sell'):
-				newPos = self.utils.buy(int(self.lotsize + lotsize), pairs = [self.pair], sl = sl, tp = tp)
+				newPos = self.utils.buy(int(self.lotsize + args[1]), pairs = [self.pair], sl = args[2], tp = args[3])
 
 			self.closeprice = self.utils.getBid(self.pair)
 			self.closeTime = self.utils.getAustralianTime()
 
 			self.utils.closedPositions.append(self)
 			del self.utils.positions[self.utils.positions.index(self)]
+		elif self.utils.backtester.isRecover():
+			print("IS RECOVER")
+			self.utils.backtester.actions.append(self, Backtester.ActionType.STOP_AND_REVERSE, Backtester.current_timestamp, args = args, kwargs = kwargs)
 		else:
-			return func(self, lotsize, sl, tp)
+			print("IS NONE")
+			return func(*args, **kwargs)
 	return wrapper
 
-def close_redirect_backtest(func):
+def function_redirect(func):
+	name = func.__name__
+	if name == 'modifyPositionSize':
+		action = Backtester.ActionType.MODIFY_POS_SIZE
+	elif name == 'modifyTrailing':
+		action = Backtester.ActionType.MODIFY_TRAILING
+	elif name == 'modifySL':
+		action = Backtester.ActionType.MODIFY_SL
+	elif name == 'modifyTP':
+		action = Backtester.ActionType.MODIFY_TP
+	elif name == 'removeSL':
+		action = Backtester.ActionType.REMOVE_SL
+	elif name == 'removeTP':
+		action = Backtester.ActionType.REMOVE_TP
+	elif name == 'apply':
+		action = Backtester.ActionType.APPLY
+	elif name == 'modifyEntryPrice':
+		action = Backtester.ActionType.MODIFY_ENTRY_PRICE
+	elif name == 'cancel':
+		action = Backtester.ActionType.CANCEL
+	else:
+		return
+
 	def wrapper(*args, **kwargs):
 		self = args[0]
-		if (not self.utils.backtester.isNotBacktesting()):
-
-			self.closeTime = self.utils.getAustralianTime()
-
-			self.utils.closedPositions.append(self)
-			del self.utils.positions[self.utils.positions.index(self)]
+		if self.utils.backtester.isBacktesting():
+			print("IS BACKTESTING")
+			return
+		elif self.utils.backtester.isRecover():
+			print("IS RECOVER")
+			self.utils.backtester.actions.append(self, action, Backtester.current_timestamp, args = args, kwargs = kwargs)
 		else:
+			print("IS NONE")
 			return func(*args, **kwargs)
 	return wrapper
 
 def breakeven_redirect_backtest(func):
 	def wrapper(*args, **kwargs):
 		self = args[0]
-		if (not self.utils.backtester.isNotBacktesting()):
+		if self.utils.backtester.isBacktesting():
+			print("IS BACKTESTING")
 
 			if (self.direction == 'buy'):
 				if (self.utils.getBid(self.pair) > self.entryprice):
@@ -55,8 +103,11 @@ def breakeven_redirect_backtest(func):
 					self.sl = self.entryprice
 				elif (self.utils.getAsk(self.pair) > self.entryprice):
 					self.tp = self.entryprice
-
+		elif self.utils.backtester.isRecover():
+			print("IS RECOVER")
+			self.utils.backtester.actions.append(self, Backtester.ActionType.BREAKEVEN, Backtester.current_timestamp, args = args, kwargs = kwargs)
 		else:
+			print("IS NONE")
 			return func(*args, **kwargs)
 	return wrapper
 
@@ -96,52 +147,8 @@ class Position(object):
 		self.modifyTicket = None
 		self.modifyTicketElements = None
 
-	@stopandreverse_redirect_backtest
-	def stopAndReverse(self, lotsize, sl = 0, tp = 0):
-		newPos = None
-		if (self.direction == 'buy'):
-			newPos = self.utils.sell(int(self.lotsize + lotsize), pairs = [self.pair], sl = sl, tp = tp)
-		elif (self.direction == 'sell'):
-			newPos = self.utils.buy(int(self.lotsize + lotsize), pairs = [self.pair], sl = sl, tp = tp)
-
-		wait = ui.WebDriverWait(self.driver, 10)
-		wait.until(lambda driver : self.utils.historyLog.getEvent(self, ['Buy Trade', 'Sell Trade', 'Close Trade']) is not None)
-		events = self.utils.historyLog.getEvent(self, ['Buy Trade', 'Sell Trade', 'Close Trade'])	
-		print("EVENTS: ", str(events))
-
-		for event in events:
-			self.utils.updateEvent(event)
-
-		return newPos
-
-	@Backtester.redirect_backtest
-	def modifyPositionSize(self, newSize):
-		self.ticket.makeVisible()
-
-		if (newSize > self.lotsize and (newSize - self.lotsize) >= 400):
-			if (self.direction == 'buy'):
-				self.ticket.selectBuy()
-			elif (self.direction == 'sell'):
-				self.ticket.selectSell()
-
-			self.ticket.setMarketOrder()
-			self.ticket.setLotsize(int(newSize - self.lotsize))
-
-			self.ticket.placeOrder()
-			self.lotsize = int(newSize - self.lotsize)
-		elif (newSize < self.lotsize and (self.lotsize - newSize) >= 400):
-			if (self.direction == 'buy'):
-				self.ticket.selectSell()
-			elif (self.direction == 'sell'):
-				self.ticket.selectBuy()
-
-			self.ticket.setMarketOrder()
-			self.ticket.setLotsize(int(self.lotsize - newSize))
-
-			self.ticket.placeOrder()
-			self.lotsize = int(self.lotsize - newSize)
-		else:
-			print("ERROR: Unable to change position size, check if size change is greater than 400!")
+		global this_pos
+		this_pos = self
 
 	def _getModifyBtn(self):
 
@@ -233,7 +240,55 @@ class Position(object):
 				self.modifyTicket, self.isPending
 			)
 
-	@Backtester.redirect_backtest
+	@stopandreverse_redirect
+	def stopAndReverse(self, lotsize, sl = 0, tp = 0):
+		newPos = None
+		if (self.direction == 'buy'):
+			newPos = self.utils.sell(int(self.lotsize + lotsize), pairs = [self.pair], sl = sl, tp = tp)
+		elif (self.direction == 'sell'):
+			newPos = self.utils.buy(int(self.lotsize + lotsize), pairs = [self.pair], sl = sl, tp = tp)
+
+		wait = ui.WebDriverWait(self.driver, 10)
+		wait.until(lambda driver : self.utils.historyLog.getEvent(self, ['Buy Trade', 'Sell Trade', 'Close Trade']) is not None)
+		events = self.utils.historyLog.getEvent(self, ['Buy Trade', 'Sell Trade', 'Close Trade'])	
+		print("EVENTS: ", str(events))
+
+		for event in events:
+			self.utils.updateEvent(event)
+
+		return newPos
+
+	@function_redirect
+	def modifyPositionSize(self, newSize):
+		self.ticket.makeVisible()
+
+		if (newSize > self.lotsize and (newSize - self.lotsize) >= 400):
+			if (self.direction == 'buy'):
+				self.ticket.selectBuy()
+			elif (self.direction == 'sell'):
+				self.ticket.selectSell()
+
+			self.ticket.setMarketOrder()
+			self.ticket.setLotsize(int(newSize - self.lotsize))
+
+			self.ticket.placeOrder()
+			self.lotsize = int(newSize - self.lotsize)
+		elif (newSize < self.lotsize and (self.lotsize - newSize) >= 400):
+			if (self.direction == 'buy'):
+				self.ticket.selectSell()
+			elif (self.direction == 'sell'):
+				self.ticket.selectBuy()
+
+			self.ticket.setMarketOrder()
+			self.ticket.setLotsize(int(self.lotsize - newSize))
+
+			self.ticket.placeOrder()
+			self.lotsize = int(self.lotsize - newSize)
+		else:
+			print("ERROR: Unable to change position size, check if size change is greater than 400!")
+
+
+	@function_redirect
 	def modifyTrailing(self, stop_loss):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -250,7 +305,7 @@ class Position(object):
 
 		self._clickTrailingStop()
 
-	@Backtester.redirect_backtest
+	@function_redirect
 	def modifySL(self, stopLoss):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -267,7 +322,7 @@ class Position(object):
 
 		print("Modified stoploss to " + str(stopLoss) + ".")
 
-	@Backtester.redirect_backtest
+	@function_redirect
 	def removeSL(self):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -278,7 +333,7 @@ class Position(object):
 
 		print("Removed stoploss.")
 
-	@Backtester.redirect_backtest
+	@function_redirect
 	def modifyTP(self, takeProfit):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -291,7 +346,7 @@ class Position(object):
 			)
 		print("Modified take profit to " + str(takeProfit) + ".")
 
-	@Backtester.redirect_backtest
+	@function_redirect
 	def removeTP(self):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -346,7 +401,7 @@ class Position(object):
 
 		print("Set position to breakeven.")
 
-	@Backtester.redirect_backtest
+	@function_redirect
 	def breakevenSL(self):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -373,7 +428,7 @@ class Position(object):
 
 		print("Set position breakeven stoploss.")
 
-	@Backtester.redirect_backtest
+	@function_redirect
 	def breakevenTP(self):
 		if self.modifyTicket is None:
 			if (not self.utils.positionExists(self)):
@@ -396,7 +451,7 @@ class Position(object):
 
 		print("Set position breakeven take profit.")
 
-	@Backtester.bool_redirect_backtest
+	@function_redirect
 	def apply(self):
 		if self.modifyTicket is None:
 			return True
@@ -451,7 +506,7 @@ class Position(object):
 			print("Position modifications applied")
 			return True
 
-	@close_redirect_backtest
+	@close_redirect
 	def close(self):
 		if (self.isPending):
 			print("Cannot close an order!")
@@ -500,7 +555,7 @@ class Position(object):
 
 		print("Position closed (" + str(self.closeTime) + ") at " + str(self.closeprice))
 
-	@Backtester.redirect_backtest
+	@function_redirect
 	def modifyEntryPrice(self, price):
 		if (not self.isPending):
 			print("Cannot modify entry price of a position!")
@@ -529,6 +584,7 @@ class Position(object):
 
 		print("Modified entry price to " + str(price) + ".")
 
+	@function_redirect
 	def cancel(self):
 		if (not self.isPending):
 			print("Cannot cancel a position!")
@@ -588,7 +644,7 @@ class Position(object):
 			)
 		return "New" in html or "Amend" in html
 
-	@close_redirect_backtest
+	@close_redirect
 	def quickExit(self):
 		if (self.utils.positionExists(self)):
 			if (self.utils.getPositionAmount(self.pair) > 1):

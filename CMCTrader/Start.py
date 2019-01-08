@@ -512,7 +512,8 @@ class Start(object):
 			self.restartCMC()
 
 	def restartCMC(self, firstInit = False):
-		self.initDriver()
+		# self.initDriver()
+		self.driver.get(CMC_WEBSITE)
 
 		while 'login' not in self.driver.current_url:
 			pass

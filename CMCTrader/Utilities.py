@@ -943,8 +943,11 @@ class Utilities:
 		return timestamps[0]
 
 	def getLatestTimestamp(self, timestamps):
-		timestamps.sort()
+		timestamps.sort(reverse = True)
 		return timestamps[0]
+
+	def getCurrentLatestTimestamp(self):
+		return [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)][0]
 
 	def getBarOffset(self, timestamp):
 		currentTime = self.getCurrentTimestamp()

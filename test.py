@@ -17,6 +17,8 @@ trig = None
 
 sl = 20
 
+count = 0
+
 class Trigger(dict):
 	def __init__(self, txt):
 		self.txt1 = txt
@@ -67,12 +69,13 @@ def onLoop():
 def onNewBar():
 	print("onNewBar\n")
 
-	global sl
-
-	pos.modifySL(sl)
-	pos.apply()
-
-	sl += 1
+	global count
+	count += 1
+	print("Count:",str(count))
+	if count == 3:
+		pos.modifyTP(1.5)
+		pos.modifySL(1.2)
+		pos.apply()
 
 def onDownTime():
 	print("onDownTime")

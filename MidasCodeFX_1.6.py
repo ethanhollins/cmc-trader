@@ -322,7 +322,6 @@ def handleEntries():
 					print("Attempting position enter short: regular")
 					handleRegularEntry(entry)
 
-@Backtester.skip_on_recover
 def handleStopAndReverse(pos, entry):
 	''' 
 	Handle stop and reverse entries 
@@ -342,7 +341,6 @@ def handleStopAndReverse(pos, entry):
 
 	del pending_entries[pending_entries.index(entry)]
 
-@Backtester.skip_on_recover
 def handleRegularEntry(entry):
 	''' 
 	Handle regular entries 
@@ -396,7 +394,6 @@ def handleStop():
 					stop_state = StopState.BREAKEVEN
 					del pending_breakevens[pending_breakevens.index(pos)]
 
-@Backtester.skip_on_recover
 def handleExits(shift):
 
 	global pending_exits
@@ -944,28 +941,3 @@ def report():
 		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit())
 
 	print("--|\n")
-
-def onMissedEntry(*args, **kwargs):
-
-	global pending_entries, re_entry_trigger
-
-	if args[1] == 'buy':
-		direction = Direction.LONG
-	else:
-		direction = Direction.SHORT
-
-	re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_regular = False)
-	re_entry_trigger.state = State.SWING_ONE
-
-	pending_entries = []
-
-def onBacktestFinish():
-	global pending_entries
-
-	if len(pending_entries) > 0:
-		entry = pending_entries[-1]
-
-		re_entry_trigger = Trigger(entry.direction, entry.start, tradable = False, is_regular = False)
-		re_entry_trigger.state = State.SWING_ONE
-
-		pending_entries = []

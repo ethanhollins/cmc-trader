@@ -11,10 +11,36 @@ class State(Enum):
 	RECOVER = 2
 	BACKTEST = 3
 
-state = State.NONE
-current_timestamp = 0
-pair = None
-sorted_timestamps = []
+class ActionType(Enum):
+	CLOSE = 0
+	ENTER = 1
+	STOP_AND_REVERSE = 2
+	MODIFY_POS_SIZE = 3
+	MODIFY_TRAILING = 4
+	MODIFY_SL = 5
+	MODIFY_TP = 6
+	REMOVE_SL = 7
+	REMOVE_TP = 8
+	BREAKEVEN = 9
+	APPLY = 10
+	CANCEL = 11
+	MODIFY_ENTRY_PRICE = 12
+
+class Action(object):
+	def __init__(self, position, action, timestamp, args = None, kwargs = None):
+		self.position = position
+		self.action = action
+		self.args = args
+		self.kwargs = kwargs
+		self.timestamp = timestamp
+
+if __name__ == '__main__':
+	global state, current_timestamp, pair, sorted_timestamps
+
+	state = State.NONE
+	current_timestamp = 0
+	pair = None
+	sorted_timestamps = []
 
 class Backtester(object):
 
@@ -24,6 +50,8 @@ class Backtester(object):
 
 		self.down_time = True
 		self.has_run = False
+
+		self.actions = []
 		
 	def runOnce(func):
 		def wrapper(*args, **kwargs):
@@ -230,11 +258,6 @@ class Backtester(object):
 
 				input("Press enter to continue...")
 
-		try:
-			self.plan.onBacktestFinish()
-		except AttributeError as e:
-			pass
-
 		print(t.time() - start_time)
 
 		state = State.NONE
@@ -243,6 +266,9 @@ class Backtester(object):
 		global state, pair, current_timestamp, sorted_timestamps
 		state = State.RECOVER
 		self.has_run = False
+
+		self.actions = []
+		self.history = []
 
 		position_logs = None
 
@@ -275,6 +301,7 @@ class Backtester(object):
 						print("LOG:", str(position_logs))
 
 					for log in position_logs:
+						self.history.append(log)
 						self.utils.updateEvent(log)
 					
 					self.insertValuesByTimestamp(timestamp, pair, ohlc, indicators)
@@ -283,10 +310,7 @@ class Backtester(object):
 
 					self.runMainLoop(time)
 
-		try:
-			self.plan.onBacktestFinish()
-		except AttributeError as e:
-			pass
+		self.updatePositions()
 
 		state = State.NONE
 
@@ -432,6 +456,87 @@ class Backtester(object):
 			]
 
 		return self.utils.historyLog.updateHistoryByTimestamp(listenedTypes, timestamp)
+
+	def updatePositions(self):
+		latest_history_timestamp = sorted(self.history, key=lambda x: x[1], reverse = True)[0]
+		updates = [i for i in actions if i.timestamp < latest_history_timestamp]
+
+		print("Before:", str(updates))
+
+		new_index = 0
+
+		for i in range(len(updates)):
+			if (
+				updates[i].action == ActionType.CLOSE
+				or update.action == ActionType.STOP_AND_REVERSE
+				):
+				new_index = i
+
+		updates = updates[new_index:]
+
+		print("After:", str(updates))
+
+		for update in updates:
+			if len(self.utils.positions) > 0:
+				current_pos = self.utils.positions[0]
+			else:
+				current_pos = None
+
+			if update.action == ActionType.ENTER:
+				if update.position.direction == 'buy':
+					self.utils.buy(*update.args)
+				else:
+					self.utils.sell(*update.args)
+			if update.action == ActionType.STOP_AND_REVERSE:
+				if not current_pos == None:
+					if update.position.direction == current_pos.direction:
+						current_pos.stopAndReverse()
+				else:
+					if update.position.direction == 'buy':
+						self.utils.buy(update.args[1], sl = args[2], tp = args[3])
+					else:
+						self.utils.sell(update.args[1], sl = args[2], tp = args[3])
+			
+			if not current_pos == None:
+				if update.action == ActionType.CLOSE:
+					if update.position.direction == current_pos.direction:
+						current_pos.close()
+					
+				elif update.action == ActionType.MODIFY_POS_SIZE:
+					if update.position.direction == current_pos.direction:
+						current_pos.modifyPositionSize(*update.args, **update.kwargs)
+
+				elif update.action == ActionType.MODIFY_TRAILING:
+					if update.position.direction == current_pos.direction:
+						current_pos.modifyTrailing(*update.args, **update.kwargs)
+
+				elif update.action == ActionType.MODIFY_SL:
+					if update.position.direction == current_pos.direction:
+						current_pos.modifySL(*update.args, **update.kwargs)
+
+				elif update.action == ActionType.MODIFY_TP:
+					if update.position.direction == current_pos.direction:
+						current_pos.modifyTP(*update.args, **update.kwargs)
+
+				elif update.action == ActionType.REMOVE_SL:
+					if update.position.direction == current_pos.direction:
+						current_pos.removeSL()
+
+				elif update.action == ActionType.REMOVE_TP:
+					if update.position.direction == current_pos.direction:
+						current_pos.removeTP()
+
+				elif update.action == ActionType.BREAKEVEN:
+					if update.position.direction == current_pos.direction:
+						current_pos.breakeven()
+				elif update.action == ActionType.APPLY:
+					if update.position.direction ==current_pos.direction:
+						current_pos.apply()
+
+				elif update.action == ActionType.CANCEL:
+					pass
+				elif update.action == ActionType.MODIFY_ENTRY_PRICE:
+					pass
 
 	def checkStopLoss(self):
 		high = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][1]
