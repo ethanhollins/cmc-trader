@@ -361,8 +361,9 @@ class Start(object):
 						self.utils.updatePositions()
 
 						try:
-							wait = ui.WebDriverWait(self.driver, 59, poll_frequency=5)
-							wait.until(lambda driver : self.updateBar())
+							# wait = ui.WebDriverWait(self.driver, 59, poll_frequency=5)
+							# wait.until(lambda driver : self.updateBar())
+							self.updateBar()
 						
 						
 							# self.utils.save_state = self.plan.SaveState(self.utils)
@@ -430,87 +431,6 @@ class Start(object):
 					self.utils.isLive = False
 					self.utils.backtester.manual()
 
-			# if (skipTo > i):
-			# 	continue
-			# else:
-			# 	skipTo = 0
-
-			# cmd = input("\nPress enter for next, or enter command: ")
-			# while not cmd == '':
-			# 	if cmd == 'show all':
-			# 		print("OHLC:", str(self.utils.ohlc[pair])+"\n")
-			# 		self.printIndicators(pair)
-			# 	elif cmd == 'show current':
-			# 		print("OHLC:", str(list(self.utils.ohlc[pair].values())[0])+"\n")
-			# 		self.printCurrent(pair)
-			# 	elif cmd == 'ohlc':
-			# 		print("OHLC:", str(self.utils.ohlc[pair])+"\n")
-			# 	elif cmd == 'indicators':
-			# 		self.printIndicators(pair)
-			# 	elif cmd.startswith('show indicator'):
-			# 		try:
-			# 			self.printIndicatorByIndex(int(cmd.split(' ')[2]), pair)
-			# 		except:
-			# 			print("Could not complete command.")
-			# 	elif cmd.startswith('show timestamp'):
-			# 		self.getValuesByTime(cmd.split(' ')[2:4], pair)
-			# 	elif cmd.startswith('skip'):
-			# 		try:
-			# 			skipTo = int(cmd.split(' ')[1])
-			# 			break
-			# 		except:
-			# 			print("Could not complete command.")
-			# 	else:
-			# 		print("Could not recognise command.")
-
-			# 	cmd = input("\nPress enter for next, or enter command: ")
-			# print("\n")
-
-	# def printIndicators(self, pair):
-	# 	for overlay in self.utils.indicators['overlays']:
-	# 		print(str(overlay.type)+":\n", str(overlay.history[pair])+"\n")
-	# 	for study in self.utils.indicators['studies']:
-	# 		print(str(study.type)+":\n", str(study.history[pair])+"\n")
-
-	# def printCurrent(self, pair):
-	# 	for overlay in self.utils.indicators['overlays']:
-	# 		print(str(overlay.type)+":\n", str(overlay.getCurrent(pair))+"\n")
-	# 	for study in self.utils.indicators['studies']:
-	# 		print(str(study.type)+":\n", str(study.getCurrent(pair))+"\n")
-
-	# def printIndicatorByIndex(self, index, pair):
-	# 	if (index < len(self.utils.indicators['overlays'])):
-	# 		indicator = self.utils.indicators['overlays'][index]
-	# 		print(str(indicator.type)+":\n", str(indicator.history[pair])+"\n")
-	# 		return
-	# 	elif (index < len(self.utils.indicators['overlays']) + len(self.utils.indicators['studies'])):
-	# 		indicator = self.utils.indicators['studies'][index - len(self.utils.indicators['overlays'])]
-	# 		print(str(indicator.type)+":\n", str(indicator.history[pair])+"\n")
-	# 		return
-	# 	print("Could not find indicator at index", index)
-
-	# def getValuesByTime(self, raw, pair):
-	# 	try:
-	# 		time = raw[0]
-	# 		hour = int(time.split(':')[0])
-	# 		minute = int(time.split(':')[1])
-	# 		date = raw[1]
-	# 		day = int(date.split('/')[0])
-	# 		month = int(date.split('/')[1])
-	# 		timestamp = self.utils.convertTimeToTimestamp(day, month, hour, minute)
-	# 	except:
-	# 		print("Could not complete command.")
-	# 		return
-	# 	try:
-	# 		print("OHLC:", str(self.utils.ohlc[pair][timestamp])+"\n")
-	# 		for overlay in self.utils.indicators['overlays']:
-	# 			print(str(overlay.type)+":\n", str(overlay.history[pair][timestamp])+"\n")
-	# 		for study in self.utils.indicators['studies']:
-	# 			print(str(study.type)+":\n", str(study.history[pair][timestamp])+"\n")
-	# 	except:
-	# 		print("Could not find saved data at that time.")
-	# 		return
-
 	def needsUpdate(self):
 
 		sorted_timestamps = [i[0] for i in sorted(self.utils.ohlc[Constants.GBPUSD].items(), key=lambda kv: kv[0], reverse=True)]
@@ -521,8 +441,8 @@ class Start(object):
 
 		last_time = self.utils.convertTimestampToTime(latest_timestamp)
 
-		print("needs update")
-		print(last_time)
+		# print("needs update")
+		# print(last_time)
 
 		current_minute = int(self.minutes_elem.text)
 		if not last_time.minute == current_minute - 1:
