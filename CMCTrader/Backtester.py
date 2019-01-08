@@ -34,17 +34,16 @@ class Action(object):
 		self.kwargs = kwargs
 		self.timestamp = timestamp
 
-if __name__ == '__main__':
-	global state, current_timestamp, pair, sorted_timestamps
-
-	state = State.NONE
-	current_timestamp = 0
-	pair = None
-	sorted_timestamps = []
-
 class Backtester(object):
 
 	def __init__(self, utils, plan):
+		global state, current_timestamp, pair, sorted_timestamps
+
+		state = State.NONE
+		current_timestamp = 0
+		pair = None
+		sorted_timestamps = []
+		
 		self.utils = utils
 		self.plan = plan
 
