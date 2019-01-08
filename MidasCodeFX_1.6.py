@@ -33,6 +33,8 @@ VARIABLES = {
 	'time_threshold_no_trades' : 5,
 	'CONFIRMATION' : None,
 	'strand_size' : 22,
+	'MACD' : None,
+	'macd_threshold' : 3,
 	'DMI' : None,
 	'dmi_t_threshold' : 24,
 	'dmi_ct_threshold' : 18,
@@ -783,7 +785,7 @@ def regularParaHit(shift, direction, no_conf):
 	if no_conf:
 		return True
 	elif current_brown.is_hit and isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
-		if isMacdConfirmation(shift, direction) and isCciBiasConfirmation(shift, direction) and isBlackPointHitConfirmation(shift, direction):
+		if isMacdConfirmation(shift, direction) and isBlackPointHitConfirmation(shift, direction):
 			return True
 
 	return False
@@ -845,9 +847,9 @@ def isMacdConfirmation(shift, direction):
 	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
 	if direction == Direction.LONG:
-		return hist > 0
+		return hist > VARIABLES['macd_threshold'] * 0.00001
 	else:
-		return hist < 0
+		return hist < -VARIABLES['macd_threshold'] * 0.00001
 
 def isCciBiasConfirmation(shift, direction):
 	
