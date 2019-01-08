@@ -50,15 +50,16 @@ class Trigger(dict):
 def init(utilities):
 	print("Hello init World!")
 	global utils
-	global reg_sar, slow_sar, black_sar, rsi, cci, macd
+	global reg_sar, slow_sar, black_sar, brown_sar, cci, macd, dmi
 
 	utils = utilities
-	reg_sar = utils.SAR(1)
-	black_sar = utils.SAR(2)
+	brown_sar = utils.SAR(1)
+	reg_sar = utils.SAR(2)
 	slow_sar = utils.SAR(3)
-	brown_sar = utils.SAR(4)
+	black_sar = utils.SAR(4)
 	cci = utils.CCI(5, 1)
 	macd = utils.MACD(6, 1)
+	dmi = utils.DMI(7, 3)
 
 	global pos
 	pos = utils.buy(400)
