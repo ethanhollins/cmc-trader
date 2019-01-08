@@ -360,12 +360,12 @@ class Start(object):
 
 						self.utils.updatePositions()
 
-						try:
-							# wait = ui.WebDriverWait(self.driver, 59, poll_frequency=5)
-							# wait.until(lambda driver : self.updateBar())
-							self.updateBar()
-						
-						
+						# try:
+						# wait = ui.WebDriverWait(self.driver, 59, poll_frequency=5)
+						# wait.until(lambda driver : self.updateBar())
+						isUpdated = self.updateBar()
+					
+						if (isUpdated):
 							# self.utils.save_state = self.plan.SaveState(self.utils)
 
 							missingTimestamps = self.utils.recoverMissingValues()
@@ -412,10 +412,10 @@ class Start(object):
 									self.isDowntime = True
 
 							self.utils.updateRecovery()
-						except Exception as e:
-							print(e)
-							print("Unable to update bar!")
-							pass
+						# except Exception as e:
+						# 	print(e)
+						# 	print("Unable to update bar!")
+						# 	pass
 
 				except StaleElementReferenceException as e:
 					print("ERROR: Element not found! Potentially lost internet connection!")
