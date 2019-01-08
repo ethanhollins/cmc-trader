@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 import time
 import threading
 
+import CMCTrader.Backtester as bt
 from CMCTrader.Backtester import Backtester
 
 def close_redirect(func):
@@ -21,7 +22,7 @@ def close_redirect(func):
 			del self.utils.positions[self.utils.positions.index(self)]
 		elif self.utils.backtester.isRecover():
 			print("IS RECOVER")
-			self.utils.backtester.actions.append(self, Backtester.ActionType.CLOSE, Backtester.current_timestamp, args = args, kwargs = kwargs)
+			self.utils.backtester.actions.append(self, bt.ActionType.CLOSE, bt.current_timestamp, args = args, kwargs = kwargs)
 		else:
 			print("IS NONE")
 			return func(*args, **kwargs)
@@ -44,7 +45,7 @@ def stopandreverse_redirect(func):
 			del self.utils.positions[self.utils.positions.index(self)]
 		elif self.utils.backtester.isRecover():
 			print("IS RECOVER")
-			self.utils.backtester.actions.append(self, Backtester.ActionType.STOP_AND_REVERSE, Backtester.current_timestamp, args = args, kwargs = kwargs)
+			self.utils.backtester.actions.append(self, bt.ActionType.STOP_AND_REVERSE, bt.current_timestamp, args = args, kwargs = kwargs)
 		else:
 			print("IS NONE")
 			return func(*args, **kwargs)
@@ -53,23 +54,23 @@ def stopandreverse_redirect(func):
 def function_redirect(func):
 	name = func.__name__
 	if name == 'modifyPositionSize':
-		action = Backtester.ActionType.MODIFY_POS_SIZE
+		action = bt.ActionType.MODIFY_POS_SIZE
 	elif name == 'modifyTrailing':
-		action = Backtester.ActionType.MODIFY_TRAILING
+		action = bt.ActionType.MODIFY_TRAILING
 	elif name == 'modifySL':
-		action = Backtester.ActionType.MODIFY_SL
+		action = bt.ActionType.MODIFY_SL
 	elif name == 'modifyTP':
-		action = Backtester.ActionType.MODIFY_TP
+		action = bt.ActionType.MODIFY_TP
 	elif name == 'removeSL':
-		action = Backtester.ActionType.REMOVE_SL
+		action = bt.ActionType.REMOVE_SL
 	elif name == 'removeTP':
-		action = Backtester.ActionType.REMOVE_TP
+		action = bt.ActionType.REMOVE_TP
 	elif name == 'apply':
-		action = Backtester.ActionType.APPLY
+		action = bt.ActionType.APPLY
 	elif name == 'modifyEntryPrice':
-		action = Backtester.ActionType.MODIFY_ENTRY_PRICE
+		action = bt.ActionType.MODIFY_ENTRY_PRICE
 	elif name == 'cancel':
-		action = Backtester.ActionType.CANCEL
+		action = bt.ActionType.CANCEL
 	else:
 		return
 
@@ -80,7 +81,7 @@ def function_redirect(func):
 			return
 		elif self.utils.backtester.isRecover():
 			print("IS RECOVER")
-			self.utils.backtester.actions.append(self, action, Backtester.current_timestamp, args = args, kwargs = kwargs)
+			self.utils.backtester.actions.append(self, action, bt.current_timestamp, args = args, kwargs = kwargs)
 		else:
 			print("IS NONE")
 			return func(*args, **kwargs)
@@ -105,7 +106,7 @@ def breakeven_redirect_backtest(func):
 					self.tp = self.entryprice
 		elif self.utils.backtester.isRecover():
 			print("IS RECOVER")
-			self.utils.backtester.actions.append(self, Backtester.ActionType.BREAKEVEN, Backtester.current_timestamp, args = args, kwargs = kwargs)
+			self.utils.backtester.actions.append(self, bt.ActionType.BREAKEVEN, bt.current_timestamp, args = args, kwargs = kwargs)
 		else:
 			print("IS NONE")
 			return func(*args, **kwargs)
