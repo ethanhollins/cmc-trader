@@ -512,6 +512,7 @@ class Start(object):
 	# 		return
 
 	def needsUpdate(self):
+
 		sorted_timestamps = [i[0] for i in sorted(self.utils.ohlc[Constants.GBPUSD].items(), key=lambda kv: kv[0], reverse=True)]
 		if len(sorted_timestamps) <= 0:
 			return True
@@ -519,6 +520,10 @@ class Start(object):
 		latest_timestamp = sorted_timestamps[0]
 
 		last_time = self.utils.convertTimestampToTime(latest_timestamp)
+
+		print("needs update")
+		print(last_time)
+
 		current_minute = int(self.minutes_elem.text)
 		if not last_time.minute == current_minute - 1:
 			return True
