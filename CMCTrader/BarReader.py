@@ -758,17 +758,19 @@ class BarReader(object):
 		self.moveMouse()
 		print("Attempting to capture bar!")
 
+		start_time = time.time()
+
 		try:
-			wait = ui.WebDriverWait(self.driver, 5, poll_frequency=0.05)
-			wait.until(lambda driver : self._checkTimestampIsCurrent(chart, canvas, pair, xOff))
+			wait = ui.WebDriverWait(self.driver, 59, poll_frequency=0.05)
+			wait.until(lambda driver : self._checkTimestampIsCurrent(chart, canvas, pair, xOff, start_time))
 		except:
 			return False
 			pass
 
 		return True
 
-	def _checkTimestampIsCurrent(self, chart, canvas, pair, xOff):
-		try:		
+	def _checkTimestampIsCurrent(self, chart, canvas, pair, xOff, start_time):
+		try:
 			mins = int(self.mins_elem.text)
 
 			if (mins == 0):
@@ -779,7 +781,7 @@ class BarReader(object):
 			cropped_image = img.crop(TIMESTAMP_CROP)
 			timestamp_mins = int(performOCR(cropped_image).split(':')[1])
 
-			if (timestamp_mins) < mins - 2:
+			if timestamp_mins < mins - 2 or int(time.time() - start_time) % 5 == 0:
 				self.utils.refreshChart(pair)
 				return False
 
