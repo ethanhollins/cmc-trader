@@ -30,7 +30,7 @@ class Action(object):
 	def __init__(self, position, action, timestamp, args = None, kwargs = None):
 		self.position = position
 		self.action = action
-		self.args = args
+		self.args = args[1:]
 		self.kwargs = kwargs
 		self.timestamp = timestamp
 
@@ -107,15 +107,8 @@ class Backtester(object):
 				self.positions.append(pos)
 				return pos
 			elif (state == State.RECOVER):
-				if (self.isLive and current_timestamp == sorted_timestamps[-1]):
-					return func(*args, **kwargs)
-				else:
-					try:
-						self.plan.onMissedEntry(*args, **kwargs)
-					except AttributeError as e:
-						pass
-
-					return
+				pos = self.createPosition(self, args[2], 0, args[3], "", args[1])
+				self.utils.backtester.actions.append(bt.Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
 			else:
 				return func(*args, **kwargs)
 		return wrapper
