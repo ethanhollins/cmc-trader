@@ -91,7 +91,7 @@ class Backtester(object):
 			if (state == State.BACKTEST):
 				close = [i[1] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][3]
 
-				pos = self.createPosition(self, args[2], 0, args[3], "", args[1])
+				pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
 				pos.lotsize = args[4]
 
 				if (args[1] == 'buy'):
@@ -108,7 +108,7 @@ class Backtester(object):
 				self.positions.append(pos)
 				return pos
 			elif (state == State.RECOVER):
-				pos = self.createPosition(self, args[2], 0, args[3], "", args[1])
+				pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
 				self.backtester.actions.append(Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
 				return pos
 			else:
