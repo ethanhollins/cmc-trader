@@ -109,7 +109,7 @@ class Backtester(object):
 				return pos
 			elif (state == State.RECOVER):
 				pos = self.createPosition(self, args[2], 0, args[3], "", args[1])
-				self.backtester.actions.append(bt.Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
+				self.backtester.actions.append(Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
 				return pos
 			else:
 				return func(*args, **kwargs)
