@@ -74,8 +74,8 @@ def onNewBar():
 	count += 1
 	print("Count:",str(count))
 	if count == 3:
-		pos.modifyTP(1.5)
-		pos.modifySL(1.2)
+		pos.modifyTP(20)
+		pos.modifySL(20)
 		pos.apply()
 
 def onDownTime():
