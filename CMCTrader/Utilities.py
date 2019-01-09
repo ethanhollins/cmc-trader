@@ -230,6 +230,7 @@ class Utilities:
 		else:
 			print("ERROR: Buy type not recognised!")
 
+	
 	def sell(self, lotsize, pairs = [], ordertype = 'market', entry = 0, sl = 0.0, tp = 0.0):
 		if (ordertype == 'market' or ordertype == 'm'):
 			if (len(pairs) <= 0):
