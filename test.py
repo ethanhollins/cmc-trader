@@ -80,7 +80,6 @@ def onNewBar():
 		pos.apply()
 		pos.close()
 		newPos = utils.sell(400, sl = 20)
-	if count == 6:
 		newPos.removeSL()
 		newPos.apply()
 
