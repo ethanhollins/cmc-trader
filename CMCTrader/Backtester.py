@@ -30,6 +30,7 @@ class Action(object):
 	def __init__(self, position, action, timestamp, args = None, kwargs = None):
 		self.position = position
 		self.action = action
+		print("ARGS:", str(args))
 		self.args = args[1:]
 		self.kwargs = kwargs
 		self.timestamp = timestamp

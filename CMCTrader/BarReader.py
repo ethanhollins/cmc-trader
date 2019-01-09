@@ -261,10 +261,12 @@ class BarReader(object):
 
 	def getCurrentBarInfo(self, pair):
 
+
 		chart = self.chartDict[pair]
 		canvas = self.canvasDict[pair]
 
 		xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
+		print("getCurrentBar", str(xOff))
 
 		if (self._isCurrentBar(chart, canvas, pair, xOff)):
 			values = self._performBarInfoCapture(chart, canvas, pair, xOff)
