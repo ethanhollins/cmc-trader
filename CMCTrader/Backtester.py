@@ -463,7 +463,7 @@ class Backtester(object):
 		else:
 			latest_history_timestamp = 0
 
-		updates = [i for i in actions if i.timestamp < latest_history_timestamp]
+		updates = [i for i in self.actions if i.timestamp < latest_history_timestamp]
 
 		print("Before:", str(updates))
 
