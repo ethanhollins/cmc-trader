@@ -476,7 +476,7 @@ class Backtester(object):
 		for i in range(len(updates)):
 			if (
 				updates[i].action == ActionType.CLOSE
-				or update.action == ActionType.STOP_AND_REVERSE
+				or updates[i].action == ActionType.STOP_AND_REVERSE
 				):
 				new_index = i
 
