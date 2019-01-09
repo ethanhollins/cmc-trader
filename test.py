@@ -77,6 +77,9 @@ def onNewBar():
 		pos.modifyTP(20)
 		pos.modifySL(20)
 		pos.apply()
+	elif count == 4:
+		newPos = pos.stopAndReverse(500, sl = 30, tp = 25)
+		newPos.removeTP()
 
 def onDownTime():
 	print("onDownTime")
