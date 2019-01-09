@@ -266,6 +266,8 @@ class Backtester(object):
 		state = State.RECOVER
 		self.has_run = False
 
+		print("start recovery")
+
 		self.actions = []
 		self.history = []
 
@@ -457,6 +459,8 @@ class Backtester(object):
 		return self.utils.historyLog.updateHistoryByTimestamp(listenedTypes, timestamp)
 
 	def updatePositions(self):
+		print("ACTIONS:", self.actions)
+
 		latest_history_timestamp = sorted(self.history, key=lambda x: x[1], reverse = True)
 		if len(latest_history_timestamp) > 0:
 			latest_history_timestamp = latest_history_timestamp[0]
