@@ -46,9 +46,9 @@ def stopandreverse_redirect(func):
 		elif self.utils.backtester.isRecover():
 			print("IS RECOVER")
 			if self.direction == 'buy':
-				pos = self.utils.createPosition(self.utils, None, None, None, None, 'buy')
-			else:
 				pos = self.utils.createPosition(self.utils, None, None, None, None, 'sell')
+			else:
+				pos = self.utils.createPosition(self.utils, None, None, None, None, 'buy')
 
 			self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.STOP_AND_REVERSE, bt.current_timestamp, args = args, kwargs = kwargs))
 			return pos
