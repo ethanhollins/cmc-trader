@@ -501,7 +501,7 @@ class Backtester(object):
 			elif update.action == ActionType.STOP_AND_REVERSE:
 				if not current_pos == None:
 					if update.position.direction == current_pos.direction:
-						current_pos.stopAndReverse(*updates.args, **updates.kwargs)
+						current_pos.stopAndReverse(*update.args, **update.kwargs)
 				else:
 					if update.position.direction == 'buy':
 						self.utils.buy(update.args[1], sl = args[2], tp = args[3])
