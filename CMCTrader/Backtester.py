@@ -311,9 +311,10 @@ class Backtester(object):
 
 					self.runMainLoop(time)
 
+		state = State.NONE
+
 		self.updatePositions()
 
-		state = State.NONE
 
 	def getAustralianTime(self, timestamp):
 		time = self.utils.convertTimestampToTime(timestamp)
@@ -493,6 +494,7 @@ class Backtester(object):
 			print('------------')
 			if len(self.utils.positions) > 0:
 				current_pos = self.utils.positions[0]
+				print("there is a pos")
 			else:
 				current_pos = None
 
@@ -501,7 +503,7 @@ class Backtester(object):
 					self.utils.buy(*update.args)
 				else:
 					self.utils.sell(*update.args)
-			if update.action == ActionType.STOP_AND_REVERSE:
+			elif update.action == ActionType.STOP_AND_REVERSE:
 				if not current_pos == None:
 					if update.position.direction == current_pos.direction:
 						current_pos.stopAndReverse()
@@ -511,7 +513,8 @@ class Backtester(object):
 					else:
 						self.utils.sell(update.args[1], sl = args[2], tp = args[3])
 			
-			if not current_pos == None:
+			elif not current_pos == None:
+				print("this happened1")
 				if update.action == ActionType.CLOSE:
 					if update.position.direction == current_pos.direction:
 						current_pos.close()
@@ -525,11 +528,18 @@ class Backtester(object):
 						current_pos.modifyTrailing(*update.args, **update.kwargs)
 
 				elif update.action == ActionType.MODIFY_SL:
+					print("this happened2 sl")
 					if update.position.direction == current_pos.direction:
+						print("this happened3 sl")
+
 						current_pos.modifySL(*update.args, **update.kwargs)
 
 				elif update.action == ActionType.MODIFY_TP:
+					print("this happened2 tp")
+
 					if update.position.direction == current_pos.direction:
+						print("this happened3 tp")
+
 						current_pos.modifyTP(*update.args, **update.kwargs)
 
 				elif update.action == ActionType.REMOVE_SL:
@@ -544,7 +554,11 @@ class Backtester(object):
 					if update.position.direction == current_pos.direction:
 						current_pos.breakeven()
 				elif update.action == ActionType.APPLY:
+					print("this happened2 apply")
+
 					if update.position.direction ==current_pos.direction:
+						print("this happened3 apply")
+
 						current_pos.apply()
 
 				elif update.action == ActionType.CANCEL:
