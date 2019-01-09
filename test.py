@@ -73,14 +73,14 @@ def onNewBar():
 	global count, pos, newPos
 	count += 1
 	print("Count:",str(count))
-	if count == 3:
+	if count == 2:
 		pos = utils.buy(400, sl = 20)
-	if count == 5:
+	if count == 4:
 		pos.modifySL(30)
 		pos.apply()
 		pos.close()
 		newPos = utils.sell(400, sl = 20)
-	if count == 7:
+	if count == 6:
 		newPos.removeSL()
 		newPos.apply()
 
