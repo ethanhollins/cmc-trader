@@ -110,6 +110,7 @@ class Backtester(object):
 			elif (state == State.RECOVER):
 				pos = self.createPosition(self, args[2], 0, args[3], "", args[1])
 				self.utils.backtester.actions.append(bt.Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
+				return pos
 			else:
 				return func(*args, **kwargs)
 		return wrapper
@@ -500,7 +501,7 @@ class Backtester(object):
 			elif update.action == ActionType.STOP_AND_REVERSE:
 				if not current_pos == None:
 					if update.position.direction == current_pos.direction:
-						current_pos.stopAndReverse()
+						current_pos.stopAndReverse(*updates.args, **updates.kwargs)
 				else:
 					if update.position.direction == 'buy':
 						self.utils.buy(update.args[1], sl = args[2], tp = args[3])
