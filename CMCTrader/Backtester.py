@@ -43,7 +43,7 @@ class Backtester(object):
 		current_timestamp = 0
 		pair = None
 		sorted_timestamps = []
-		
+
 		self.utils = utils
 		self.plan = plan
 
@@ -457,7 +457,12 @@ class Backtester(object):
 		return self.utils.historyLog.updateHistoryByTimestamp(listenedTypes, timestamp)
 
 	def updatePositions(self):
-		latest_history_timestamp = sorted(self.history, key=lambda x: x[1], reverse = True)[0]
+		latest_history_timestamp = sorted(self.history, key=lambda x: x[1], reverse = True)
+		if len(latest_history_timestamp) > 0:
+			latest_history_timestamp = latest_history_timestamp[0]
+		else:
+			latest_history_timestamp = 0
+
 		updates = [i for i in actions if i.timestamp < latest_history_timestamp]
 
 		print("Before:", str(updates))
