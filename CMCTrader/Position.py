@@ -32,7 +32,6 @@ def stopandreverse_redirect(func):
 	def wrapper(*args, **kwargs):
 		self = args[0]
 		if self.utils.backtester.isBacktesting():
-			print("IS BACKTESTING")
 			if (self.direction == 'buy'):
 				newPos = self.utils.sell(int(self.lotsize + args[1]), pairs = [self.pair], sl = args[2], tp = args[3])
 			elif (self.direction == 'sell'):
@@ -44,7 +43,6 @@ def stopandreverse_redirect(func):
 			self.utils.closedPositions.append(self)
 			del self.utils.positions[self.utils.positions.index(self)]
 		elif self.utils.backtester.isRecover():
-			print("IS RECOVER")
 			if self.direction == 'buy':
 				pos = self.utils.createPosition(self.utils, None, None, None, None, 'sell')
 			else:
@@ -53,7 +51,6 @@ def stopandreverse_redirect(func):
 			self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.STOP_AND_REVERSE, bt.current_timestamp, args = args, kwargs = kwargs))
 			return pos
 		else:
-			print("IS NONE")
 			return func(*args, **kwargs)
 	return wrapper
 

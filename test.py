@@ -62,7 +62,7 @@ def init(utilities):
 	dmi = utils.DMI(7, 3)
 
 	global pos
-	pos = utils.buy(400)
+	# pos = utils.buy(400)
 
 def onLoop():
 	return
@@ -70,16 +70,27 @@ def onLoop():
 def onNewBar():
 	print("onNewBar\n")
 
-	global count
+	global count, pos, newPos
 	count += 1
 	print("Count:",str(count))
 	if count == 3:
-		pos.modifyTP(20)
-		pos.modifySL(20)
+		pos = utils.buy(400, sl = 20)
+	if count == 5:
+		pos.modifySL(30)
 		pos.apply()
-	elif count == 4:
-		newPos = pos.stopAndReverse(500, sl = 30, tp = 25)
-		newPos.removeTP()
+		pos.close()
+		newPos = utils.sell(400, sl = 20)
+	if count == 7:
+		newPos.removeSL()
+		newPos.apply()
+
+
+	# 	pos.modifyTP(20)
+	# 	pos.modifySL(20)
+	# 	pos.apply()
+	# elif count == 4:
+	# 	newPos = pos.stopAndReverse(500, sl = 30, tp = 25)
+	# 	newPos.removeTP()
 
 def onDownTime():
 	print("onDownTime")
