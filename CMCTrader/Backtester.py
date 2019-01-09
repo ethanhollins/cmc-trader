@@ -485,6 +485,7 @@ class Backtester(object):
 		print("After:", str(updates))
 
 		for update in updates:
+			print(str(update.position.direction), str(update.timestamp), str(update.args), str(update.kwargs, str(update.action)))
 			if len(self.utils.positions) > 0:
 				current_pos = self.utils.positions[0]
 			else:
