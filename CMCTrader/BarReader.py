@@ -12,6 +12,7 @@ import numpy as np
 import time
 import pyautogui
 import threading
+import traceback
 
 CANVAS_BAR_WIDTH = 115
 
@@ -794,8 +795,10 @@ class BarReader(object):
 
 			return (mins - 1) == timestamp_mins
 		except Exception as e:
+			tb = traceback.format_exc()
 			print("--------- ERROR ----------")
-			print(e)
+			print(tb)
+			# print(e)
 			print("--------------------------")
 			return False
 
