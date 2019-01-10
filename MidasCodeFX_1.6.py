@@ -362,7 +362,6 @@ def handleRegularEntry(entry):
 		
 	del pending_entries[pending_entries.index(entry)]
 
-@Backtester.skip_on_recover
 def handleStop():
 	''' 
 	Handle all pending breakevens
