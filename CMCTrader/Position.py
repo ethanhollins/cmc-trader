@@ -68,8 +68,6 @@ def function_redirect(func):
 		action = bt.ActionType.REMOVE_SL
 	elif name == 'removeTP':
 		action = bt.ActionType.REMOVE_TP
-	elif name == 'apply':
-		action = bt.ActionType.APPLY
 	elif name == 'modifyEntryPrice':
 		action = bt.ActionType.MODIFY_ENTRY_PRICE
 	elif name == 'cancel':
@@ -85,6 +83,21 @@ def function_redirect(func):
 		elif self.utils.backtester.isRecover():
 			print("IS RECOVER")
 			self.utils.backtester.actions.append(bt.Action(self, action, bt.current_timestamp, args = args, kwargs = kwargs))
+		else:
+			print("IS NONE")
+			return func(*args, **kwargs)
+	return wrapper
+
+def apply_redirect(func):
+	def wrapper(*args, **kwargs):
+		self = args[0]
+		if self.utils.backtester.isBacktesting():
+			print("IS BACKTESTING")
+			return
+		elif self.utils.backtester.isRecover():
+			print("IS RECOVER")
+			self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.APPLY, bt.current_timestamp, args = args, kwargs = kwargs))
+			return True
 		else:
 			print("IS NONE")
 			return func(*args, **kwargs)
@@ -466,7 +479,7 @@ class Position(object):
 
 		print("Set position breakeven take profit.")
 
-	@function_redirect
+	@apply_redirect
 	def apply(self):
 		if self.modifyTicket is None:
 			return True
