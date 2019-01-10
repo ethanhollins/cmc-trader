@@ -261,7 +261,6 @@ class BarReader(object):
 
 	def getCurrentBarInfo(self, pair):
 
-
 		chart = self.chartDict[pair]
 		canvas = self.canvasDict[pair]
 
@@ -790,10 +789,14 @@ class BarReader(object):
 				return False
 			elif time.time() - self.start_time > 5:
 				self.start_time = time.time()
+				self.utils.refreshChart(pair)
 				return False
 
 			return (mins - 1) == timestamp_mins
-		except:
+		except Exception as e:
+			print("--------- ERROR ----------")
+			print(e)
+			print("--------------------------")
 			return False
 
 	def moveToChart(self, pair):
