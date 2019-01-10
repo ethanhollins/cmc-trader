@@ -389,8 +389,8 @@ def handleStop():
 		if pos in pending_breakevens:
 			if pos.getProfit() > VARIABLES['breakeven_min_pips']:
 				pos.breakeven()
-				stop_state = StopState.BREAKEVEN
 				if pos.apply():
+					stop_state = StopState.BREAKEVEN
 					del pending_breakevens[pending_breakevens.index(pos)]
 
 def handleExits(shift):
