@@ -5,7 +5,7 @@ import time
 
 VARIABLES = {
 	'TICKETS' : [Constants.GBPUSD], # or 'GBPUSD'
-	'START_TIME' : '1:30',
+	'START_TIME' : '20:00',
 	'END_TIME' : '19:00',
 	'risk' : 1.0,
 	'stoploss' : 17

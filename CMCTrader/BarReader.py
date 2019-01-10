@@ -338,6 +338,8 @@ class BarReader(object):
 
 	def checkBarInfoByTimestamp(self, pair, timestamps):
 
+		print("checkBarInfoByTimestamp")
+
 		chart = self.chartDict[pair]
 		canvas = self.canvasDict[pair]
 

@@ -455,8 +455,6 @@ class Backtester(object):
 		return self.utils.historyLog.updateHistoryByTimestamp(listenedTypes, timestamp)
 
 	def updatePositions(self):
-		print("ACTIONS:", self.actions)
-
 		latest_history_timestamp = sorted(self.history, key=lambda x: x[1], reverse = True)
 		if len(latest_history_timestamp) > 0:
 			latest_history_timestamp = latest_history_timestamp[0]
@@ -464,8 +462,6 @@ class Backtester(object):
 			latest_history_timestamp = 0
 
 		updates = [i for i in self.actions if i.timestamp > latest_history_timestamp]
-
-		print("Before:", str(updates))
 
 		new_index = 0
 
@@ -478,18 +474,9 @@ class Backtester(object):
 
 		updates = updates[new_index:]
 
-		print("After:", str(updates))
-
 		for update in updates:
-			print(update.position.direction)
-			print(update.timestamp)
-			print(update.args)
-			print(update.kwargs)
-			print(update.action)
-			print('------------')
 			if len(self.utils.positions) > 0:
 				current_pos = self.utils.positions[0]
-				print("there is a pos")
 			else:
 				current_pos = None
 
@@ -506,7 +493,6 @@ class Backtester(object):
 						self.utils.sell(update.args[1], sl = args[2], tp = args[3])
 			
 			elif not current_pos == None:
-				print("this happened1")
 				if update.action == ActionType.CLOSE:
 					if update.position.direction == current_pos.direction:
 						current_pos.close()
@@ -520,18 +506,11 @@ class Backtester(object):
 						current_pos.modifyTrailing(*update.args, **update.kwargs)
 
 				elif update.action == ActionType.MODIFY_SL:
-					print("this happened2 sl")
 					if update.position.direction == current_pos.direction:
-						print("this happened3 sl")
-
 						current_pos.modifySL(*update.args, **update.kwargs)
 
 				elif update.action == ActionType.MODIFY_TP:
-					print("this happened2 tp")
-
 					if update.position.direction == current_pos.direction:
-						print("this happened3 tp")
-
 						current_pos.modifyTP(*update.args, **update.kwargs)
 
 				elif update.action == ActionType.REMOVE_SL:
@@ -546,11 +525,7 @@ class Backtester(object):
 					if update.position.direction == current_pos.direction:
 						current_pos.breakeven()
 				elif update.action == ActionType.APPLY:
-					print("this happened2 apply")
-
 					if update.position.direction ==current_pos.direction:
-						print("this happened3 apply")
-
 						current_pos.apply()
 
 				elif update.action == ActionType.CANCEL:

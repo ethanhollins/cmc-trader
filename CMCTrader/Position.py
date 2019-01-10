@@ -128,7 +128,7 @@ class Position(object):
 
 	def __init__(self, utils, ticket, orderID, pair, ordertype, direction):
 		self.utils = utils
-		self.ticket = ticket
+		# self.ticket = ticket
 		self.orderID = orderID
 		self.pair = pair
 		self.ordertype = ordertype
@@ -244,6 +244,9 @@ class Position(object):
 				self.modifyTicket, self.isPending
 			)
 
+	def _getOrderTicket(self):
+		return self.utils.tickets[self.pair]
+
 	@stopandreverse_redirect
 	def stopAndReverse(self, lotsize, sl = 0, tp = 0):
 		newPos = None
@@ -264,30 +267,32 @@ class Position(object):
 
 	@function_redirect
 	def modifyPositionSize(self, newSize):
-		self.ticket.makeVisible()
+		ticket = self._getOrderTicket()
+
+		ticket.makeVisible()
 
 		if (newSize > self.lotsize and (newSize - self.lotsize) >= 400):
 			if (self.direction == 'buy'):
-				self.ticket.selectBuy()
+				ticket.selectBuy()
 			elif (self.direction == 'sell'):
-				self.ticket.selectSell()
+				ticket.selectSell()
 
-			self.ticket.setMarketOrder()
-			self.ticket.setLotsize(int(newSize - self.lotsize))
+			ticket.setMarketOrder()
+			ticket.setLotsize(int(newSize - self.lotsize))
 
-			self.ticket.placeOrder()
+			ticket.placeOrder()
 			self.lotsize = int(newSize - self.lotsize)
 		elif (newSize < self.lotsize and (self.lotsize - newSize) >= 400):
 			if (self.direction == 'buy'):
-				self.ticket.selectSell()
+				ticket.selectSell()
 			elif (self.direction == 'sell'):
-				self.ticket.selectBuy()
+				ticket.selectBuy()
 
-			self.ticket.setMarketOrder()
-			self.ticket.setLotsize(int(self.lotsize - newSize))
+			ticket.setMarketOrder()
+			ticket.setLotsize(int(self.lotsize - newSize))
 
-			self.ticket.placeOrder()
-			self.lotsize = int(self.lotsize - newSize)
+			ticket.placeOrder()
+			lotsize = int(self.lotsize - newSize)
 		else:
 			print("ERROR: Unable to change position size, check if size change is greater than 400!")
 
@@ -368,8 +373,10 @@ class Position(object):
 				return
 			self._getModifyTicketBtns()
 
+		ticket = self._getOrderTicket()
+
 		if (self.direction == 'buy'):
-			if (self.ticket.getBidPrice() > self.entryprice):
+			if (ticket.getBidPrice() > self.entryprice):
 
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
@@ -378,7 +385,7 @@ class Position(object):
 
 				self._clickRegularStop()
 
-			elif (self.ticket.getBidPrice() < self.entryprice):
+			elif (ticket.getBidPrice() < self.entryprice):
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
 					self._getTakeProfitPointsElem(), str(float(0))
@@ -386,7 +393,7 @@ class Position(object):
 			else:
 				breakeven()
 		elif (self.direction == 'sell'):
-			if (self.ticket.getAskPrice() < self.entryprice):
+			if (ticket.getAskPrice() < self.entryprice):
 
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
@@ -395,7 +402,7 @@ class Position(object):
 
 				self._clickRegularStop()
 
-			elif (self.ticket.getAskPrice() > self.entryprice):
+			elif (ticket.getAskPrice() > self.entryprice):
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
 					self._getTakeProfitPointsElem(), str(float(0))
@@ -413,15 +420,17 @@ class Position(object):
 				return
 			self._getModifyTicketBtns()
 
+		ticket = self._getOrderTicket()
+
 		if (self.direction == 'buy'):
-			if (self.ticket.getBidPrice() > self.entryprice):
+			if (ticket.getBidPrice() > self.entryprice):
 
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
 					self._getStopLossPointsElem(), str(float(0))
 				)
 		elif (self.direction == 'sell'):
-			if (self.ticket.getAskPrice() < self.entryprice):
+			if (ticket.getAskPrice() < self.entryprice):
 
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
@@ -440,14 +449,16 @@ class Position(object):
 				return
 			self._getModifyTicketBtns()
 
+		ticket = self._getOrderTicket()
+
 		if (self.direction == 'buy'):
-			if (self.ticket.getBidPrice() < self.entryprice):
+			if (ticket.getBidPrice() < self.entryprice):
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
 					self._getTakeProfitPointsElem(), str(float(0))
 				)
 		elif (self.direction == 'sell'):
-			if (self.ticket.getAskPrice() > self.entryprice):
+			if (ticket.getAskPrice() > self.entryprice):
 				self.driver.execute_script(
 					'arguments[0].textContent = arguments[1]',
 					self._getTakeProfitPointsElem(), str(float(0))
@@ -658,20 +669,22 @@ class Position(object):
 			self.utils.updatePositions()
 			return
 
-		self.ticket.makeVisible()
+		ticket = self._getOrderTicket()
+
+		ticket.makeVisible()
 
 		if (self.direction == 'buy'):
-			self.ticket.selectSell()
+			ticket.selectSell()
 		elif (self.direction == 'sell'):
-			self.ticket.selectBuy()
+			ticket.selectBuy()
 
-		self.ticket.setMarketOrder()
-		self.ticket.setLotsize(int(self.lotsize))
+		ticket.setMarketOrder()
+		ticket.setLotsize(int(self.lotsize))
 
-		# self.ticket.setStopLoss(17)
-		# self.ticket.closeTakeProfit()
+		# ticket.setStopLoss(17)
+		# ticket.closeTakeProfit()
 
-		self.ticket.placeOrder()
+		ticket.placeOrder()
 
 		wait = ui.WebDriverWait(self.driver, 10)
 		wait.until(lambda driver : self.utils.historyLog.getEvent(self, 'Close Trade') is not None)
