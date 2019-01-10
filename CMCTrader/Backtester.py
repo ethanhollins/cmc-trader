@@ -456,10 +456,12 @@ class Backtester(object):
 
 	def updatePositions(self):
 		latest_history = sorted(self.history, key=lambda x: x[1], reverse = True)
-		if len(latest_history_timestamp) > 0:
+		if len(latest_history) > 0:
 			latest_history_timestamp = latest_history[0][1]
 		else:
 			latest_history_timestamp = 0
+
+		print(latest_history_timestamp)
 
 		updates = [i for i in self.actions if i.timestamp > latest_history_timestamp]
 
