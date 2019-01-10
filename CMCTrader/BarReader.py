@@ -658,6 +658,9 @@ class BarReader(object):
 			chart
 		)
 
+		self.setCharts(self.utils.tickets)
+		self.setCanvases(self.chartDict)
+
 		ActionChains(self.driver).move_to_element_with_offset(canvas, xOff, yOff).click().perform()
 
 		canvas_base64 = self.driver.execute_script("return arguments[0].toDataURL('image/png').substring(21);", canvas)
