@@ -788,9 +788,9 @@ class BarReader(object):
 				mins = 60
 
 			# self.setCharts(self.utils.tickets)
-			self.setCanvases(self.chartDict)
+			# self.setCanvases(self.chartDict)
 
-			canvas = self.canvasDict["GBPUSD"]
+			# canvas = self.canvasDict["GBPUSD"]
 
 			img = self._getImage(chart, canvas, xOff, 300)
 
