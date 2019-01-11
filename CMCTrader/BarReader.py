@@ -658,10 +658,10 @@ class BarReader(object):
 			chart
 		)
 
-		self.setCharts(self.utils.tickets)
-		self.setCanvases(self.chartDict)
+		# self.setCharts(self.utils.tickets)
+		# self.setCanvases(self.chartDict)
 
-		canvas = self.canvasDict["GBPUSD"]
+		# canvas = self.canvasDict["GBPUSD"]
 
 		ActionChains(self.driver).move_to_element_with_offset(canvas, xOff, yOff).click().perform()
 
