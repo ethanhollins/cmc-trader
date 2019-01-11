@@ -139,7 +139,10 @@ def profit_redirect_backtest(func):
 	def wrapper(*args, **kwargs):
 		self = args[0]
 
-		price_type = args[1]
+		try:
+			price_type = args[1]
+		except:
+			price_type = 'c'
 
 		if price_type == 'o':
 			price = self.utils.ohlc[self.pair][bt.current_timestamp][0]
