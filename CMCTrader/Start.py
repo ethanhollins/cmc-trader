@@ -420,7 +420,7 @@ class Start(object):
 				except StaleElementReferenceException as e:
 					print("ERROR: Element not found! Potentially lost internet connection!")
 					print("Refreshing page...")
-
+					tb = traceback.format_exc()
 					self.handleError(e, tb)
 					
 				except Exception as e:
