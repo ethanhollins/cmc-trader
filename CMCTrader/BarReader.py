@@ -769,10 +769,7 @@ class BarReader(object):
 
 		self.start_time = time.time()
 
-		self.setCharts(self.utils.tickets)
-		self.setCanvases(self.chartDict)
-
-		canvas = self.canvasDict["GBPUSD"]
+		
 
 		try:
 			wait = ui.WebDriverWait(self.driver, 59, poll_frequency=0.05)
@@ -789,6 +786,11 @@ class BarReader(object):
 
 			if (mins == 0):
 				mins = 60
+
+			# self.setCharts(self.utils.tickets)
+			self.setCanvases(self.chartDict)
+
+			canvas = self.canvasDict["GBPUSD"]
 
 			img = self._getImage(chart, canvas, xOff, 300)
 
