@@ -108,10 +108,17 @@ class Backtester(object):
 				self.positions.append(pos)
 				return pos
 			elif (state == State.RECOVER):
-				pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
-				self.backtester.actions.append(Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
-				# self.positions.append(pos)
-				return pos
+				latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
+				if current_timestamp > latest_history_timestamp:
+					pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
+					pos.entryprice = self.ohlc[args[3]][current_timestamp][3]
+					pos.openTime = current_timestamp
+					pos.isTemp = True
+					self.backtester.actions.append(Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
+					self.positions.append(pos)
+					return pos
+				else:
+					return self.positions[0]
 			else:
 				return func(*args, **kwargs)
 		return wrapper
@@ -456,13 +463,13 @@ class Backtester(object):
 		return self.utils.historyLog.updateHistoryByTimestamp(listenedTypes, timestamp)
 
 	def updatePositions(self):
-		latest_history = sorted(self.history, key=lambda x: x[1], reverse = True)
-		if len(latest_history) > 0:
-			latest_history_timestamp = latest_history[0][1]
-		else:
-			latest_history_timestamp = 0
+		latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
 
-		print(latest_history_timestamp)
+		print("latest:", str(latest_history_timestamp))
+
+		for pos in self.utils.positions:
+			if pos.isTemp:
+				del self.utils.positions[self.utils.positions.index(pos)]
 
 		updates = [i for i in self.actions if i.timestamp > latest_history_timestamp]
 

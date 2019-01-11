@@ -327,8 +327,11 @@ def handleStopAndReverse(pos, entry):
 	Handle stop and reverse entries 
 	and check if tradable conditions are met.
 	'''
+	if pos.direction == 'buy':
+		current_profit = utils.getTotalProfit() + pos.getProfit(price_type = 'h')
+	else:
+		current_profit = utils.getTotalProfit() + pos.getProfit(price_type = 'l')
 
-	current_profit = utils.getTotalProfit() + pos.getProfit()
 	loss_limit = -VARIABLES['stoprange'] * VARIABLES['maximum_risk']
 	
 	if current_profit < loss_limit or current_profit > VARIABLES['profit_limit']:
@@ -347,7 +350,11 @@ def handleRegularEntry(entry):
 	and check if tradable conditions are met.
 	'''
 
-	current_profit = utils.getTotalProfit()
+	if pos.direction == 'buy':
+		current_profit = utils.getTotalProfit() + pos.getProfit(price_type = 'h')
+	else:
+		current_profit = utils.getTotalProfit() + pos.getProfit(price_type = 'l')
+
 	loss_limit = -VARIABLES['stoprange'] * VARIABLES['maximum_risk']
 
 	if current_profit < loss_limit or current_profit > VARIABLES['profit_limit']:
@@ -372,22 +379,27 @@ def handleStop():
 
 	for pos in utils.positions:
 		
-		if pos.getProfit() >= VARIABLES['breakeven_point'] and stop_state.value < StopState.BREAKEVEN.value:
-			print("Reached BREAKEVEN point:", str(pos.getProfit()))
+		if pos.direction == 'buy':
+			profit = utils.getTotalProfit() + pos.getProfit(price_type = 'h')
+		else:
+			profit = utils.getTotalProfit() + pos.getProfit(price_type = 'l')
+
+		if profit >= VARIABLES['breakeven_point'] and stop_state.value < StopState.BREAKEVEN.value:
+			print("Reached BREAKEVEN point:", str(profit))
 			stop_state = StopState.BREAKEVEN
 			pos.breakeven()
 			if not pos.apply():
 				pending_breakevens.append(pos)
 		
-		elif pos.getProfit() >= VARIABLES['first_stop_pips'] and stop_state.value < StopState.FIRST.value:
-			print("Reached FIRST STOP point:", str(pos.getProfit()))
+		elif profit >= VARIABLES['first_stop_pips'] and stop_state.value < StopState.FIRST.value:
+			print("Reached FIRST STOP point:", str(profit))
 			
 			pos.modifySL(VARIABLES['first_stop_points'])
 			if pos.apply():
 				stop_state = StopState.FIRST
 
 		if pos in pending_breakevens:
-			if pos.getProfit() > VARIABLES['breakeven_min_pips']:
+			if profit > VARIABLES['breakeven_min_pips']:
 				pos.breakeven()
 				if pos.apply():
 					stop_state = StopState.BREAKEVEN
@@ -846,7 +858,7 @@ def report():
 	count = 0
 	for pos in utils.closedPositions:
 		count += 1
-		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit())
+		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit(price_type = 'c'))
 
 	print("ORDERS:")
 	count = 0
@@ -858,6 +870,6 @@ def report():
 	count = 0
 	for pos in utils.positions:
 		count += 1
-		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit())
+		print(str(count) + ":", pos.direction, "Profit:", pos.getProfit(price_type = 'c'))
 
 	print("--|\n")

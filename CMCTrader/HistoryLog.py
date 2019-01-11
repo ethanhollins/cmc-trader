@@ -154,6 +154,14 @@ class HistoryLog(object):
 			]
 		return sorted(events, key = lambda x : (x[1], type_order.index(x[2])))
 
+	def getLatestHistoryTimestamp(self):
+		history = self.getFilteredHistory()
+		sorted_history = sorted(history, key=lambda x: x[1], reverse=True)
+		if len(history) > 0:
+			return sorted_history[0][1]
+		else:
+			return 0
+
 	def _convertTime(self, time):
 		time.strip()
 		parts = time.split(' ')

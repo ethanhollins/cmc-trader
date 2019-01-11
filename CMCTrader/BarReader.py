@@ -769,6 +769,11 @@ class BarReader(object):
 
 		self.start_time = time.time()
 
+		self.setCharts(self.utils.tickets)
+		self.setCanvases(self.chartDict)
+
+		canvas = self.canvasDict["GBPUSD"]
+
 		try:
 			wait = ui.WebDriverWait(self.driver, 59, poll_frequency=0.05)
 			wait.until(lambda driver : self._checkTimestampIsCurrent(chart, canvas, pair, xOff))
@@ -793,10 +798,6 @@ class BarReader(object):
 			if timestamp_mins < mins - 2:
 				self.utils.refreshChart(pair)
 				return False
-			# elif time.time() - self.start_time > 5:
-			# 	self.start_time = time.time()
-			# 	self.utils.refreshChart(pair)
-			# 	return False
 
 			return (mins - 1) == timestamp_mins
 		except Exception as e:
