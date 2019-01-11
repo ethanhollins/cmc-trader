@@ -661,6 +661,8 @@ class BarReader(object):
 		self.setCharts(self.utils.tickets)
 		self.setCanvases(self.chartDict)
 
+		canvas = self.canvasDict["GBPUSD"]
+
 		ActionChains(self.driver).move_to_element_with_offset(canvas, xOff, yOff).click().perform()
 
 		canvas_base64 = self.driver.execute_script("return arguments[0].toDataURL('image/png').substring(21);", canvas)

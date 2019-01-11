@@ -23,6 +23,9 @@ def close_redirect(func):
 		elif self.utils.backtester.isRecover():
 			print("IS RECOVER")
 			self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.CLOSE, bt.current_timestamp, args = args, kwargs = kwargs))
+
+			# self.utils.closedPositions.append(self)
+			# del self.utils.positions[self.utils.positions.index(self)]
 		else:
 			print("IS NONE")
 			return func(*args, **kwargs)
@@ -49,6 +52,10 @@ def stopandreverse_redirect(func):
 				pos = self.utils.createPosition(self.utils, None, None, None, None, 'buy')
 
 			self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.STOP_AND_REVERSE, bt.current_timestamp, args = args, kwargs = kwargs))
+
+			# self.utils.closedPositions.append(self)
+			# del self.utils.positions[self.utils.positions.index(self)]
+
 			return pos
 		else:
 			return func(*args, **kwargs)
@@ -131,8 +138,38 @@ def breakeven_redirect_backtest(func):
 def profit_redirect_backtest(func):
 	def wrapper(*args, **kwargs):
 		self = args[0]
-		if (not self.utils.backtester.isNotBacktesting() and not self.utils.isLive):			
+
+		price_type = args[1]
+
+		if price_type == 'o':
+			price = self.utils.ohlc[self.pair][bt.current_timestamp][0]
+		elif price_type == 'h':
+			price = self.utils.ohlc[self.pair][bt.current_timestamp][1]
+		elif price_type == 'l':
+			price = self.utils.ohlc[self.pair][bt.current_timestamp][2]
+		else:
+			price = self.utils.ohlc[self.pair][bt.current_timestamp][3]
+
+		if self.utils.backtester.isBacktesting():
 			return 0
+		if self.utils.backtester.isRecover():
+
+			if (float(self.closeprice) == 0):
+				if (self.direction == 'buy'):
+					profit = price - float(self.entryprice)
+					profit = self.utils.convertToPips(profit)
+				else:
+					profit = float(self.entryprice) - price
+					profit = self.utils.convertToPips(profit)
+			else:
+				if (self.direction == 'buy'):
+					profit = float(self.closeprice) - float(self.entryprice)
+					profit = self.utils.convertToPips(profit)
+				else:
+					profit = float(self.entryprice) - float(self.closeprice)
+					profit = self.utils.convertToPips(profit)
+
+			return round(profit, 1)	
 		else:
 			return func(*args, **kwargs)
 	return wrapper
@@ -709,7 +746,7 @@ class Position(object):
 		print("Position closed (" + str(self.closeTime) + ") at " + str(self.closeprice))
 
 	@profit_redirect_backtest
-	def getProfit(self):
+	def getProfit(self, price_type = 'c'):
 		if (float(self.closeprice) == 0):
 			if (self.direction == 'buy'):
 				profit = self.utils.getBid(self.pair) - float(self.entryprice)

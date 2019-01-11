@@ -110,6 +110,7 @@ class Backtester(object):
 			elif (state == State.RECOVER):
 				pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
 				self.backtester.actions.append(Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
+				# self.positions.append(pos)
 				return pos
 			else:
 				return func(*args, **kwargs)
@@ -471,6 +472,7 @@ class Backtester(object):
 			if (
 				updates[i].action == ActionType.CLOSE
 				or updates[i].action == ActionType.STOP_AND_REVERSE
+				or updates[i].action == ActionType.ENTER # MIMIC POSITION APPENDING AND CLOSED POSITION APPENDING INSTEAD.. NEED TO REPLACE PLACEHOLDER POSITIONS ALSO
 				):
 				new_index = i
 
