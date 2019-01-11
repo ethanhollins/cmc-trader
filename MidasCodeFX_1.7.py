@@ -349,11 +349,7 @@ def handleRegularEntry(entry):
 	Handle regular entries 
 	and check if tradable conditions are met.
 	'''
-
-	if pos.direction == 'buy':
-		current_profit = utils.getTotalProfit() + pos.getProfit(price_type = 'h')
-	else:
-		current_profit = utils.getTotalProfit() + pos.getProfit(price_type = 'l')
+	current_profit = utils.getTotalProfit()
 
 	loss_limit = -VARIABLES['stoprange'] * VARIABLES['maximum_risk']
 

@@ -35,7 +35,6 @@ def close_redirect(func):
 def stopandreverse_redirect(func):
 	def wrapper(*args, **kwargs):
 		self = args[0]
-		print("STOPANDREVERSE:", str(args), str(kwargs))
 		if self.utils.backtester.isBacktesting():
 			if (self.direction == 'buy'):
 				newPos = self.utils.sell(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
@@ -141,7 +140,7 @@ def profit_redirect_backtest(func):
 		self = args[0]
 
 		try:
-			price_type = args[1]
+			price_type = kwargs['price_type']
 		except:
 			price_type = 'c'
 
