@@ -719,7 +719,7 @@ def momentumParaHit(shift, direction):
 
 	if current_brown.is_hit and isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
 		if isCciBiasConfirmation(shift, direction) and isDmiConfirmation(shift, direction):
-			if isMacdConfirmationOne(shift, direction) or isMacdConfirmationTwo(shift, direction)
+			if isMacdConfirmationOne(shift, direction) or isMacdConfirmationTwo(shift, direction):
 				return True
 
 	return False

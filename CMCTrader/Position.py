@@ -35,12 +35,12 @@ def close_redirect(func):
 def stopandreverse_redirect(func):
 	def wrapper(*args, **kwargs):
 		self = args[0]
-		print("STOPANDREVERSE:", str(args))
+		print("STOPANDREVERSE:", str(args), str(kwargs))
 		if self.utils.backtester.isBacktesting():
 			if (self.direction == 'buy'):
-				newPos = self.utils.sell(int(self.lotsize + args[1]), pairs = [self.pair], sl = args[2], tp = args[3])
+				newPos = self.utils.sell(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
 			elif (self.direction == 'sell'):
-				newPos = self.utils.buy(int(self.lotsize + args[1]), pairs = [self.pair], sl = args[2], tp = args[3])
+				newPos = self.utils.buy(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
 
 			self.closeprice = self.utils.getBid(self.pair)
 			self.closeTime = self.utils.getAustralianTime()
@@ -56,9 +56,9 @@ def stopandreverse_redirect(func):
 				del self.utils.positions[self.utils.positions.index(self)]
 
 				if self.direction == 'buy':
-					pos = self.utils.sell(int(self.lotsize + args[1]), pairs = [self.pair], sl = args[2], tp = args[3])
+					pos = self.utils.sell(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
 				else:
-					pos = self.utils.buy(int(self.lotsize + args[1]), pairs = [self.pair], sl = args[2], tp = args[3])
+					pos = self.utils.buy(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
 
 				return pos
 			else:
