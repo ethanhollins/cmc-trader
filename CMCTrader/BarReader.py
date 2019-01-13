@@ -161,7 +161,7 @@ class BarReader(object):
 			canvas_y_off = 35
 			size = canvas.size
 
-			for i in range(2):
+			for i in range(1):
 				pyautogui.moveTo(browser_pos['x'] + browser_x_off + canvas_pos['x'] + size['width']/2, browser_pos['y'] + browser_y_off + canvas_pos['y'] + canvas_y_off)
 				pyautogui.dragRel(-100, size['height'], 0.25, button='left')
 
@@ -275,40 +275,6 @@ class BarReader(object):
 			return True
 		else:
 			return False
-
-
-	# def getBarInfo(self, pair, shift, amount):
-	# 	chart = self.chartDict[pair]
-	# 	canvas = self.canvasDict[pair]
-
-	# 	xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
-
-	# 	fillValues = None
-	# 	if (self._isCurrentBar(chart, canvas, xOff)):
-
-	# 		xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
-
-	# 		for i in range(amount):
-	# 			if (xOff < 340):
-	# 				print("BarReader: Tested too far back, filling remaining timestamps.")
-	# 				fillValues = values
-	# 				xOff = self.chartValues[pair][0] - self.chartValues[pair][1]
-
-	# 			if (fillValues == None):
-	# 				print(str(prevTimestamp), str(xOff))
-	# 				values = self._performBarInfoCapture(chart, canvas, pair, xOff)
-	# 				self._insertValues(pair, values)
-
-	# 				prevTimestamp = values['timestamp']
-	# 				xOff = values['x'] - self.chartValues[pair][1]
-	# 			else:
-	# 				self._insertValues(pair, fillValues)
-
-	# 		return True
-	# 	else:
-	# 		return False
-
-	# 	print("done")
 
 	def getBarInfoByTimestamp(self, pair, timestamps):
 

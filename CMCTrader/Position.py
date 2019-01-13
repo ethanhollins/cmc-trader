@@ -153,9 +153,7 @@ def profit_redirect_backtest(func):
 		else:
 			price = self.utils.ohlc[self.pair][bt.current_timestamp][3]
 
-		if self.utils.backtester.isBacktesting():
-			return 0
-		if self.utils.backtester.isRecover():
+		if self.utils.backtester.isRecover() or self.utils.backtester.isBacktesting():
 
 			if (float(self.closeprice) == 0):
 				if (self.direction == 'buy'):

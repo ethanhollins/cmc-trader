@@ -24,6 +24,8 @@ class SocketManager(object):
 
 		if cmd == 'stop':
 			self.utils.setStopped()
+		elif cmd == 'start':
+			self.utils.setStarted()
 	
 	def variables(self, *args):
 		# data = self.convertRawData(args[0])

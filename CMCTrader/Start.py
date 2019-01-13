@@ -360,9 +360,6 @@ class Start(object):
 
 						self.utils.updatePositions()
 
-						# try:
-						# wait = ui.WebDriverWait(self.driver, 59, poll_frequency=5)
-						# wait.until(lambda driver : self.updateBar())
 						isUpdated = self.updateBar()
 					
 						if (isUpdated):

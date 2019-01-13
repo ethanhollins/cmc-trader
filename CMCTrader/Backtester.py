@@ -252,8 +252,8 @@ class Backtester(object):
 
 				self.utils.setTradeTimes(currentTime = time)
 
-				# self.checkStopLoss()
-				# self.checkTakeProfit()
+				self.checkStopLoss()
+				self.checkTakeProfit()
 
 				if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
 					self.runMainLoop(time)
@@ -549,28 +549,46 @@ class Backtester(object):
 		low = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][2]
 
 		for pos in self.utils.positions:
-			if (pos.direction == 'buy'):
-				if (low <= pos.sl):
-					pos.closeprice = pos.sl
-					pos.close()
-			else:
-				if (high >= pos.sl):
-					pos.closeprice = pos.sl
-					pos.close()
+			if not pos.sl == 0:
+				if pos.direction == 'buy':
+					if low <= pos.sl:
+						pos.closeprice = pos.sl
+						pos.close()
+						try:
+							self.utils.plan.onStopLoss(pos)
+						except AttributeError as e:
+							pass
+				else:
+					if high >= pos.sl:
+						pos.closeprice = pos.sl
+						pos.close()
+						try:
+							self.utils.plan.onStopLoss(pos)
+						except AttributeError as e:
+							pass
 
 	def checkTakeProfit(self):
 		high = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][1]
 		low = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][2]
 
 		for pos in self.utils.positions:
-			if (pos.direction == 'buy'):
-				if (high >= pos.tp):
-					pos.closeprice = pos.tp
-					pos.close()
-			else:
-				if (low <= pos.tp):
-					pos.closeprice = pos.tp
-					pos.close()
+			if not pos.tp == 0:
+				if pos.direction == 'buy':
+					if high >= pos.tp:
+						pos.closeprice = pos.tp
+						pos.close()
+						try:
+							self.utils.plan.onTakeProfit(pos)
+						except AttributeError as e:
+							pass
+				else:
+					if low <= pos.tp:
+						pos.closeprice = pos.tp
+						pos.close()
+						try:
+							self.utils.plan.onTakeProfit(pos)
+						except AttributeError as e:
+							pass
 
 	def isNotBacktesting(self):
 		return state == State.NONE
