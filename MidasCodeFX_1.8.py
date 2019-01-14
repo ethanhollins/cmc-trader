@@ -614,7 +614,7 @@ def reEntrySetup(shift, trigger):
 
 def stateOneConf(shift, trigger):
 
-	brownHit(shift, direction)
+	brownHit(shift, trigger.direction)
 
 	if isBrownParaConfirmation(shift, trigger.direction, reverse = True):
 
