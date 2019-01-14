@@ -430,15 +430,15 @@ def onStopLoss(pos):
 	global re_entry_trigger
 
 	if stop_state == StopState.BREAKEVEN:
-		if pos.direction == 'buy':
+		if pos.direction == 'buy' and strands[0].direction == Direction.SHORT:
 			re_entry_trigger = Trigger(Direction.LONG, tradable = True, is_regular = False)
-		else:
+		elif pos.direction == 'sell' and strands[0].direction == Direction.LONG:
 			re_entry_trigger = Trigger(Direction.SHORT, tradable = True, is_regular = False)
 	
 	else:
-		if pos.direction == 'buy':
+		if pos.direction == 'buy' and strands[0].direction == Direction.SHORT:
 			re_entry_trigger = Trigger(Direction.LONG, tradable = True, is_regular = False)
-		else:
+		elif pos.direction == 'sell' and strands[0].direction == Direction.LONG:
 			re_entry_trigger = Trigger(Direction.SHORT, tradable = True, is_regular = False)
 
 		re_entry_trigger.state = State.TWO
