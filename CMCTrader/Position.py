@@ -22,7 +22,7 @@ def close_redirect(func):
 			del self.utils.positions[self.utils.positions.index(self)]
 		elif self.utils.backtester.isRecover():
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
-			if current_timestamp > latest_history_timestamp:
+			if bt.current_timestamp > latest_history_timestamp:
 				self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.CLOSE, bt.current_timestamp, args = args, kwargs = kwargs))
 
 				self.utils.closedPositions.append(self)
@@ -48,7 +48,7 @@ def stopandreverse_redirect(func):
 			del self.utils.positions[self.utils.positions.index(self)]
 		elif self.utils.backtester.isRecover():
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
-			if current_timestamp > latest_history_timestamp:
+			if bt.current_timestamp > latest_history_timestamp:
 				self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.STOP_AND_REVERSE, bt.current_timestamp, args = args, kwargs = kwargs))
 
 				self.utils.closedPositions.append(self)
@@ -93,7 +93,7 @@ def function_redirect(func):
 			return
 		elif self.utils.backtester.isRecover():
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
-			if current_timestamp > latest_history_timestamp:
+			if bt.current_timestamp > latest_history_timestamp:
 				self.utils.backtester.actions.append(bt.Action(self, action, bt.current_timestamp, args = args, kwargs = kwargs))
 		else:
 			return func(*args, **kwargs)
@@ -129,7 +129,7 @@ def breakeven_redirect_backtest(func):
 					self.tp = self.entryprice
 		elif self.utils.backtester.isRecover():
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
-			if current_timestamp > latest_history_timestamp:
+			if bt.current_timestamp > latest_history_timestamp:
 				self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.BREAKEVEN, bt.current_timestamp, args = args, kwargs = kwargs))
 		else:
 			return func(*args, **kwargs)
