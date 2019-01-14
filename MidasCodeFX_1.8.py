@@ -193,10 +193,6 @@ def onFinishTrading():
 def onNewBar():
 	''' Function called on every new bar '''
 
-	if stop_trading:
-		onDownTime()
-		return
-
 	print("\nonNewBar")
 	checkTime()
 
