@@ -614,6 +614,8 @@ def reEntrySetup(shift, trigger):
 
 def stateOneConf(shift, trigger):
 
+	brownHit(shift, direction)
+
 	if isBrownParaConfirmation(shift, trigger.direction, reverse = True):
 
 		if trigger.direction == Direction.LONG:
@@ -626,7 +628,8 @@ def stateOneConf(shift, trigger):
 		if isMacdRetConfirmation(shift, trigger.direction):
 			trigger.one_macd_conf = True
 
-		if trigger.one_cci_conf and trigger.one_macd_conf:
+		if trigger.one_cci_conf and trigger.one_macd_conf and current_brown.is_hit:
+			current_brown.is_hit = False
 			return True
 
 	else:
