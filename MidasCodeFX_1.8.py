@@ -501,13 +501,10 @@ def checkTime():
 	profit_nnt_time = utils.createLondonTime(london_time.year, london_time.month, london_time.day, int(parts[0]), int(parts[1]), 0)
 	parts = VARIABLES['no_more_trades'].split(':')
 	nnt_time = utils.createLondonTime(london_time.year, london_time.month, london_time.day, int(parts[0]), int(parts[1]), 0)
-	parts = VARIABLES['set_breakeven'].split(':')
-	be_time = utils.createLondonTime(london_time.year, london_time.month, london_time.day, int(parts[0]), int(parts[1]), 0)
 
 	if not (london_time.hour < utils.endTime.hour and london_time.hour >= 0):
 		profit_nnt_time += datetime.timedelta(days=1)
 		nnt_time += datetime.timedelta(days=1)
-		be_time += datetime.timedelta(days=1)
 
 	print(str(london_time), str(utils.endTime))
 
@@ -538,7 +535,8 @@ def runSequence(shift):
 	''' Main trade plan sequence '''
 	onNewCycle(shift)
 
-	onTrigger(shift)
+	if (isCompletedStrand()):
+		onTrigger(shift)
 
 	entrySetup(shift, current_trigger)
 	reEntrySetup(shift, re_entry_trigger)
@@ -589,6 +587,13 @@ def onTrigger(shift):
 			if not re_entry_trigger == None and re_entry_trigger.direction == Direction.LONG:
 				re_entry_trigger = None
 
+def isCompletedStrand():
+	for strand in strands:
+		if strand.is_completed:
+			return True
+
+	return False
+
 def entrySetup(shift, trigger):
 	''' Checks for swing sequence once trigger has been formed '''
 
@@ -599,12 +604,12 @@ def entrySetup(shift, trigger):
 				trigger.state = State.TWO
 				entrySetup(shift, trigger)
 
-		elif trigger.state = State.TWO:
+		elif trigger.state == State.TWO:
 			if finalConf(shift, trigger.direction):
 				trigger.state = State.ENTERED
 				confirmation(trigger)
 
-def reEntrySetup(shift trigger):
+def reEntrySetup(shift, trigger):
 
 	if not trigger == None and trigger.tradable and not trigger.state == State.ENTERED:
 		if isBrownParaConfirmation(shift, trigger.direction):
@@ -700,9 +705,9 @@ def isMacdConfirmation(shift, direction):
 	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
 	if direction == Direction.LONG:
-		return hist > VARIABLES['macd_threshold'] * 0.00001
+		return hist >= VARIABLES['macd_threshold'] * 0.00001
 	else:
-		return hist < -VARIABLES['macd_threshold'] * 0.00001
+		return hist <= -VARIABLES['macd_threshold'] * 0.00001
 
 def isCciBiasConfirmation(shift, direction):
 	
@@ -750,8 +755,7 @@ def report():
 
 	print("\n")
 
-	for trigger in current_triggers:
-		print("CURRENT TRIGGER:\n ", str(trigger))
+	print("CURRENT TRIGGER:\n ", str(current_trigger))
 
 	if not re_entry_trigger == None:
 		print("RE-ENTRY TRIGGER:\n ", str(re_entry_trigger))
