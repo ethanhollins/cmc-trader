@@ -72,7 +72,8 @@ class Direction(Enum):
 class State(Enum):
 	ONE = 1
 	TWO = 2
-	ENTERED = 3
+	THREE = 3
+	ENTERED = 4
 
 class TimeState(Enum):
 	TRADING = 1
@@ -105,6 +106,7 @@ class Trigger(dict):
 		self.is_regular = is_regular
 		self.one_cci_conf = False
 		self.one_macd_conf = False
+		self.final_conf = False
 
 	def __getattr__(self, key):
 		return self[key]
@@ -596,11 +598,16 @@ def entrySetup(shift, trigger):
 	if not trigger == None and trigger.tradable:
 
 		if trigger.state == State.ONE:
-			if stateOneConf(shift, trigger):
+			if stateOneConf(shift, trigger.direction):
 				trigger.state = State.TWO
 				entrySetup(shift, trigger)
 
-		elif trigger.state == State.TWO:
+		if trigger.state == State.TWO:
+			if stateTwoConf(shift, trigger):
+				trigger.state = State.THREE
+				entrySetup(shift, trigger)
+
+		elif trigger.state == State.THREE:
 			if finalConf(shift, trigger.direction):
 				trigger.state = State.ENTERED
 				confirmation(trigger)
@@ -612,7 +619,13 @@ def reEntrySetup(shift, trigger):
 			trigger.state = State.ENTERED
 			confirmation(trigger)
 
-def stateOneConf(shift, trigger):
+def stateOneConf(shift, direction):
+	if isBrownParaConfirmation(shift, direction):
+		return True
+
+	return False
+
+def stateTwoConf(shift, trigger):
 
 	brownHit(shift, trigger.direction)
 
@@ -642,9 +655,14 @@ def finalConf(shift, direction):
 
 	brownHit(shift, direction)
 
-	if current_brown.is_hit and isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
-		if isCciBiasConfirmation(shift, direction) and isMacdConfirmation(shift, direction) and isDmiConfirmation(shift, direction):
-			print("final conf")
+	if isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
+		if current_brown.is_hit and isMacdConfirmation(shift, direction) and isDmiConfirmation(shift, direction):
+			trigger.final_conf = True
+	else:
+		trigger.final_conf = False
+
+	if triger.final_conf:
+		if isCciBiasConfirmation(shift, direction):
 			return True
 
 	return False
