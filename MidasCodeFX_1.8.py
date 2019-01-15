@@ -608,7 +608,7 @@ def entrySetup(shift, trigger):
 				entrySetup(shift, trigger)
 
 		elif trigger.state == State.THREE:
-			if finalConf(shift, trigger.direction):
+			if finalConf(shift, trigger):
 				trigger.state = State.ENTERED
 				confirmation(trigger)
 
@@ -651,18 +651,18 @@ def stateTwoConf(shift, trigger):
 
 	return False
 
-def finalConf(shift, direction):
+def finalConf(shift, trigger):
 
-	brownHit(shift, direction)
+	brownHit(shift, trigger.direction)
 
-	if isRegParaConfirmation(shift, direction) and isSlowParaConfirmation(shift, direction) and isBrownParaConfirmation(shift, direction):
-		if current_brown.is_hit and isMacdConfirmation(shift, direction) and isDmiConfirmation(shift, direction):
+	if isRegParaConfirmation(shift, trigger.direction) and isSlowParaConfirmation(shift, trigger.direction) and isBrownParaConfirmation(shift, trigger.direction):
+		if current_brown.is_hit and isMacdConfirmation(shift, trigger.direction) and isDmiConfirmation(shift, trigger.direction):
 			trigger.final_conf = True
 	else:
 		trigger.final_conf = False
 
 	if triger.final_conf:
-		if isCciBiasConfirmation(shift, direction):
+		if isCciBiasConfirmation(shift, trigger.direction):
 			return True
 
 	return False
