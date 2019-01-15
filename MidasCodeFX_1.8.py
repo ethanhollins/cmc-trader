@@ -620,7 +620,7 @@ def reEntrySetup(shift, trigger):
 			confirmation(trigger)
 
 def stateOneConf(shift, direction):
-	if isBrownParaConfirmation(shift, direction):
+	if isBrownParaConfirmation(shift, direction, reverse = True):
 		return True
 
 	return False
