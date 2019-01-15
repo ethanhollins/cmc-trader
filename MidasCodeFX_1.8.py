@@ -661,7 +661,7 @@ def finalConf(shift, trigger):
 	else:
 		trigger.final_conf = False
 
-	if triger.final_conf:
+	if trigger.final_conf:
 		if isCciBiasConfirmation(shift, trigger.direction):
 			return True
 
