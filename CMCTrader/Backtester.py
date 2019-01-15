@@ -108,7 +108,7 @@ class Backtester(object):
 				self.positions.append(pos)
 				return pos
 			elif (state == State.RECOVER):
-				latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
+				latest_history_timestamp = self.historyLog.getLatestHistoryTimestamp()
 				if current_timestamp > latest_history_timestamp:
 					pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
 					pos.entryprice = self.ohlc[args[3]][current_timestamp][3]
