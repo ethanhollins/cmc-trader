@@ -769,11 +769,7 @@ class BarReader(object):
 
 			return (mins - 1) == timestamp_mins
 		except Exception as e:
-			tb = traceback.format_exc()
-			print("--------- ERROR ----------")
-			print(tb)
-			# print(e)
-			print("--------------------------")
+			print("*Couldn't read bar!")
 			return False
 
 	def moveToChart(self, pair):

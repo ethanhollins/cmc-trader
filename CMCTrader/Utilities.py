@@ -1019,11 +1019,17 @@ class Utilities:
 
 		refresh_btn.click()
 
+
+		wait = ui.WebDriverWait(self.driver, 60)
+		wait.until(lambda driver : not self.chartTimestampCheck(pair))
+		
 		self.barReader.setCanvases(self.barReader.chartDict)
 
 		wait = ui.WebDriverWait(self.driver, 60)
 		wait.until(lambda driver : self.chartTimestampCheck(pair))
 		
+		self.barReader.setCanvases(self.barReader.chartDict)
+
 		self.barReader.dragCanvases()
 
 	def refreshValues(self, pair, changed_timestamps):
@@ -1112,8 +1118,19 @@ class Utilities:
 
 	def chartTimestampCheck(self, pair):
 		try:
-			self.barReader.getLatestBarTimestamp(pair)
-			return True
+			is_open = self.driver.execute_script(
+					'if (arguments[0].hasAttribute("style"))'
+					'{'
+					'    return true;'
+					'}'
+					'else'
+					'{'
+					'    return false;'
+					'}',
+					self.barReader.canvasDict[pair]
+				)
+
+			return is_open
 		except:
 			return False
 
