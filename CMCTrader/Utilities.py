@@ -1028,7 +1028,7 @@ class Utilities:
 		wait = ui.WebDriverWait(self.driver, 60)
 		wait.until(lambda driver : self.chartTimestampCheck(pair))
 		
-		self.barReader.setCanvases(self.barReader.chartDict)
+		# self.barReader.setCanvases(self.barReader.chartDict)
 
 		self.barReader.dragCanvases()
 
