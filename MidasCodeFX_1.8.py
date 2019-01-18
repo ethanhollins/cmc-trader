@@ -627,7 +627,7 @@ def stateOneConf(shift, direction):
 
 def stateTwoConf(shift, trigger):
 
-	brownHit(shift, trigger.direction)
+	brownHit(shift, trigger.direction, is_ret = True)
 
 	if isBrownParaConfirmation(shift, trigger.direction, reverse = True):
 
@@ -667,18 +667,26 @@ def finalConf(shift, trigger):
 
 	return False
 
-def brownHit(shift, direction):
+def brownHit(shift, direction, is_ret = False):
 
 	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
 	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
 
 	if (direction == Direction.LONG):
-		if (high > current_brown.to_hit):
-			current_brown.is_hit = True
+		if is_ret:
+			if (high >= current_brown.to_hit):
+				current_brown.is_hit = True
+		else:
+			if (high > current_brown.to_hit):
+				current_brown.is_hit = True
 
 	else:
-		if (low < current_brown.to_hit):
-			current_brown.is_hit = True
+		if is_ret:
+			if (low <= current_brown.to_hit):
+				current_brown.is_hit = True
+		else:
+			if (low < current_brown.to_hit):
+				current_brown.is_hit = True
 
 def isBrownParaConfirmation(shift, direction, reverse = False):
 	if reverse:
