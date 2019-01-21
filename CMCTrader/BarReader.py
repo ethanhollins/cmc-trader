@@ -765,9 +765,9 @@ class BarReader(object):
 			cropped_image = img.crop(TIMESTAMP_CROP)
 			timestamp_mins = int(performOCR(cropped_image).split(':')[1])
 
-			if timestamp_mins < mins - 2:
-				self.utils.refreshChart(pair)
-				return False
+			# if timestamp_mins < mins - 2:
+			# 	self.utils.refreshChart(pair)
+			# 	return False
 
 			return (mins - 1) == timestamp_mins
 		except Exception as e:
