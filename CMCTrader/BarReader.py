@@ -734,9 +734,7 @@ class BarReader(object):
 		print("Attempting to capture bar!")
 
 		self.start_time = time.time()
-
 		
-
 		try:
 			wait = ui.WebDriverWait(self.driver, 59, poll_frequency=0.05)
 			wait.until(lambda driver : self._checkTimestampIsCurrent(chart, canvas, pair, xOff))
@@ -758,7 +756,7 @@ class BarReader(object):
 
 			# canvas = self.canvasDict["GBPUSD"]
 
-			img = self._getImage(chart, canvas, xOff, 300)
+			img = self._getImage(chart, self.canvasDict["GBPUSD"], xOff, 300)
 
 			cropped_image = img.crop(TIMESTAMP_CROP)
 			timestamp_mins = int(performOCR(cropped_image).split(':')[1])
