@@ -769,7 +769,7 @@ class BarReader(object):
 			timestamp_converted = self._convertRawTimestamp(timestamp_raw)
 
 			print("Timestamp:", str(timestamp_converted))
-			print("Check mins:", str(check_mins))
+			print("Check mins:", str(timestamp_check))
 
 			if timestamp_converted < timestamp_check - 60 * 2:
 				self.utils.refreshChart(pair)
