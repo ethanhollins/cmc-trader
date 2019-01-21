@@ -755,20 +755,19 @@ class BarReader(object):
 			if (mins == 0):
 				mins = 60
 
+			last_time = self.getLastBarTime(pair)
+
+			if not last_time == 0:
+				mins = int(last_time.minute)
+
 			# self.setCharts(self.utils.tickets)
 			# self.setCanvases(self.chartDict)
 
 			# canvas = self.canvasDict["GBPUSD"]
 
 			img = self._getImage(chart, self.canvasDict["GBPUSD"], xOff, 300)
-
-			last_time = self.getLastBarTime(pair)
-
-			if last_time == 0:
-				cropped_image = img.crop(TIMESTAMP_CROP)
-				timestamp_mins = int(performOCR(cropped_image).split(':')[1])
-			else:
-				timestamp_mins = int(last_time.minute)
+			cropped_image = img.crop(TIMESTAMP_CROP)
+			timestamp_mins = int(performOCR(cropped_image).split(':')[1])
 
 			print("Timestamp mins:", str(timestamp_mins))
 
