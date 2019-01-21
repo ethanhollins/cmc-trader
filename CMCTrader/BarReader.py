@@ -87,8 +87,7 @@ class BarReader(object):
 		self.driver = driver
 		self.utils = utils
 		
-		self.mins_elem = None
-		self.setMins()
+		self.setTime()
 		
 		self.chartDict = None
 		self.setCharts(self.utils.tickets)
@@ -105,7 +104,7 @@ class BarReader(object):
 
 	def reinit(self, driver):
 		self.driver = driver
-		self.setMins()
+		self.setTime()
 		self.setCharts(self.utils.tickets)
 		self.setCanvases(self.chartDict)
 		self.setChartVals(self.utils.tickets)
@@ -204,10 +203,21 @@ class BarReader(object):
 
 		self.retrieving = False
 
-	def setMins(self):
+	def setTime(self):
+		self.seconds_elem = self.driver.execute_script(
+			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="s"]\');'
+		)
+
 		self.mins_elem = self.driver.execute_script(
 			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="m"]\');'
 		)
+
+		self.hours_elem  = self.driver.execute_script(
+			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="h"]\');'
+		)
+
+	def getCurrentTime(self):
+		return self.hours_elem.text + ':' + self.mins_elem.text + ':' + self.seconds_elem.text
 
 	def _iterateChartOfPair(self, chart, canvas, pair):
 		print("Setting up " + pair + " chart...")
@@ -750,32 +760,26 @@ class BarReader(object):
 
 	def _checkTimestampIsCurrent(self, chart, canvas, pair, xOff):
 		try:
-			mins = int(self.mins_elem.text)
-
-			if (mins == 0):
-				mins = 60
+			current_time = self.getCurrentTime()
+			print("current time:", str(current_time))
+			current_timestamp = self._convertRawTimestamp(current_time)
 
 			last_time = self.getLastBarTime(pair)
-
-			# if last_time == 0:
-			# 	timestamp_check = mins
-			# else:
 			timestamp_check = last_time
 
 			img = self._getImage(chart, self.canvasDict["GBPUSD"], xOff, 300)
 			cropped_image = img.crop(TIMESTAMP_CROP)
 			timestamp_raw = performOCR(cropped_image)
-			timestamp_mins = int(timestamp_raw.split(':')[1])
 			timestamp_converted = self._convertRawTimestamp(timestamp_raw)
 
 			print("Timestamp:", str(timestamp_converted))
 			print("Check mins:", str(timestamp_check))
 
-			if timestamp_converted < timestamp_check - 60 * 2:
+			if not timestamp_check == 0 and timestamp_converted < timestamp_check - 60:
 				self.utils.refreshChart(pair)
 				return False
 
-			return (mins - 1) == timestamp_mins
+			return timestamp_converted == current_timestamp - 60
 		except Exception as e:
 			tb = traceback.format_exc()
 			print(tb)
