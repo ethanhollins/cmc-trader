@@ -204,10 +204,6 @@ class BarReader(object):
 		self.retrieving = False
 
 	def setTime(self):
-		self.seconds_elem = self.driver.execute_script(
-			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="s"]\');'
-		)
-
 		self.mins_elem = self.driver.execute_script(
 			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="m"]\');'
 		)
@@ -217,7 +213,7 @@ class BarReader(object):
 		)
 
 	def getCurrentTime(self):
-		return self.hours_elem.text + ':' + self.mins_elem.text + ':' + self.seconds_elem.text
+		return self.hours_elem.text + ':' + self.mins_elem.text + ':00'
 
 	def _iterateChartOfPair(self, chart, canvas, pair):
 		print("Setting up " + pair + " chart...")
@@ -767,7 +763,7 @@ class BarReader(object):
 			last_time = self.getLastBarTime(pair)
 			timestamp_check = last_time
 
-			img = self._getImage(chart, self.canvasDict["GBPUSD"], xOff, 300)
+			img = self._getImage(chart, self.canvasDict[pair], xOff, 300)
 			cropped_image = img.crop(TIMESTAMP_CROP)
 			timestamp_raw = performOCR(cropped_image)
 			timestamp_converted = self._convertRawTimestamp(timestamp_raw)
