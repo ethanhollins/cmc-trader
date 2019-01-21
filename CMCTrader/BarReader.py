@@ -757,7 +757,6 @@ class BarReader(object):
 	def _checkTimestampIsCurrent(self, chart, canvas, pair, xOff):
 		try:
 			current_time = self.getCurrentTime()
-			print("current time:", str(current_time))
 			current_timestamp = self._convertRawTimestamp(current_time)
 
 			last_time = self.getLastBarTime(pair)
@@ -767,9 +766,6 @@ class BarReader(object):
 			cropped_image = img.crop(TIMESTAMP_CROP)
 			timestamp_raw = performOCR(cropped_image)
 			timestamp_converted = self._convertRawTimestamp(timestamp_raw)
-
-			print("Timestamp:", str(timestamp_converted))
-			print("Check mins:", str(timestamp_check))
 
 			if not timestamp_check == 0 and timestamp_converted < timestamp_check - 60:
 				self.utils.refreshChart(pair)
