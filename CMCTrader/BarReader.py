@@ -774,7 +774,8 @@ class BarReader(object):
 
 			return (mins - 1) == timestamp_mins
 		except Exception as e:
-			print(e)
+			tb = traceback.format_exc()
+			print(tb)
 			print("*Couldn't read bar!")
 			return False
 
