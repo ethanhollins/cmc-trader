@@ -775,6 +775,7 @@ class BarReader(object):
 				return False
 
 			if time.time() - self.start_time > 5:
+				print("REFRESH AFTER 5s")
 				self.utils.refreshChart(pair)
 				self.start_time = time.time()
 				return False
