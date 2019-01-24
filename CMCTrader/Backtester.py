@@ -106,6 +106,12 @@ class Backtester(object):
 				print(str(pos.direction), str(pos.entryprice), str(pos.sl), str(pos.tp))
 
 				self.positions.append(pos)
+
+				try:
+					self.plan.onEntry(pos)
+				except AttributeError as e:
+					pass
+
 				return pos
 			elif (state == State.RECOVER):
 				latest_history_timestamp = self.historyLog.getLatestHistoryTimestamp()
