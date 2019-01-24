@@ -122,6 +122,12 @@ class Backtester(object):
 					pos.isTemp = True
 					self.backtester.actions.append(Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
 					self.positions.append(pos)
+
+					try:
+						self.plan.onEntry(pos)
+					except AttributeError as e:
+						pass
+
 					return pos
 				else:
 					return self.positions[0]
