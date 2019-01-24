@@ -275,10 +275,13 @@ class BarReader(object):
 		print("getCurrentBar", str(xOff))
 
 		if (self._isCurrentBar(chart, canvas, pair, xOff)):
-			values = self._performBarInfoCapture(pair, xOff)
+			try:
+				values = self._performBarInfoCapture(pair, xOff)
 
-			self._insertValues(pair, values)
-			return True
+				self._insertValues(pair, values)
+				return True
+			except ValueError as e:
+				return self.getCurrentBarInfo(pair)
 		else:
 			return False
 
