@@ -20,6 +20,12 @@ def close_redirect(func):
 
 			self.utils.closedPositions.append(self)
 			del self.utils.positions[self.utils.positions.index(self)]
+
+			try:
+				self.plan.onTrade(pos)
+			except AttributeError as e:
+				pass
+			
 		elif self.utils.backtester.isRecover():
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
 			if bt.current_timestamp > latest_history_timestamp:

@@ -417,12 +417,20 @@ def handleExits(shift):
 	if is_exit:
 		pending_exits = []
 
+def onTrade(pos):
+	print("onTrade")
+
+	if pos.direction == 'buy':
+		configureCompStrandsOnEntry(Direction.SHORT)
+	else:
+		configureCompStrandsOnEntry(Direction.LONG)
+
+	getTrigger(0, pos)
+
 def onEntry(pos):
 	print("onEntry")
 
 	global re_entry_trigger, stop_state
-
-	getTrigger(0, pos)
 
 	re_entry_trigger = None
 
@@ -561,6 +569,15 @@ def getTrigger(shift, pos):
 
 			current_triggers.append(trigger)
 
+def configureCompStrandsOnEntry(direction):
+	primary_strand = getCompStrand(direction, CompType.PRIMARY)
+
+	if primary_strand:
+		secondary_strand = getCompStrand(direction, CompType.SECONDARY)
+		del comp_strands[comp_strands.index(secondary_strand)]
+
+		primary_strand.comp_type = CompType.SECONDARY
+
 def onNewCycle(shift):
 	''' 
 	Capture regular and slow sar strands once
@@ -577,19 +594,18 @@ def onNewCycle(shift):
 		strand = Strand(direction, sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
 		
 		if len(strands) > 0:
+			print("new cycle:\n")
 			strands[0].is_completed = True
 			strands[0].end = sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
 			strands[0].length = sar.strandCount(VARIABLES['TICKETS'][0], shift + 1)
 
 			if sar.strandCount(VARIABLES['TICKETS'][0], shift + 1) >= VARIABLES['sar_count_min']:
 
-				if strand.direction == Direction.LONG:
-					last_strand = getLastDirectionStrand(Direction.SHORT)
-				else:
-					last_strand = getLastDirectionStrand(Direction.LONG)
-
 				current_sar = sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 				
+				print("last strand:", str(strands[0]))
+				print("current sar:", str(current_sar))
+
 				if isValidStrandBetween(strand.direction):
 					
 					primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
@@ -600,11 +616,11 @@ def onNewCycle(shift):
 						
 						primary_strand.comp_type = CompType.SECONDARY
 
-					comp_strand = CompStrand(strand.direction, (current_sar + last_strand.start)/2, CompType.PRIMARY, strand)
+					comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.PRIMARY, strands[0])
 					
 					comp_strands.append(comp_strand)
 
-				elif last_strand:
+				elif strands[0]:
 
 					secondary_strand = getCompStrand(strand.direction, CompType.SECONDARY)
 					if secondary_strand:
@@ -614,7 +630,7 @@ def onNewCycle(shift):
 					if primary_strand:
 						del comp_strands[comp_strands.index(primary_strand)]
 
-					comp_strand = CompStrand(strand.direction, (current_sar + last_strand.start)/2, CompType.SECONDARY, strand)
+					comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.SECONDARY, strands[0])
 
 					comp_strands.append(comp_strand)
 
@@ -629,8 +645,10 @@ def getDirectionTrigger(direction):
 	return None
 
 def getLastDirectionStrand(direction):
-	for i in range(1, len(strands)):
+	for i in range(len(strands)):
 		if strands[i].direction == direction:
+			print("at: " + str(i))
+			print(strands[i])
 			return strands[i]
 
 	return None
@@ -643,17 +661,22 @@ def getCompStrand(direction, comp_type):
 	return None
 
 def isValidStrandBetween(direction):
-	secondary_strand = getCompStrand(direction, CompType.SECONDARY)
+	comp_strand = getCompStrand(direction, CompType.PRIMARY)
+	if not comp_strand:
+		comp_strand = getCompStrand(direction, CompType.SECONDARY)
 
-	if secondary_strand:
-		for strand in strands.getSorted():
-			if strand.count > secondary_strand.strand.count and not strand.direction == direction:
-				if strand.length >= VARIABLES['sar_count_min']:
-					print("Valid inbetween strand found")
-					return True
-			else:
-				print("No valid inbetween strand found")
-				return False
+	print("comp strand:\n", str(comp_strand))
+
+	if comp_strand:
+		direction_strands = [i for i in strands.getSorted() if i.direction == direction and i.count > comp_strand.strand.count]
+		
+		for strand in direction_strands:
+			print(str(strand.count)+":")
+			print(strand)
+
+			if strand.length >= VARIABLES['sar_count_min']:
+				print("Valid inbetween strand found")
+				return True
 
 	return False
 
@@ -691,9 +714,9 @@ def entryConf(direction):
 
 	if primary_comp and secondary_comp:
 		if direction == Direction.LONG:
-			return primary_comp.half_val > secondary_comp.half_val + utils.convertToPrice(VARIABLES['min_diff'])
+			return primary_comp.half_val >= secondary_comp.half_val + utils.convertToPrice(VARIABLES['min_diff'])
 		else:
-			return primary_comp.half_val < secondary_comp.half_val - utils.convertToPrice(VARIABLES['min_diff'])
+			return primary_comp.half_val <= secondary_comp.half_val - utils.convertToPrice(VARIABLES['min_diff'])
 
 	return False
 
@@ -725,6 +748,10 @@ def confirmation(shift, trigger):
 	print("confirmation")
 
 	pending_entries.append(trigger)
+	
+	global re_entry_trigger
+
+	re_entry_trigger = None
 
 def report():
 	''' Prints report for debugging '''

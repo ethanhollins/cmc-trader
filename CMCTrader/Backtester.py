@@ -112,6 +112,11 @@ class Backtester(object):
 				except AttributeError as e:
 					pass
 
+				try:
+					self.plan.onTrade(pos)
+				except AttributeError as e:
+					pass
+
 				return pos
 			elif (state == State.RECOVER):
 				latest_history_timestamp = self.historyLog.getLatestHistoryTimestamp()
@@ -125,6 +130,11 @@ class Backtester(object):
 
 					try:
 						self.plan.onEntry(pos)
+					except AttributeError as e:
+						pass
+
+					try:
+						self.plan.onTrade(pos)
 					except AttributeError as e:
 						pass
 
@@ -570,12 +580,22 @@ class Backtester(object):
 							self.utils.plan.onStopLoss(pos)
 						except AttributeError as e:
 							pass
+
+						try:
+							self.plan.onTrade(pos)
+						except AttributeError as e:
+							pass
 				else:
 					if high >= pos.sl:
 						pos.closeprice = pos.sl
 						pos.close()
 						try:
 							self.utils.plan.onStopLoss(pos)
+						except AttributeError as e:
+							pass
+
+						try:
+							self.plan.onTrade(pos)
 						except AttributeError as e:
 							pass
 
@@ -593,12 +613,22 @@ class Backtester(object):
 							self.utils.plan.onTakeProfit(pos)
 						except AttributeError as e:
 							pass
+
+						try:
+							self.plan.onTrade(pos)
+						except AttributeError as e:
+							pass
 				else:
 					if low <= pos.tp:
 						pos.closeprice = pos.tp
 						pos.close()
 						try:
 							self.utils.plan.onTakeProfit(pos)
+						except AttributeError as e:
+							pass
+
+						try:
+							self.plan.onTrade(pos)
 						except AttributeError as e:
 							pass
 

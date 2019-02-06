@@ -4,6 +4,8 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
+from enum import Enum
+
 import numpy as np
 import time
 import threading
@@ -312,6 +314,11 @@ class Utilities:
 				except AttributeError as e:
 					pass
 
+				try:
+					self.plan.onTrade(pos)
+				except AttributeError as e:
+					pass
+
 		elif event[2] == 'Sell Trade':
 			position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
 
@@ -328,6 +335,11 @@ class Utilities:
 
 				try:
 					self.plan.onEntry(pos)
+				except AttributeError as e:
+					pass
+
+				try:
+					self.plan.onTrade(pos)
 				except AttributeError as e:
 					pass
 
@@ -369,6 +381,11 @@ class Utilities:
 					self.closedPositions.append(pos)
 					del self.positions[self.positions.index(pos)]
 
+					try:
+						self.plan.onTrade(pos)
+					except AttributeError as e:
+						pass
+
 			for order in self.orders:
 				if event[0] == order.orderID:
 					del self.orders[self.orders.index(order)]
@@ -397,6 +414,11 @@ class Utilities:
 							self.plan.onStopLoss(pos)
 						except AttributeError as e:
 							pass
+
+					try:
+						self.plan.onTrade(pos)
+					except AttributeError as e:
+						pass
 
 		elif (event[2] == 'SE Order Sell Trade' or event[2] == 'SE Order Buy Trade' or
 			event[2] == 'Limit Order Sell Trade' or event[2] == 'Limit Order Buy Trade'):
