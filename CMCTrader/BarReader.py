@@ -781,11 +781,11 @@ class BarReader(object):
 				self.utils.refreshChart(pair)
 				return False
 
-			if time.time() - self.start_time > 5:
-				print("REFRESH AFTER 5s")
-				self.utils.refreshChart(pair)
-				self.start_time = time.time()
-				return False
+			# if time.time() - self.start_time > 5:
+			# 	print("REFRESH AFTER 5s")
+			# 	self.utils.refreshChart(pair)
+			# 	self.start_time = time.time()
+			# 	return False
 
 			return timestamp_converted == current_timestamp - 60
 		except Exception as e:
