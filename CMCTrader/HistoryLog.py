@@ -156,7 +156,7 @@ class HistoryLog(object):
 
 	def getLatestHistoryTimestamp(self):
 		history = self.getFilteredHistory()
-		sorted_history = sorted(history, key=lambda x: x[1], reverse=True)
+		sorted_history = sorted(history, key=lambda x: int(x[1]), reverse=True)
 		if len(history) > 0:
 			return sorted_history[0][1]
 		else:
