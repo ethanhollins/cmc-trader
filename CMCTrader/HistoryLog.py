@@ -73,7 +73,7 @@ class HistoryLog(object):
 			)
 
 		for i in row_list:
-			if (i[0] == ''):
+			if i[0] == '' or i[1] == '':
 				del row_list[row_list.index(i)]
 			else:
 				i[1] = int(self._convertTime(i[1]))
