@@ -76,7 +76,7 @@ class HistoryLog(object):
 			if (i[0] == ''):
 				del row_list[row_list.index(i)]
 			else:
-				i[1] = self._convertTime(i[1])
+				i[1] = int(self._convertTime(i[1]))
 				i[3] = self._convertPair(i[3])
 
 				if (i[4].startswith("(T) ")):
