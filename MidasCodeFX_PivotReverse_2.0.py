@@ -13,7 +13,7 @@ VARIABLES = {
 	'risk' : 1.0,
 	'maximum_risk' : 4,
 	'profit_limit' : 51,
-	'maximum_bank' : 1000,
+	'maximum_bank' : 500,
 	'PLAN' : None,
 	'stoprange' : 17,
 	'breakeven_point' : 34,
@@ -30,6 +30,8 @@ VARIABLES = {
 	'time_threshold_no_trades' : 5,
 	'CONFIRMATION' : None,
 	'strand_size' : 22,
+	'SAR' : None,
+	'sar_count_min' : 3,
 	'MACD' : None,
 	'macd_threshold' : 2,
 	'CCI' : None,
@@ -43,19 +45,17 @@ class SortedList(list):
 	def getSorted(self):
 		return sorted(list(self), key=lambda x: x.count, reverse = True)
 
-current_trigger = None
+current_triggers = []
 re_entry_trigger = None
 
 strands = SortedList()
 
-cross_strand_long = None
-cross_strand_short = None
+fixed_pivots = []
+floating_pivots = []
 
 pending_entries = []
 pending_breakevens = []
 pending_exits = []
-
-current_brown = None
 
 current_news = None
 news_trade_block = False
@@ -71,15 +71,32 @@ class Direction(Enum):
 
 class State(Enum):
 	ONE = 1
+	ENTERED = 2
+
+class Re_Entry_State(Enum):
+	ONE = 1
 	TWO = 2
-	THREE = 3
-	ENTERED = 4
+	ENTERED = 3
+
+class PivotType(Enum):
+	FIXED = 1
+	FLOATING = 2
+
+class TriggerType(Enum):
+	REGULAR = 1
+	RE_ENTRY = 2
+	CROSS_EXIT = 3
 
 class TimeState(Enum):
 	TRADING = 1
 	NNT_PROFIT = 2
 	NNT = 3
 	CLOSE = 4
+
+class ExitType(Enum):
+	NONE = 1
+	IMMEDIATE = 2
+	CROSS = 3
 
 time_state = TimeState.TRADING
 
@@ -90,7 +107,8 @@ class Strand(dict):
 		self.end = 0
 		self.is_completed = False
 		self.count = len(strands)
-		self.is_hit = False
+		self.is_crossed = False
+		self.is_valid = False
 
 	def __getattr__(self, key):
 		return self[key]
@@ -99,48 +117,23 @@ class Strand(dict):
 		self[key] = value
 
 class Trigger(dict):
-	def __init__(self, direction, tradable = True, is_regular = True):
+	def __init__(self, direction, strand = None, pivot_type = None, start = 0, tradable = True, trigger_type = TriggerType.REGULAR):
 		self.direction = direction
+		self.start = start
 		self.state = State.ONE
 		self.tradable = tradable
-		self.is_regular = is_regular
-		self.one_cci_conf = False
-		self.one_macd_conf = False
-		self.final_conf = False
+		self.trigger_type = trigger_type
+		self.exit_type = ExitType.NONE
+
+		self.strand = strand
+		self.pivot_type = pivot_type
+		self.ret_count = 0
 
 	def __getattr__(self, key):
 		return self[key]
 
 	def __setattr__(self, key, value):
 		self[key] = value
-
-class HitStrand(dict):
-	def __init__(self, shift, hit_val = 0):
-		self.num_points = 2
-
-		if hit_val == 0:
-			self.to_hit = self.getToHit(shift)
-		else:
-			self.to_hit = hit_val
-
-		self.is_hit = False
-	
-	def __getattr__(self, key):
-		return self[key]
-
-	def __setattr__(self, key, value):
-		self[key] = value
-
-	def getToHit(self, shift):
-		for i in range(self.num_points):
-			current_shift = shift + i
-			if (brown_sar.isNewCycle(VARIABLES['TICKETS'][0], current_shift)):
-
-				print("Brown sar:", str(brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]))
-				return brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]
-
-		print("Brown sar end:", str(brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]))
-		return brown_sar.get(VARIABLES['TICKETS'][0], current_shift, 1)[0]
 
 class StopState(Enum):
 	NONE = 1
@@ -153,16 +146,10 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global reg_sar, slow_sar, black_sar, brown_sar, cci, macd, dmi
+	global sar
 
 	utils = utilities
-	brown_sar = utils.SAR(1)
-	reg_sar = utils.SAR(2)
-	slow_sar = utils.SAR(3)
-	black_sar = utils.SAR(4)
-	cci = utils.CCI(5, 1)
-	macd = utils.MACD(6, 1)
-	dmi = utils.DMI(7, 3)
+	sar = utils.SAR(1)
 
 def onStartTrading():
 	''' Function called on trade start time '''
@@ -247,7 +234,8 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif news_trade_block:
 					print("Trade blocked on NEWS! Re-entry trigger activated.")
-					re_entry_trigger = Trigger(entry.direction, tradable = False, is_regular = False)
+					re_entry_trigger = Trigger(entry.direction, tradable = False, trigger_type = TriggerType.RE_ENTRY)
+					re_entry_trigger.state = Re_Entry_State.ONE
 
 					pos.quickExit()
 
@@ -264,7 +252,8 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif news_trade_block:
 					print("Trade blocked on NEWS! Re-entry trigger activated.")
-					re_entry_trigger = Trigger(entry.direction, tradable = False, is_regular = False)
+					re_entry_trigger = Trigger(entry.direction, tradable = False, trigger_type = TriggerType.RE_ENTRY)
+					re_entry_trigger.state = Re_Entry_State.ONE
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
@@ -285,7 +274,8 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif news_trade_block:
 					print("Trade blocked on NEWS! Re-entry trigger activated.")
-					re_entry_trigger = Trigger(entry.direction, tradable = False, is_regular = False)
+					re_entry_trigger = Trigger(entry.direction, tradable = False, trigger_type = TriggerType.RE_ENTRY)
+					re_entry_trigger.state = Re_Entry_State.ONE
 
 					pos.quickExit()
 
@@ -300,7 +290,8 @@ def handleEntries():
 					del pending_entries[pending_entries.index(entry)]
 				elif news_trade_block:
 					print("Trade blocked on NEWS! Re-entry trigger activated.")
-					re_entry_trigger = Trigger(entry.direction, tradable = False, is_regular = False)
+					re_entry_trigger = Trigger(entry.direction, tradable = False, trigger_type = TriggerType.RE_ENTRY)
+					re_entry_trigger.state = Re_Entry_State.ONE
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
@@ -367,9 +358,10 @@ def handleStop():
 
 		if profit >= VARIABLES['breakeven_point'] and stop_state.value < StopState.BREAKEVEN.value:
 			print("Reached BREAKEVEN point:", str(profit))
-			stop_state = StopState.BREAKEVEN
 			pos.breakeven()
-			if not pos.apply():
+			if pos.apply():
+				stop_state = StopState.BREAKEVEN
+			else:
 				pending_breakevens.append(pos)
 		
 		elif profit >= VARIABLES['first_stop_pips'] and stop_state.value < StopState.FIRST.value:
@@ -381,9 +373,12 @@ def handleStop():
 
 		if pos in pending_breakevens:
 			if profit > VARIABLES['breakeven_min_pips']:
-				pos.breakeven()
-				if pos.apply():
-					stop_state = StopState.BREAKEVEN
+				if stop_state.value < StopState.BREAKEVEN.value:
+					pos.breakeven()
+					if pos.apply():
+						stop_state = StopState.BREAKEVEN
+						del pending_breakevens[pending_breakevens.index(pos)]
+				else:
 					del pending_breakevens[pending_breakevens.index(pos)]
 
 def handleExits(shift):
@@ -394,20 +389,16 @@ def handleExits(shift):
 
 	for exit in pending_exits:
 
-		if exit.direction == Direction.LONG:
-			if isBrownParaConfirmation(shift, Direction.LONG, reverse = True):
+		if exit.exit_type == ExitType.CROSS:
+			if isParaConfirmation(shift, exit.direction, reverse = True):
 				print("Attempting exit")
 				is_exit = True
 				for pos in utils.positions:
 					pos.quickExit()
 
-		else:
-			if isBrownParaConfirmation(shift, Direction.SHORT, reverse = True):
-				print("Attempting exit")
-				
-				is_exit = True
-				for pos in utils.positions:
-					pos.quickExit()
+		elif exit.exit_type == ExitType.IMMEDIATE:
+			for pos in utils.positions:
+				pos.quickExit()
 
 	if is_exit:
 		pending_exits = []
@@ -415,9 +406,8 @@ def handleExits(shift):
 def onEntry(pos):
 	print("onEntry")
 
-	global current_trigger, re_entry_trigger, stop_state
-
-	current_trigger = None
+	global current_triggers, re_entry_trigger, stop_state
+	current_triggers = []
 	re_entry_trigger = None
 
 	stop_state = StopState.NONE
@@ -427,19 +417,13 @@ def onStopLoss(pos):
 
 	global re_entry_trigger
 
-	if stop_state == StopState.BREAKEVEN:
-		if pos.direction == 'buy' and strands[0].direction == Direction.SHORT:
-			re_entry_trigger = Trigger(Direction.LONG, tradable = True, is_regular = False)
-		elif pos.direction == 'sell' and strands[0].direction == Direction.LONG:
-			re_entry_trigger = Trigger(Direction.SHORT, tradable = True, is_regular = False)
-	
-	else:
-		if pos.direction == 'buy' and strands[0].direction == Direction.SHORT:
-			re_entry_trigger = Trigger(Direction.LONG, tradable = True, is_regular = False)
-		elif pos.direction == 'sell' and strands[0].direction == Direction.LONG:
-			re_entry_trigger = Trigger(Direction.SHORT, tradable = True, is_regular = False)
+	if stop_state.value <= StopState.BREAKEVEN.value:
+		if pos.direction == 'buy':
+			re_entry_trigger = Trigger(Direction.LONG, tradable = True, trigger_type = TriggerType.RE_ENTRY)
+		elif pos.direction == 'sell':
+			re_entry_trigger = Trigger(Direction.SHORT, tradable = True, trigger_type = TriggerType.RE_ENTRY)
 
-		re_entry_trigger.state = State.TWO
+		re_entry_trigger.state = Re_Entry_State.ONE
 
 def onNews(title, time):
 	''' 
@@ -512,9 +496,13 @@ def checkTime():
 		print("End time: looking to exit")
 		for pos in utils.positions:
 			if pos.direction == 'buy':
-				pending_exits.append(Trigger(Direction.LONG, 0))
+				t_exit = Trigger(Direction.LONG, trigger_type = TriggerType.CROSS_EXIT)
+				t_exit.exit_type = ExitType.CROSS
+				pending_exits.append(t_exit)
 			else:
-				pending_exits.append(Trigger(Direction.SHORT, 0))
+				t_exit = Trigger(Direction.SHORT, trigger_type = TriggerType.CROSS_EXIT)
+				t_exit.exit_type = ExitType.CROSS
+				pending_exits.append(t_exit)
 
 	elif london_time > nnt_time and time_state.value < TimeState.NNT.value:
 		print("No more trades")
@@ -533,64 +521,166 @@ def runSequence(shift):
 	''' Main trade plan sequence '''
 	onNewCycle(shift)
 
-	if (isCompletedStrand()):
-		onTrigger(shift)
+	onTrigger(shift)
 
-	entrySetup(shift, current_trigger)
+	for trigger in current_triggers:
+		entrySetup(shift, trigger)
+
 	reEntrySetup(shift, re_entry_trigger)
+
+	entryPivot(shift, entry_pivot)
 
 def onNewCycle(shift):
 	''' 
 	Capture regular and slow sar strands once
 	a strand has started their new cycle.
 	'''
-	
-	global current_brown
 
-	if black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift):
+	if sar.isNewCycle(VARIABLES['TICKETS'][0], shift):
 
-		if black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
+		if sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
 			direction = Direction.SHORT
 		else:
 			direction = Direction.LONG
 		
 		if len(strands) > 0:
 			strands[0].is_completed = True
-			strands[0].end = black_sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
+			strands[0].end = sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
 	
-		strand = Strand(direction, black_sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
+		strand = Strand(direction, sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
 		strands.append(strand)
 
 		print("New Strand:", str(strand.direction))
 
-	if brown_sar.isNewCycle(VARIABLES['TICKETS'][0], shift):
-
-		current_brown = HitStrand(shift + 1)
-
 def onTrigger(shift):
 
-	global current_trigger, re_entry_trigger
+	if isNumStrands(1):
+		isStrandValid(shift)
 
-	if black_sar.isNewCycle(VARIABLES['TICKETS'][0], shift):
+		long_triggers = [trigger for trigger in current_triggers if trigger.direction == Direction.LONG and trigger.trigger_type == TriggerType.REGULAR]
+		short_triggers = [trigger for trigger in current_triggers if trigger.direction == Direction.SHORT and trigger.trigger_type == TriggerType.REGULAR]
 
-		if black_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
-			current_trigger = Trigger(Direction.LONG, is_regular = True)
+		pos_direction = None
+		
+		if len(utils.positions) > 0:
+			pos_direction = utils.positions[0].direction
 
-			if not re_entry_trigger == None and re_entry_trigger.direction == Direction.SHORT:
-				re_entry_trigger = None
+		if pos_direction == None:
+			if isNumValidStrands(2, Direction.LONG):
+				if len(long_triggers) <= 0:
+					t = Trigger(Direction.LONG, tradable = True)
+					current_triggers.append(t)
+
+				getCrossStrand(Direction.LONG)
+
+			if isNumValidStrands(2, Direction.SHORT):
+				if len(short_triggers) <= 0:
+					t = Trigger(Direction.SHORT, tradable = True)
+					current_triggers.append(t)
+
+				getCrossStrand(Direction.SHORT)
+
+		elif pos_direction == 'buy':
+			if isNumValidStrands(2, Direction.SHORT):
+				if len(short_triggers) <= 0:
+					t = Trigger(Direction.SHORT, tradable = True)
+					current_triggers.append(t)
+
+				getCrossStrand(Direction.SHORT)
 
 		else:
-			current_trigger = Trigger(Direction.SHORT, is_regular = True)
+			if isNumValidStrands(2, Direction.LONG):
+				if len(long_triggers) <= 0:
+					t = Trigger(Direction.LONG, tradable = True)
+					current_triggers.append(t)
 
-			if not re_entry_trigger == None and re_entry_trigger.direction == Direction.LONG:
-				re_entry_trigger = None
+				getCrossStrand(Direction.LONG)
 
-def isCompletedStrand():
-	for strand in strands:
-		if strand.is_completed:
-			return True
+	print("Cross strand long:", str(cross_strand_long))
+	print("Cross strand short:", str(cross_strand_short))
 
-	return False
+def getLongTrigger():
+	for trigger in current_triggers:
+		if trigger.direction == Direction.LONG:
+			return trigger
+
+def getShortTrigger():
+	for trigger in current_triggers:
+		if trigger.direction == Direction.SHORT:
+			return trigger
+
+def isNumStrands(count):
+	return len(strands) >= count
+
+def isNumValidStrands(count, direction):
+	return len([i for i in strands if i.is_valid and i.direction == direction]) >= count
+
+def isStrandValid(shift):
+	if not strands[0].is_valid and sar.strandCount(VARIABLES['TICKETS'][0], shift) >= VARIABLES['sar_count_min']:
+		strands[0].is_valid = True
+
+def getCrossStrand(direction):
+
+	global cross_strand_long, cross_strand_short
+
+	direction_strands = [strand for strand in strands.getSorted() if strand.direction == direction and strand.is_valid][:2]
+
+	if len(direction_strands) >= 2:
+		if direction == Direction.LONG:
+			if direction_strands[0].start >= direction_strands[1].start:
+				
+				if isTriggerRetValid(Direction.LONG, direction_strands[0]):
+					cross_strand_long = direction_strands[0]
+			
+			else:
+
+				if isTriggerRetValid(Direction.LONG, direction_strands[1]):
+					cross_strand_long = direction_strands[1]
+
+		else:
+			if direction_strands[0].start <= direction_strands[1].start:
+
+				if isTriggerRetValid(Direction.SHORT, direction_strands[0]):
+					cross_strand_short = direction_strands[0]
+
+			else:
+				
+				if isTriggerRetValid(Direction.SHORT, direction_strands[1]):
+					cross_strand_short = direction_strands[1]
+
+	elif len(direction_strands) >= 1:
+		if direction == Direction.LONG:
+			cross_strand_long = direction_strands[0]
+		else:
+			cross_strand_short = direction_strands[0]
+
+def isTriggerRetValid(direction, strand):
+
+	if direction == Direction.LONG:
+		if cross_strand_long and not strand == cross_strand_long:
+			if cross_strand_long.start < strand.start:
+				if getLongTrigger().ret_count >= 1:
+					print("ret not valid")
+					return False
+				else:
+					getLongTrigger().ret_count += 1
+			else:
+				getLongTrigger().ret_count = 0
+				return True
+	else:
+		if cross_strand_short and not strand == cross_strand_short:
+			if cross_strand_short.start > strand.start:
+				if getShortTrigger().ret_count >= 1:
+					print("ret not valid")
+					return False
+				else:
+					getShortTrigger().ret_count += 1
+
+			else:
+				getShortTrigger().ret_count = 0
+				return True
+
+	return True
 
 def entrySetup(shift, trigger):
 	''' Checks for swing sequence once trigger has been formed '''
@@ -598,136 +688,79 @@ def entrySetup(shift, trigger):
 	if not trigger == None and trigger.tradable:
 
 		if trigger.state == State.ONE:
-			if stateOneConf(shift, trigger.direction):
-				trigger.state = State.TWO
-				entrySetup(shift, trigger)
-
-		if trigger.state == State.TWO:
-			if stateTwoConf(shift, trigger):
-				trigger.state = State.THREE
-				entrySetup(shift, trigger)
-
-		elif trigger.state == State.THREE:
-			if finalConf(shift, trigger):
+			if triggerConf(shift, trigger.direction):
 				trigger.state = State.ENTERED
-				confirmation(trigger)
+				confirmation(shift, trigger)
 
 def reEntrySetup(shift, trigger):
 
 	if not trigger == None and trigger.tradable and not trigger.state == State.ENTERED:
-		if isBrownParaConfirmation(shift, trigger.direction):
-			trigger.state = State.ENTERED
-			confirmation(trigger)
+		if trigger.state == Re_Entry_State.ONE:
+			if reEntryInitConf(shift, trigger.direction):
+				trigger.state = Re_Entry_State.TWO
+				reEntrySetup(shift, trigger)
 
-def stateOneConf(shift, direction):
-	if isBrownParaConfirmation(shift, direction, reverse = True):
+		if trigger.state == Re_Entry_State.TWO:
+			if triggerConf(shift, trigger.direction, is_re_entry = True):
+				trigger.state = Re_Entry_State.ENTERED
+				confirmation(shift, trigger)
+
+def triggerConf(shift, direction, is_re_entry = False):
+	print("---Direction:", str(direction))
+
+	if isStrandCrossed(shift, direction) or is_re_entry:
+		print("Strand is crossed.")
+		print("Conf:", str(isParaConfirmation(shift, direction)), str(isMacdConfirmation(shift, direction)), str(isCciBiasConfirmation(shift, direction)))
+		if isParaConfirmation(shift, direction) and isMacdConfirmation(shift, direction) and isCciBiasConfirmation(shift, direction):
+			print("Trigger is confirmed")
+			return True
+
+	return False
+
+def reEntryInitConf(shift, direction):
+	if isParaConfirmation(shift, direction, reverse = True):
 		return True
 
 	return False
 
-def stateTwoConf(shift, trigger):
+def isStrandCrossed(shift, direction):
 
-	brownHit(shift, trigger.direction, is_ret = True)
+	sar_val = sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+	print("sar val:", str(sar_val))
 
-	if isBrownParaConfirmation(shift, trigger.direction, reverse = True):
+	if direction == Direction.LONG and cross_strand_long:
+		if sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
+			if sar_val > cross_strand_long.start:
+				return True
 
-		if trigger.direction == Direction.LONG:
-			if isCciBiasConfirmation(shift, Direction.SHORT) and isCciCtCrossConfirmation(shift, Direction.SHORT):
-				trigger.one_cci_conf = True
-		else:
-			if isCciBiasConfirmation(shift, Direction.LONG) and isCciCtCrossConfirmation(shift, Direction.LONG):
-				trigger.one_cci_conf = True
-
-		if isMacdRetConfirmation(shift, trigger.direction):
-			trigger.one_macd_conf = True
-
-		if trigger.one_cci_conf and trigger.one_macd_conf and current_brown.is_hit:
-			current_brown.is_hit = False
-			return True
-
-	else:
-		trigger.one_cci_conf = False
-		trigger.one_macd_conf = False
+	elif direction == Direction.SHORT and cross_strand_short:
+		if sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]:
+			if sar_val < cross_strand_short.start:
+				return True
 
 	return False
 
-def finalConf(shift, trigger):
+def isParaConfirmation(shift, direction, reverse = False):
 
-	brownHit(shift, trigger.direction)
-
-	if isRegParaConfirmation(shift, trigger.direction) and isSlowParaConfirmation(shift, trigger.direction) and isBrownParaConfirmation(shift, trigger.direction):
-		if current_brown.is_hit and isMacdConfirmation(shift, trigger.direction) and isDmiConfirmation(shift, trigger.direction):
-			trigger.final_conf = True
-	else:
-		trigger.final_conf = False
-
-	if trigger.final_conf:
-		if isCciBiasConfirmation(shift, trigger.direction):
-			return True
-
-	return False
-
-def brownHit(shift, direction, is_ret = False):
-
-	high = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][1]
-	low = [i[1] for i in sorted(utils.ohlc[VARIABLES['TICKETS'][0]].items(), key=lambda kv: kv[0], reverse=True)][shift][2]
-
-	if (direction == Direction.LONG):
-		if is_ret:
-			if (high >= current_brown.to_hit):
-				current_brown.is_hit = True
-		else:
-			if (high > current_brown.to_hit):
-				current_brown.is_hit = True
-
-	else:
-		if is_ret:
-			if (low <= current_brown.to_hit):
-				current_brown.is_hit = True
-		else:
-			if (low < current_brown.to_hit):
-				current_brown.is_hit = True
-
-def isBrownParaConfirmation(shift, direction, reverse = False):
 	if reverse:
 		if direction == Direction.SHORT:
-			return brown_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+			return sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
 		else:
-			return brown_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
+			return sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 	
 	else:
 		if direction == Direction.LONG:
-			return brown_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+			print("long:", str(sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]))
+			return sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
 		else:
-			return brown_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
-
-def isSlowParaConfirmation(shift, direction):
-
-	if direction == Direction.LONG:
-		return slow_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
-	else:
-		return slow_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
-
-def isRegParaConfirmation(shift, direction):
-
-	if direction == Direction.LONG:
-		return reg_sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
-	else:
-		return reg_sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
-
-def isMacdRetConfirmation(shift, direction):
-
-	last_hist = macd.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0][0]
-	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
-
-	if direction == Direction.LONG:
-		return hist < last_hist
-	else:
-		return hist > last_hist
+			print("short:", str(sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]))
+			return sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 def isMacdConfirmation(shift, direction):
 
 	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+
+	print("hist:", str(hist))
 
 	if direction == Direction.LONG:
 		return hist >= VARIABLES['macd_threshold'] * 0.00001
@@ -739,6 +772,8 @@ def isCciBiasConfirmation(shift, direction):
 	last_chidx = cci.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0][0]
 	chidx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
 
+	print(str(last_chidx), str(chidx))
+
 	if direction == Direction.LONG:
 		if chidx > last_chidx:
 			return True
@@ -748,27 +783,7 @@ def isCciBiasConfirmation(shift, direction):
 
 	return False
 
-def isCciCtCrossConfirmation(shift, direction):
-	chidx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
-
-	if direction == Direction.LONG:
-		if chidx > VARIABLES['cci_threshold']:
-			return True
-	else:
-		if chidx < -VARIABLES['cci_threshold']:
-			return True
-
-	return False
-
-def isDmiConfirmation(shift, direction):
-	plus, minus, adx = dmi.get(VARIABLES['TICKETS'][0], shift, 1)[0]
-
-	if direction == Direction.LONG:
-		return plus > minus
-	else:
-		return minus > plus
-
-def confirmation(trigger):
+def confirmation(shift, trigger):
 	''' Checks for overbought, oversold and confirm entry '''
 
 	print("confirmation")
@@ -780,7 +795,8 @@ def report():
 
 	print("\n")
 
-	print("CURRENT TRIGGER:\n ", str(current_trigger))
+	for trigger in current_triggers:
+		print("CURRENT TRIGGER:\n ", str(trigger))
 
 	if not re_entry_trigger == None:
 		print("RE-ENTRY TRIGGER:\n ", str(re_entry_trigger))

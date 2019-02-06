@@ -402,7 +402,14 @@ class BarReader(object):
 		isCompleted = False
 
 		while (not (isCompleted)):
-			values = self._performBarInfoCapture(pair, xOff, exactTimestamp = timestamp)
+			
+			while True:
+				try:
+					values = self._performBarInfoCapture(pair, xOff, exactTimestamp = timestamp)
+					break
+				except:
+					print("Experienced an ERROR, trying again!")
+					pass
 
 			self._insertValues(pair, values)
 
