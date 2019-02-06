@@ -31,11 +31,7 @@ VARIABLES = {
 	'CONFIRMATION' : None,
 	'strand_size' : 22,
 	'SAR' : None,
-	'sar_count_min' : 3,
-	'MACD' : None,
-	'macd_threshold' : 2,
-	'CCI' : None,
-	'cci_threshold' : 0,
+	'sar_count_min' : 3
 }
 
 class SortedList(list):
