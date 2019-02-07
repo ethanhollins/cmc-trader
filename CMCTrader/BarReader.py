@@ -164,6 +164,8 @@ class BarReader(object):
 				pyautogui.moveTo(browser_pos['x'] + browser_x_off + canvas_pos['x'] + size['width']/2, browser_pos['y'] + browser_y_off + canvas_pos['y'] + canvas_y_off)
 				pyautogui.dragRel(-100, size['height'], 0.25, button='left')
 
+		self.moveMouse()
+
 	def focusWindow(self):
 
 		window_pos = self.driver.get_window_position()
@@ -493,7 +495,7 @@ class BarReader(object):
 		chart = self.chartDict[pair]
 		canvas = self.canvasDict[pair]
 
-		self.moveMouse()
+		# self.moveMouse()
 
 		start_time = time.time()
 
@@ -778,20 +780,26 @@ class BarReader(object):
 			timestamp_converted = self._convertRawTimestamp(timestamp_raw)
 
 			if not timestamp_check == 0 and timestamp_converted < timestamp_check - 60:
+				print("timestamp check: ", str(timestamp_check), str(timestamp_converted))
 				self.utils.refreshChart(pair)
+				self.start_time = time.time()
 				return False
 
-			# if time.time() - self.start_time > 5:
-			# 	print("REFRESH AFTER 5s")
-			# 	self.utils.refreshChart(pair)
-			# 	self.start_time = time.time()
-			# 	return False
+			if time.time() - self.start_time > 5:
+				print("REFRESH AFTER 5s")
+				self.utils.refreshChart(pair)
+				self.start_time = time.time()
+				return False
 
 			return timestamp_converted == current_timestamp - 60
 		except Exception as e:
 			tb = traceback.format_exc()
 			print(tb)
 			print("*Couldn't read bar!")
+
+			self.utils.refreshChart(pair)
+			self.start_time = time.time()
+
 			return False
 
 	def getLastBarTime(self, pair):
