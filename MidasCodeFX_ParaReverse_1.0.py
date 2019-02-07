@@ -31,7 +31,8 @@ VARIABLES = {
 	'CONFIRMATION' : None,
 	'min_diff' : 0.2,
 	'SAR' : None,
-	'sar_count_min' : 3,
+	'sar_count_ret_one' : 3,
+	'sar_count_ret_two' : 2,
 	'MACD' : None,
 	'macd_threshold' : 2,
 	'CCI' : None,
@@ -599,40 +600,47 @@ def onNewCycle(shift):
 			strands[0].end = sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
 			strands[0].length = sar.strandCount(VARIABLES['TICKETS'][0], shift + 1)
 
-			if sar.strandCount(VARIABLES['TICKETS'][0], shift + 1) >= VARIABLES['sar_count_min']:
+			current_sar = sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+			
+			print("last strand:", str(strands[0]))
+			print("current sar:", str(current_sar))
 
-				current_sar = sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+			if isValidStrandBetween(strand.direction):
 				
-				print("last strand:", str(strands[0]))
-				print("current sar:", str(current_sar))
-
-				if isValidStrandBetween(strand.direction):
-					
-					primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
-					if primary_strand:
-						secondary_strand = getCompStrand(strand.direction, CompType.SECONDARY)
-						if secondary_strand:
-							del comp_strands[comp_strands.index(secondary_strand)]
-						
-						primary_strand.comp_type = CompType.SECONDARY
-
-					comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.PRIMARY, strands[0])
-					
-					comp_strands.append(comp_strand)
-
-				elif strands[0]:
-
+				primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
+				if primary_strand:
 					secondary_strand = getCompStrand(strand.direction, CompType.SECONDARY)
 					if secondary_strand:
 						del comp_strands[comp_strands.index(secondary_strand)]
+					
+					primary_strand.comp_type = CompType.SECONDARY
 
-					primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
+				comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.PRIMARY, strands[0])
+				
+				comp_strands.append(comp_strand)
+
+			elif strands[0]:
+
+				secondary_strand = getCompStrand(strand.direction, CompType.SECONDARY)
+				if secondary_strand:
+					del comp_strands[comp_strands.index(secondary_strand)]
+
+				primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
+				
+				if strands[0].length >= VARIABLES['sar_count_ret_two']:
+					if primary_strand:
+						primary_strand.comp_type = CompType.SECONDARY
+
+						comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.PRIMARY, strands[0])
+					else:
+						comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.SECONDARY, strands[0])
+				else:
 					if primary_strand:
 						del comp_strands[comp_strands.index(primary_strand)]
 
 					comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.SECONDARY, strands[0])
 
-					comp_strands.append(comp_strand)
+				comp_strands.append(comp_strand)
 
 		strands.append(strand)
 		print("New Strand:", str(strand.direction))
@@ -674,12 +682,11 @@ def isValidStrandBetween(direction):
 			print(str(strand.count)+":")
 			print(strand)
 
-			if strand.length >= VARIABLES['sar_count_min']:
+			if strand.length >= VARIABLES['sar_count_ret_one']:
 				print("Valid inbetween strand found")
 				return True
 
 	return False
-
 
 def entrySetup(shift, trigger):
 	''' Checks for swing sequence once trigger has been formed '''
