@@ -321,6 +321,8 @@ class Backtester(object):
 
 			sorted_timestamps = [i[0] for i in sorted(ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)]
 			
+			print("timestamps:", str(sorted_timestamps))
+
 			self.removeTimestampsUntil(pair, sorted_timestamps[0])
 
 			real_time = self.utils.getLondonTime()
