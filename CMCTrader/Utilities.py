@@ -381,11 +381,6 @@ class Utilities:
 					self.closedPositions.append(pos)
 					del self.positions[self.positions.index(pos)]
 
-					try:
-						self.plan.onTrade(pos)
-					except AttributeError as e:
-						pass
-
 			for order in self.orders:
 				if event[0] == order.orderID:
 					del self.orders[self.orders.index(order)]

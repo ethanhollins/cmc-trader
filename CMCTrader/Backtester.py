@@ -149,6 +149,11 @@ class Backtester(object):
 						pos.openTime = current_timestamp
 						pos.isTemp = True
 
+						try:
+							self.plan.onTrade(pos)
+						except AttributeError as e:
+							pass
+
 						return pos
 			else:
 				return func(*args, **kwargs)

@@ -97,6 +97,11 @@ def stopandreverse_redirect(func):
 						pos.sl = close + self.convertToPrice(kwargs['sl'])
 						pos.tp = close - self.convertToPrice(kwargs['tp'])
 
+					try:
+						self.plan.onTrade(pos)
+					except AttributeError as e:
+						pass
+
 					return pos
 		else:
 			return func(*args, **kwargs)
