@@ -33,6 +33,11 @@ def close_redirect(func):
 
 				self.utils.closedPositions.append(self)
 				del self.utils.positions[self.utils.positions.index(self)]
+
+				try:
+					self.plan.onTrade(pos)
+				except AttributeError as e:
+					pass
 		else:
 			print("IS NONE")
 			return func(*args, **kwargs)
@@ -42,9 +47,9 @@ def stopandreverse_redirect(func):
 	def wrapper(*args, **kwargs):
 		self = args[0]
 		if self.utils.backtester.isBacktesting():
-			if (self.direction == 'buy'):
+			if self.direction == 'buy':
 				newPos = self.utils.sell(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
-			elif (self.direction == 'sell'):
+			elif self.direction == 'sell':
 				newPos = self.utils.buy(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
 
 			self.closeprice = self.utils.getBid(self.pair)
@@ -68,7 +73,31 @@ def stopandreverse_redirect(func):
 
 				return pos
 			else:
-				return self.utils.positions[0]
+				
+				if len(self.utils.positions) > 0:
+					return self.utils.positions[0]
+				else:
+					close = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][3]
+				
+					if self.direction == 'buy':
+						pos = self.createPosition(self.utils, self.ticket, 0, self.pair, 'market', 'sell')
+						pos.lotsize = args[1]
+
+						pos.entryprice = close
+
+						pos.sl = close - self.convertToPrice(kwargs['sl'])
+						pos.tp = close + self.convertToPrice(kwargs['tp'])
+
+					else:
+						pos = self.createPosition(self.utils, self.ticket, 0, self.pair, 'market', 'buy')
+						pos.lotsize = args[1]
+
+						pos.entryprice = close
+
+						pos.sl = close + self.convertToPrice(kwargs['sl'])
+						pos.tp = close - self.convertToPrice(kwargs['tp'])
+
+					return pos
 		else:
 			return func(*args, **kwargs)
 	return wrapper
@@ -146,21 +175,21 @@ def profit_redirect_backtest(func):
 	def wrapper(*args, **kwargs):
 		self = args[0]
 
-		try:
-			price_type = kwargs['price_type']
-		except:
-			price_type = 'c'
-
-		if price_type == 'o':
-			price = self.utils.ohlc[self.pair][bt.current_timestamp][0]
-		elif price_type == 'h':
-			price = self.utils.ohlc[self.pair][bt.current_timestamp][1]
-		elif price_type == 'l':
-			price = self.utils.ohlc[self.pair][bt.current_timestamp][2]
-		else:
-			price = self.utils.ohlc[self.pair][bt.current_timestamp][3]
-
 		if self.utils.backtester.isRecover() or self.utils.backtester.isBacktesting():
+
+			try:
+				price_type = kwargs['price_type']
+			except:
+				price_type = 'c'
+
+			if price_type == 'o':
+				price = self.utils.ohlc[self.pair][bt.current_timestamp][0]
+			elif price_type == 'h':
+				price = self.utils.ohlc[self.pair][bt.current_timestamp][1]
+			elif price_type == 'l':
+				price = self.utils.ohlc[self.pair][bt.current_timestamp][2]
+			else:
+				price = self.utils.ohlc[self.pair][bt.current_timestamp][3]
 
 			if (float(self.closeprice) == 0):
 				if (self.direction == 'buy'):

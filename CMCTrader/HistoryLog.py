@@ -72,11 +72,13 @@ class HistoryLog(object):
 				self.historyLogElem
 			)
 
+		deleted_items = []
+
 		for i in row_list:
-			if i[0] == '' or i[1] == '':
-				del row_list[row_list.index(i)]
+			if i[0] == '':
+				deleted_items.append(i)
 			else:
-				i[1] = int(self._convertTime(i[1]))
+				i[1] = self._convertTime(i[1])
 				i[3] = self._convertPair(i[3])
 
 				if (i[4].startswith("(T) ")):
@@ -87,6 +89,9 @@ class HistoryLog(object):
 					i[4] = 0
 				else:
 					i[4] = self._convertUnits(i[4])
+
+		for i in deleted_items:
+			del row_list[row_list.index(i)]
 
 		return row_list
 
@@ -156,7 +161,7 @@ class HistoryLog(object):
 
 	def getLatestHistoryTimestamp(self):
 		history = self.getFilteredHistory()
-		sorted_history = sorted(history, key=lambda x: int(x[1]), reverse=True)
+		sorted_history = sorted(history, key=lambda x: x[1], reverse=True)
 		if len(history) > 0:
 			return sorted_history[0][1]
 		else:
