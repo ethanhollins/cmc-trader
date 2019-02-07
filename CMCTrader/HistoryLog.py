@@ -117,14 +117,11 @@ class HistoryLog(object):
 	def updateHistoryByTimestamp(self, listened_types, timestamp):
 		history = self.getReleventPositions(listened_types)
 		print(str(self.current_timestamp), str(timestamp))
-		print("HISTORY:", str(history))
 		history = [j for j in history if j[1] > self.current_timestamp and j[1] <= timestamp]
 		history = self.sortEvents(history)
 
 		if (len(history) > 0):
 			self.current_timestamp = history[-1][1]
-
-		print("HISTORY AFTER:", str(history))
 
 		return history
 
