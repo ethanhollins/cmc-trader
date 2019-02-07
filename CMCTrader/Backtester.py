@@ -139,22 +139,7 @@ class Backtester(object):
 						pass
 
 					return pos
-				else:
-					# if len(self.positions) > 0:
-					return self.positions[0]
 
-					# else:
-					# 	pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
-					# 	pos.entryprice = self.ohlc[args[3]][current_timestamp][3]
-					# 	pos.openTime = current_timestamp
-					# 	pos.isTemp = True
-
-					# 	try:
-					# 		self.plan.onTrade(pos)
-					# 	except AttributeError as e:
-					# 		pass
-
-					# 	return pos
 			else:
 				return func(*args, **kwargs)
 		return wrapper

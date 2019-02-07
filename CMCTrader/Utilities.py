@@ -315,7 +315,7 @@ class Utilities:
 					pass
 
 				try:
-					self.plan.onTrade(pos)
+					self.plan.onTrade(pos, event[2])
 				except AttributeError as e:
 					pass
 
@@ -339,7 +339,7 @@ class Utilities:
 					pass
 
 				try:
-					self.plan.onTrade(pos)
+					self.plan.onTrade(pos, event[2])
 				except AttributeError as e:
 					pass
 
@@ -381,6 +381,11 @@ class Utilities:
 					self.closedPositions.append(pos)
 					del self.positions[self.positions.index(pos)]
 
+					try:
+						self.plan.onTrade(pos, event[2])
+					except AttributeError as e:
+						pass
+
 			for order in self.orders:
 				if event[0] == order.orderID:
 					del self.orders[self.orders.index(order)]
@@ -411,7 +416,7 @@ class Utilities:
 							pass
 
 					try:
-						self.plan.onTrade(pos)
+						self.plan.onTrade(pos, event[2])
 					except AttributeError as e:
 						pass
 

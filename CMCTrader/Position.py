@@ -33,11 +33,7 @@ def close_redirect(func):
 
 				self.utils.closedPositions.append(self)
 				del self.utils.positions[self.utils.positions.index(self)]
-
-				try:
-					self.plan.onTrade(pos)
-				except AttributeError as e:
-					pass
+				
 		else:
 			print("IS NONE")
 			return func(*args, **kwargs)
@@ -72,37 +68,7 @@ def stopandreverse_redirect(func):
 					pos = self.utils.buy(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
 
 				return pos
-			else:
-				
-				# if len(self.utils.positions) > 0:
-				return self.utils.positions[0]
-				# else:
-				# 	close = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][3]
-				
-				# 	if self.direction == 'buy':
-				# 		pos = self.createPosition(self.utils, self.ticket, 0, self.pair, 'market', 'sell')
-				# 		pos.lotsize = args[1]
-
-				# 		pos.entryprice = close
-
-				# 		pos.sl = close - self.convertToPrice(kwargs['sl'])
-				# 		pos.tp = close + self.convertToPrice(kwargs['tp'])
-
-				# 	else:
-				# 		pos = self.createPosition(self.utils, self.ticket, 0, self.pair, 'market', 'buy')
-				# 		pos.lotsize = args[1]
-
-				# 		pos.entryprice = close
-
-				# 		pos.sl = close + self.convertToPrice(kwargs['sl'])
-				# 		pos.tp = close - self.convertToPrice(kwargs['tp'])
-
-				# 	try:
-				# 		self.plan.onTrade(pos)
-				# 	except AttributeError as e:
-				# 		pass
-
-				# 	return pos
+			
 		else:
 			return func(*args, **kwargs)
 	return wrapper

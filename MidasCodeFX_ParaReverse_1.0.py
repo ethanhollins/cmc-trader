@@ -418,13 +418,19 @@ def handleExits(shift):
 	if is_exit:
 		pending_exits = []
 
-def onTrade(pos):
+def onTrade(pos, event):
 	print("onTrade")
 
-	if pos.direction == 'buy':
-		configureCompStrandsOnEntry(Direction.SHORT)
+	if event == 'Close Trade':
+		if pos.direction == 'buy':
+			configureCompStrandsOnEntry(Direction.LONG)
+		else:
+			configureCompStrandsOnEntry(Direction.SHORT)
 	else:
-		configureCompStrandsOnEntry(Direction.LONG)
+		if pos.direction == 'buy':
+			configureCompStrandsOnEntry(Direction.SHORT)
+		else:
+			configureCompStrandsOnEntry(Direction.LONG)
 
 	getTrigger(0, pos)
 
@@ -432,6 +438,13 @@ def onEntry(pos):
 	print("onEntry")
 
 	global re_entry_trigger, stop_state
+
+	if pos.direction == 'buy':
+		trigger = getDirectionTrigger(Direction.LONG)
+		trigger.state = State.ENTERED
+	else:
+		trigger = getDirectionTrigger(Direction.SHORT)
+		trigger.state = State.ENTERED
 
 	re_entry_trigger = None
 
@@ -702,7 +715,6 @@ def entrySetup(shift, trigger):
 		elif trigger.state == State.TWO:
 			print("stateTwo")
 			if finalConf(shift, trigger.direction):
-				trigger.state = State.ENTERED
 				confirmation(shift, trigger)
 
 
