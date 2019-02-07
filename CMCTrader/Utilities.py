@@ -311,15 +311,17 @@ class Utilities:
 			else:
 				for pos in self.positions + self.closedPositions:
 					if event[0] == pos.orderID:
-						try:
-							self.plan.onEntry(pos)
-						except AttributeError as e:
-							pass
+						break
 
-						try:
-							self.plan.onTrade(pos, event[2])
-						except AttributeError as e:
-							pass
+			try:
+				self.plan.onEntry(pos)
+			except AttributeError as e:
+				pass
+
+			try:
+				self.plan.onTrade(pos, event[2])
+			except AttributeError as e:
+				pass
 
 		elif event[2] == 'Sell Trade':
 			position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
@@ -337,15 +339,17 @@ class Utilities:
 			else:
 				for pos in self.positions + self.closedPositions:
 					if event[0] == pos.orderID:
-						try:
-							self.plan.onEntry(pos)
-						except AttributeError as e:
-							pass
+						break
+						
+			try:
+				self.plan.onEntry(pos)
+			except AttributeError as e:
+				pass
 
-						try:
-							self.plan.onTrade(pos, event[2])
-						except AttributeError as e:
-							pass
+			try:
+				self.plan.onTrade(pos, event[2])
+			except AttributeError as e:
+				pass
 
 		elif event[2] == 'Buy SE Order':
 			order_id_list = [i.orderID for i in self.orders]
