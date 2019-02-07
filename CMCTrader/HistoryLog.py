@@ -123,6 +123,8 @@ class HistoryLog(object):
 		if (len(history) > 0):
 			self.current_timestamp = history[-1][1]
 
+		print("HISTORY:", str(history))
+
 		return history
 
 	def getEvent(self, pos, event_type):
