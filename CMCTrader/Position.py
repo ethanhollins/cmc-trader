@@ -74,35 +74,35 @@ def stopandreverse_redirect(func):
 				return pos
 			else:
 				
-				if len(self.utils.positions) > 0:
-					return self.utils.positions[0]
-				else:
-					close = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][3]
+				# if len(self.utils.positions) > 0:
+				return self.utils.positions[0]
+				# else:
+				# 	close = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][3]
 				
-					if self.direction == 'buy':
-						pos = self.createPosition(self.utils, self.ticket, 0, self.pair, 'market', 'sell')
-						pos.lotsize = args[1]
+				# 	if self.direction == 'buy':
+				# 		pos = self.createPosition(self.utils, self.ticket, 0, self.pair, 'market', 'sell')
+				# 		pos.lotsize = args[1]
 
-						pos.entryprice = close
+				# 		pos.entryprice = close
 
-						pos.sl = close - self.convertToPrice(kwargs['sl'])
-						pos.tp = close + self.convertToPrice(kwargs['tp'])
+				# 		pos.sl = close - self.convertToPrice(kwargs['sl'])
+				# 		pos.tp = close + self.convertToPrice(kwargs['tp'])
 
-					else:
-						pos = self.createPosition(self.utils, self.ticket, 0, self.pair, 'market', 'buy')
-						pos.lotsize = args[1]
+				# 	else:
+				# 		pos = self.createPosition(self.utils, self.ticket, 0, self.pair, 'market', 'buy')
+				# 		pos.lotsize = args[1]
 
-						pos.entryprice = close
+				# 		pos.entryprice = close
 
-						pos.sl = close + self.convertToPrice(kwargs['sl'])
-						pos.tp = close - self.convertToPrice(kwargs['tp'])
+				# 		pos.sl = close + self.convertToPrice(kwargs['sl'])
+				# 		pos.tp = close - self.convertToPrice(kwargs['tp'])
 
-					try:
-						self.plan.onTrade(pos)
-					except AttributeError as e:
-						pass
+				# 	try:
+				# 		self.plan.onTrade(pos)
+				# 	except AttributeError as e:
+				# 		pass
 
-					return pos
+				# 	return pos
 		else:
 			return func(*args, **kwargs)
 	return wrapper
