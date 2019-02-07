@@ -309,15 +309,15 @@ class Utilities:
 				pos.isTrailing = event[9]
 				self.positions.append(pos)
 
-				try:
-					self.plan.onEntry(pos)
-				except AttributeError as e:
-					pass
+			try:
+				self.plan.onEntry(pos)
+			except AttributeError as e:
+				pass
 
-				try:
-					self.plan.onTrade(pos, event[2])
-				except AttributeError as e:
-					pass
+			try:
+				self.plan.onTrade(pos, event[2])
+			except AttributeError as e:
+				pass
 
 		elif event[2] == 'Sell Trade':
 			position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
@@ -333,15 +333,15 @@ class Utilities:
 				pos.isTrailing = event[9]
 				self.positions.append(pos)
 
-				try:
-					self.plan.onEntry(pos)
-				except AttributeError as e:
-					pass
+			try:
+				self.plan.onEntry(pos)
+			except AttributeError as e:
+				pass
 
-				try:
-					self.plan.onTrade(pos, event[2])
-				except AttributeError as e:
-					pass
+			try:
+				self.plan.onTrade(pos, event[2])
+			except AttributeError as e:
+				pass
 
 		elif event[2] == 'Buy SE Order':
 			order_id_list = [i.orderID for i in self.orders]
