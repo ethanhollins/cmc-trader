@@ -722,7 +722,7 @@ def reEntrySetup(shift, trigger):
 
 	if not trigger == None and trigger.tradable and not trigger.state == State.ENTERED:
 		if trigger.state == Re_Entry_State.ONE:
-			if finalConf(shift, trigger.direction):
+			if reEntryConf(shift, trigger.direction):
 				trigger.state = Re_Entry_State.ENTERED
 				confirmation(shift, trigger)
 
@@ -742,6 +742,9 @@ def entryConf(direction):
 def finalConf(shift, direction):
 	print("final conf")
 	return isParaConfirmation(shift, direction, reverse = True)
+
+def reEntryConf(shift, direction):
+	return isParaConfirmation(shift, direction)
 
 def isParaConfirmation(shift, direction, reverse = False):
 
