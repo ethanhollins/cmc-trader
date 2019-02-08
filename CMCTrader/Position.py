@@ -21,8 +21,10 @@ def close_redirect(func):
 			self.utils.closedPositions.append(self)
 			del self.utils.positions[self.utils.positions.index(self)]
 
+			event = 'Close Trade'
+
 			try:
-				self.plan.onTrade(pos)
+				self.plan.onTrade(pos, event)
 			except AttributeError as e:
 				pass
 			

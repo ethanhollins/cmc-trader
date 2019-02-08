@@ -613,47 +613,51 @@ def onNewCycle(shift):
 			strands[0].end = sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
 			strands[0].length = sar.strandCount(VARIABLES['TICKETS'][0], shift + 1)
 
-			current_sar = sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
-			
-			print("last strand:", str(strands[0]))
-			print("current sar:", str(current_sar))
+			print(sar.strandCount(VARIABLES['TICKETS'][0], shift + 1))
 
-			if isValidStrandBetween(strand.direction):
+			if sar.strandCount(VARIABLES['TICKETS'][0], shift + 1) >= VARIABLES['sar_count_ret_one']:
+
+				current_sar = sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 				
-				primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
-				if primary_strand:
+				print("last strand:", str(strands[0]))
+				print("current sar:", str(current_sar))
+
+				if isValidStrandBetween(strand.direction):
+					
+					primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
+					if primary_strand:
+						secondary_strand = getCompStrand(strand.direction, CompType.SECONDARY)
+						if secondary_strand:
+							del comp_strands[comp_strands.index(secondary_strand)]
+						
+						primary_strand.comp_type = CompType.SECONDARY
+
+					comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.PRIMARY, strands[0])
+					
+					comp_strands.append(comp_strand)
+
+				elif strands[0]:
+
 					secondary_strand = getCompStrand(strand.direction, CompType.SECONDARY)
 					if secondary_strand:
 						del comp_strands[comp_strands.index(secondary_strand)]
+
+					primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
 					
-					primary_strand.comp_type = CompType.SECONDARY
+					if strands[1] and strands[1].length >= VARIABLES['sar_count_ret_two']:
+						if primary_strand:
+							primary_strand.comp_type = CompType.SECONDARY
 
-				comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.PRIMARY, strands[0])
-				
-				comp_strands.append(comp_strand)
-
-			elif strands[0]:
-
-				secondary_strand = getCompStrand(strand.direction, CompType.SECONDARY)
-				if secondary_strand:
-					del comp_strands[comp_strands.index(secondary_strand)]
-
-				primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
-				
-				if strands[0].length >= VARIABLES['sar_count_ret_two']:
-					if primary_strand:
-						primary_strand.comp_type = CompType.SECONDARY
-
-						comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.PRIMARY, strands[0])
+							comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.PRIMARY, strands[0])
+						else:
+							comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.SECONDARY, strands[0])
 					else:
+						if primary_strand:
+							del comp_strands[comp_strands.index(primary_strand)]
+
 						comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.SECONDARY, strands[0])
-				else:
-					if primary_strand:
-						del comp_strands[comp_strands.index(primary_strand)]
 
-					comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.SECONDARY, strands[0])
-
-				comp_strands.append(comp_strand)
+					comp_strands.append(comp_strand)
 
 		strands.append(strand)
 		print("New Strand:", str(strand.direction))

@@ -97,9 +97,11 @@ class Backtester(object):
 				if (args[1] == 'buy'):
 					pos.sl = close - self.convertToPrice(args[5])
 					pos.tp = close + self.convertToPrice(args[6])
+					event = 'Buy Trade'
 				else:
 					pos.sl = close + self.convertToPrice(args[5])
 					pos.tp = close - self.convertToPrice(args[6])
+					event = 'Sell Trade'
 				
 				pos.entryprice = close
 
@@ -113,7 +115,7 @@ class Backtester(object):
 					pass
 
 				try:
-					self.plan.onTrade(pos)
+					self.plan.onTrade(pos, event)
 				except AttributeError as e:
 					pass
 
