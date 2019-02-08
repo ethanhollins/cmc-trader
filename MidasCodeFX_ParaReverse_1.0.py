@@ -619,7 +619,9 @@ def onNewCycle(shift):
 
 				current_sar = sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 				
-				print("last strand:", str(strands[0]))
+				last_strand = getNthDirectionStrand(strands[0].direction, 1)
+
+				print("last strand:", str(last_strand))
 				print("current sar:", str(current_sar))
 
 				if isValidStrandBetween(strand.direction):
@@ -632,11 +634,11 @@ def onNewCycle(shift):
 						
 						primary_strand.comp_type = CompType.SECONDARY
 
-					comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.PRIMARY, strands[0])
+					comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.PRIMARY, last_strand)
 					
 					comp_strands.append(comp_strand)
 
-				elif strands[0]:
+				elif last_strand:
 
 					secondary_strand = getCompStrand(strand.direction, CompType.SECONDARY)
 					if secondary_strand:
@@ -644,18 +646,18 @@ def onNewCycle(shift):
 
 					primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
 					
-					if strands[1] and strands[1].length >= VARIABLES['sar_count_ret_two']:
+					if getNthDirectionStrand(strand.direction, 1) and getNthDirectionStrand(strand.direction, 1).length >= VARIABLES['sar_count_ret_two']:
 						if primary_strand:
 							primary_strand.comp_type = CompType.SECONDARY
 
-							comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.PRIMARY, strands[0])
+							comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.PRIMARY, last_strand)
 						else:
-							comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.SECONDARY, strands[0])
+							comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.SECONDARY, last_strand)
 					else:
 						if primary_strand:
 							del comp_strands[comp_strands.index(primary_strand)]
 
-						comp_strand = CompStrand(strand.direction, round((current_sar + strands[0].start)/2, 5), CompType.SECONDARY, strands[0])
+						comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.SECONDARY, last_strand)
 
 					comp_strands.append(comp_strand)
 
@@ -669,12 +671,16 @@ def getDirectionTrigger(direction):
 
 	return None
 
-def getLastDirectionStrand(direction):
+def getNthDirectionStrand(direction, count):
+
+	current_count = 0
 	for i in range(len(strands)):
 		if strands[i].direction == direction:
-			print("at: " + str(i))
-			print(strands[i])
-			return strands[i]
+			current_count += 1
+			if count == current_count:
+				print("at: " + str(i))
+				print(strands[i])
+				return strands[i]
 
 	return None
 
