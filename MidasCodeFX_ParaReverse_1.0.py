@@ -367,9 +367,9 @@ def handleStop():
 	for pos in utils.positions:
 		
 		if pos.direction == 'buy':
-			profit = utils.getTotalProfit() + pos.getProfit(price_type = 'h')
+			profit = pos.getProfit(price_type = 'h')
 		else:
-			profit = utils.getTotalProfit() + pos.getProfit(price_type = 'l')
+			profit = pos.getProfit(price_type = 'l')
 
 		if profit >= VARIABLES['breakeven_point'] and stop_state.value < StopState.BREAKEVEN.value:
 			print("Reached BREAKEVEN point:", str(profit))
