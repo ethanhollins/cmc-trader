@@ -658,6 +658,13 @@ def onNewCycle(shift):
 								primary_strand.comp_type = CompType.SECONDARY
 
 								comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.PRIMARY, last_strand, is_two_point = True)
+
+								hasCrossedStrandsConf(shift, comp_strand)
+
+								if not comp_strand.has_crossed:
+									del comp_strands[comp_strands.index(primary_strand)]
+
+									comp_strand.comp_type = CompType.SECONDARY
 							else:
 								comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.SECONDARY, last_strand)
 						else:
@@ -760,23 +767,27 @@ def finalConf(shift, direction):
 	print("final conf")
 
 	primary_comp = getCompStrand(direction, CompType.PRIMARY)
-	secondary_comp = getCompStrand(direction, CompType.SECONDARY)
-	current_sar = sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
 
 	if primary_comp.is_two_point:
 		if primary_comp.has_crossed:
 			return isParaConfirmation(shift, direction, reverse = True)
 		else:
-			if direction == Direction.LONG:
-				if current_sar > primary_comp.strand.end or current_sar > secondary_comp.strand.end:
-					primary_comp.has_crossed = True
-					return isParaConfirmation(shift, direction, reverse = True)
-			else:
-				if current_sar < primary_comp.strand.end or current_sar < secondary_comp.strand.end:
-					primary_comp.has_crossed = True
-					return isParaConfirmation(shift, direction, reverse = True)
+			return False
+	else:
+		return isParaConfirmation(shift, direction, reverse = True)
 
-	return isParaConfirmation(shift, direction, reverse = True)
+def hasCrossedStrandsConf(shift, comp):
+	end_sar = comp.strand.end
+
+	first_t_strand = getNthDirectionStrand(comp.direction, 1)
+	second_t_strand = getNthDirectionStrand(comp.direction, 2)
+
+	if comp.direction == Direction.LONG:
+		if end_sar > first_t_strand.start or end_sar > second_t_strand.start:
+			comp.has_crossed = True
+	else:
+		if end_sar < first_t_strand.start or end_sar < second_t_strand.start:
+			comp.has_crossed = True
 
 def reEntryConf(shift, direction):
 	return isParaConfirmation(shift, direction)
