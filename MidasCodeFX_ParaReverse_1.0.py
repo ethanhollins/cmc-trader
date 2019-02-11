@@ -117,11 +117,13 @@ class Strand(dict):
 		self[key] = value
 
 class CompStrand(dict):
-	def __init__(self, direction, half_val, comp_type, strand):
+	def __init__(self, direction, half_val, comp_type, strand, is_two_point = False):
 		self.direction = direction
 		self.half_val = half_val
 		self.comp_type = comp_type
 		self.strand = strand
+		self.is_two_point = is_two_point
+		self.has_crossed = False
 
 	def __getattr__(self, key):
 		return self[key]
@@ -602,24 +604,30 @@ def onNewCycle(shift):
 
 		if sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
 			direction = Direction.SHORT
+			opp_direction = Direction.LONG
 		else:
 			direction = Direction.LONG
-		
+			opp_direction = Direction.SHORT
+
 		strand = Strand(direction, sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
 		
 		if len(strands) > 0:
 			print("new cycle:\n")
-			strands[0].is_completed = True
-			strands[0].end = sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
-			strands[0].length = sar.strandCount(VARIABLES['TICKETS'][0], shift + 1)
+
+			if strands[0].direction == direction:
+				return
+
+			last_strand = getNthDirectionStrand(opp_direction, 1)
+
+			last_strand.is_completed = True
+			last_strand.end = sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
+			last_strand.length = sar.strandCount(VARIABLES['TICKETS'][0], shift + 1)
 
 			print(sar.strandCount(VARIABLES['TICKETS'][0], shift + 1))
 
 			if sar.strandCount(VARIABLES['TICKETS'][0], shift + 1) >= VARIABLES['sar_count_ret_one']:
 
 				current_sar = sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
-				
-				last_strand = getNthDirectionStrand(strands[0].direction, 1)
 
 				print("last strand:", str(last_strand))
 				print("current sar:", str(current_sar))
@@ -650,7 +658,7 @@ def onNewCycle(shift):
 						if primary_strand:
 							primary_strand.comp_type = CompType.SECONDARY
 
-							comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.PRIMARY, last_strand)
+							comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.PRIMARY, last_strand, is_two_point = True)
 						else:
 							comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.SECONDARY, last_strand)
 					else:
@@ -751,6 +759,24 @@ def entryConf(direction):
 
 def finalConf(shift, direction):
 	print("final conf")
+
+	primary_comp = getCompStrand(direction, CompType.PRIMARY)
+	secondary_comp = getCompStrand(direction, CompType.SECONDARY)
+	current_sar = sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
+
+	if primary_comp.is_two_point:
+		if primary_comp.has_crossed:
+			return isParaConfirmation(shift, direction, reverse = True)
+		else:
+			if direction == Direction.LONG:
+				if current_sar > primary_comp.strand.end or current_sar > secondary_comp.strand.end:
+					primary_comp.has_crossed = True
+					return isParaConfirmation(shift, direction, reverse = True)
+			else:
+				if current_sar < primary_comp.strand.end or current_sar < secondary_comp.strand.end:
+					primary_comp.has_crossed = True
+					return isParaConfirmation(shift, direction, reverse = True)
+
 	return isParaConfirmation(shift, direction, reverse = True)
 
 def reEntryConf(shift, direction):

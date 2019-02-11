@@ -16,6 +16,7 @@ def close_redirect(func):
 		if self.utils.backtester.isBacktesting():
 			print("IS BACKTESTING")
 
+			self.closeprice = self.utils.getBid(self.pair)
 			self.closeTime = self.utils.getAustralianTime()
 
 			self.utils.closedPositions.append(self)
@@ -60,6 +61,9 @@ def stopandreverse_redirect(func):
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
 			if bt.current_timestamp > latest_history_timestamp:
 				self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.STOP_AND_REVERSE, bt.current_timestamp, args = args, kwargs = kwargs))
+
+				self.closeprice = self.utils.getBid(self.pair)
+				self.closeTime = self.utils.getAustralianTime()
 
 				self.utils.closedPositions.append(self)
 				del self.utils.positions[self.utils.positions.index(self)]
