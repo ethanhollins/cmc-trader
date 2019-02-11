@@ -342,7 +342,8 @@ class Backtester(object):
 
 		state = State.NONE
 
-		self.updatePositions()
+		if self.utils.isLive:
+			self.updatePositions()
 
 	def getAustralianTime(self, timestamp):
 		time = self.utils.convertTimestampToTime(timestamp)
