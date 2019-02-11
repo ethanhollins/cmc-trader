@@ -423,18 +423,18 @@ def handleExits(shift):
 def onTrade(pos, event):
 	print("onTrade")
 
-	if event == 'Close Trade':
-		if pos.direction == 'buy':
-			configureCompStrandsOnEntry(Direction.LONG)
-		else:
-			configureCompStrandsOnEntry(Direction.SHORT)
-	else:
+	listened_events = ['Buy Trade', 'Sell Trade']
+
+	if event in listened_events:
 		if pos.direction == 'buy':
 			configureCompStrandsOnEntry(Direction.SHORT)
 		else:
 			configureCompStrandsOnEntry(Direction.LONG)
 
-	getTrigger(0, pos)
+	if len(utils.positions) <= 0:
+		getTrigger(0, None)
+	else:
+		getTrigger(0, pos)
 
 def onEntry(pos):
 	print("onEntry")
