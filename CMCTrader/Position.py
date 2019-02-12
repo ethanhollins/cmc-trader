@@ -31,11 +31,11 @@ def close_redirect(func):
 			
 		elif self.utils.backtester.isRecover():
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
-			if bt.current_timestamp > latest_history_timestamp:
-				self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.CLOSE, bt.current_timestamp, args = args, kwargs = kwargs))
 
-				self.utils.closedPositions.append(self)
-				del self.utils.positions[self.utils.positions.index(self)]
+			self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.CLOSE, bt.current_timestamp, args = args, kwargs = kwargs))
+
+			self.utils.closedPositions.append(self)
+			del self.utils.positions[self.utils.positions.index(self)]
 				
 		else:
 			print("IS NONE")
@@ -59,21 +59,21 @@ def stopandreverse_redirect(func):
 
 		elif self.utils.backtester.isRecover():
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
-			if bt.current_timestamp > latest_history_timestamp:
-				self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.STOP_AND_REVERSE, bt.current_timestamp, args = args, kwargs = kwargs))
 
-				self.closeprice = self.utils.getBid(self.pair)
-				self.closeTime = self.utils.getAustralianTime()
+			self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.STOP_AND_REVERSE, bt.current_timestamp, args = args, kwargs = kwargs))
 
-				self.utils.closedPositions.append(self)
-				del self.utils.positions[self.utils.positions.index(self)]
+			self.closeprice = self.utils.getBid(self.pair)
+			self.closeTime = self.utils.getAustralianTime()
 
-				if self.direction == 'buy':
-					pos = self.utils.sell(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
-				else:
-					pos = self.utils.buy(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
+			self.utils.closedPositions.append(self)
+			del self.utils.positions[self.utils.positions.index(self)]
 
-				return pos
+			if self.direction == 'buy':
+				pos = self.utils.sell(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
+			else:
+				pos = self.utils.buy(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
+
+			return pos
 			
 		else:
 			return func(*args, **kwargs)
@@ -106,8 +106,8 @@ def function_redirect(func):
 			return
 		elif self.utils.backtester.isRecover():
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
-			if bt.current_timestamp > latest_history_timestamp:
-				self.utils.backtester.actions.append(bt.Action(self, action, bt.current_timestamp, args = args, kwargs = kwargs))
+
+			self.utils.backtester.actions.append(bt.Action(self, action, bt.current_timestamp, args = args, kwargs = kwargs))
 		else:
 			return func(*args, **kwargs)
 	return wrapper

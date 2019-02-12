@@ -122,25 +122,34 @@ class Backtester(object):
 				return pos
 			elif (state == State.RECOVER):
 				latest_history_timestamp = self.historyLog.getLatestHistoryTimestamp()
-				if current_timestamp > latest_history_timestamp:
-					pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
-					pos.entryprice = self.ohlc[args[3]][current_timestamp][3]
-					pos.openTime = current_timestamp
-					pos.isTemp = True
-					self.backtester.actions.append(Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
-					self.positions.append(pos)
 
-					try:
-						self.plan.onEntry(pos)
-					except AttributeError as e:
-						pass
+				pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
+				pos.entryprice = self.ohlc[args[3]][current_timestamp][3]
+				pos.openTime = current_timestamp
+				pos.isTemp = True
+				self.backtester.actions.append(Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
+				self.positions.append(pos)
 
-					try:
-						self.plan.onTrade(pos)
-					except AttributeError as e:
-						pass
+				if (args[1] == 'buy'):
+					pos.sl = close - self.convertToPrice(args[5])
+					pos.tp = close + self.convertToPrice(args[6])
+					event = 'Buy Trade'
+				else:
+					pos.sl = close + self.convertToPrice(args[5])
+					pos.tp = close - self.convertToPrice(args[6])
+					event = 'Sell Trade'
 
-					return pos
+				try:
+					self.plan.onEntry(pos)
+				except AttributeError as e:
+					pass
+
+				try:
+					self.plan.onTrade(pos, event)
+				except AttributeError as e:
+					pass
+
+				return pos
 
 			else:
 				return func(*args, **kwargs)
@@ -307,8 +316,6 @@ class Backtester(object):
 			pair = _pair
 
 			sorted_timestamps = [i[0] for i in sorted(ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)]
-			
-			print("timestamps:", str(sorted_timestamps))
 
 			self.removeTimestampsUntil(pair, sorted_timestamps[0])
 
@@ -323,16 +330,6 @@ class Backtester(object):
 				if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
 					
 					current_timestamp = timestamp
-
-					position_logs = self.getPositionLogs(timestamp)
-					
-					if (len(position_logs) > 0):
-						print("LOG:", str(position_logs))
-
-					for log in position_logs:
-						print("LOG:", str(log))
-						self.history.append(log)
-						self.utils.updateEvent(log)
 					
 					self.insertValuesByTimestamp(timestamp, pair, ohlc, indicators)
 					
@@ -342,6 +339,14 @@ class Backtester(object):
 
 		state = State.NONE
 
+		self.resetPositions()
+
+		position_logs = self.getPositionLogs()
+
+		for log in position_logs:
+			print("LOG:", str(log))
+			self.history.append(log)
+			self.utils.updateEvent(log)
 		# if self.utils.isLive:
 		self.updatePositions()
 
@@ -428,6 +433,11 @@ class Backtester(object):
 				print(str(e), "continuing...")
 				return
 
+	def resetPositions(self):
+		self.utils.positions = []
+		self.utils.closedPositions = []
+		self.utils.orders = []
+
 	def resetBarValues(self):
 		self.utils.ohlc = self.utils._initOHLC()
 		
@@ -472,7 +482,7 @@ class Backtester(object):
 			except:
 				history[pair][timestamp] = indicator[pair][timestamp - 60]
 
-	def getPositionLogs(self, timestamp):
+	def getPositionLogs(self):
 		print("getPositionLogs")
 
 		listenedTypes = [
@@ -486,7 +496,7 @@ class Backtester(object):
 				'Stop Loss Modified', 'Take Profit Modified'
 			]
 
-		return self.utils.historyLog.updateHistoryByTimestamp(listenedTypes, timestamp)
+		return self.utils.historyLog.updateHistory(listenedTypes)
 
 	def updatePositions(self):
 		latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
