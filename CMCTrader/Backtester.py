@@ -339,7 +339,7 @@ class Backtester(object):
 
 		state = State.NONE
 
-		self.resetPositions()
+		self.resetTempPositions()
 
 		position_logs = self.getPositionLogs()
 
@@ -442,10 +442,26 @@ class Backtester(object):
 				print(str(e), "continuing...")
 				return
 
-	def resetPositions(self):
-		self.utils.positions = []
-		self.utils.closedPositions = []
-		self.utils.orders = []
+	def resetTempPositions(self):
+		to_delete = []
+
+		for pos in self.utils.positions:
+			if pos.isTemp:
+				to_delete.append(self.utils.positions.index(pos))
+		for i in to_delete:
+			del self.utils.positions[i]
+
+		for pos in self.utils.closedPositions:
+			if pos.isTemp:
+				to_delete.append(self.utils.closedPositions.index(pos))
+		for i in to_delete:
+			del self.utils.closedPositions[i]
+
+		for order in self.utils.orders:
+			if order.isTemp:
+				to_delete.append(self.utils.orders.index(order))
+		for i in to_delete:
+			del self.utils.orders[i]
 
 	def resetBarValues(self):
 		self.utils.ohlc = self.utils._initOHLC()
@@ -542,18 +558,19 @@ class Backtester(object):
 				current_pos = None
 
 			if update.action == ActionType.ENTER:
-				self.utils._marketOrder(*update.args, **update.kwargs)
+				print("ENTER")
+				# self.utils._marketOrder(*update.args, **update.kwargs)
 			elif update.action == ActionType.STOP_AND_REVERSE:
 				if not current_pos == None:
 					if update.position.direction == current_pos.direction:
 						current_pos.stopAndReverse(*update.args, **update.kwargs)
 				else:
 					if update.position.direction == 'buy':
-						print('buy')
+						print('bt buy')
 						print(current_pos)
 						# self.utils.buy(update.args[1], sl = args[2], tp = args[3])
 					elif update.position.direction == 'sell':
-						print('sell')
+						print('bt sell')
 						print(current_pos)
 						# self.utils.sell(update.args[1], sl = args[2], tp = args[3])
 			
