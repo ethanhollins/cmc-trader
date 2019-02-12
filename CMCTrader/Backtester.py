@@ -451,14 +451,16 @@ class Backtester(object):
 		for i in to_delete:
 			del self.utils.positions[i]
 
+		print(to_delete)
 		to_delete = []
 
-		for pos in self.utils.closedPositions:
-			if pos.isTemp:
-				to_delete.append(self.utils.closedPositions.index(pos))
+		for cpos in self.utils.closedPositions:
+			if cpos.isTemp:
+				to_delete.append(self.utils.closedPositions.index(cpos))
 		for i in to_delete:
 			del self.utils.closedPositions[i]
 
+		print(to_delete)
 		to_delete = []
 
 		for order in self.utils.orders:
@@ -466,6 +468,8 @@ class Backtester(object):
 				to_delete.append(self.utils.orders.index(order))
 		for i in to_delete:
 			del self.utils.orders[i]
+
+		print(to_delete)
 
 	def resetBarValues(self):
 		self.utils.ohlc = self.utils._initOHLC()
