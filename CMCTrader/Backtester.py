@@ -562,21 +562,16 @@ class Backtester(object):
 				current_pos = None
 
 			if update.action == ActionType.ENTER:
-				print("ENTER")
-				# self.utils._marketOrder(*update.args, **update.kwargs)
+				self.utils._marketOrder(*update.args, **update.kwargs)
 			elif update.action == ActionType.STOP_AND_REVERSE:
 				if not current_pos == None:
 					if update.position.direction == current_pos.direction:
 						current_pos.stopAndReverse(*update.args, **update.kwargs)
 				else:
 					if update.position.direction == 'buy':
-						print('bt buy')
-						print(current_pos)
-						# self.utils.buy(update.args[1], sl = args[2], tp = args[3])
+						self.utils.buy(update.args[1], sl = args[2], tp = args[3])
 					elif update.position.direction == 'sell':
-						print('bt sell')
-						print(current_pos)
-						# self.utils.sell(update.args[1], sl = args[2], tp = args[3])
+						self.utils.sell(update.args[1], sl = args[2], tp = args[3])
 			
 			elif not current_pos == None:
 				if update.action == ActionType.CLOSE:
