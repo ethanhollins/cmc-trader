@@ -456,12 +456,12 @@ class Backtester(object):
 
 		for cpos in self.utils.closedPositions:
 			if cpos.isTemp:
-				to_delete.append(self.utils.closedPositions.index(cpos))
+				to_delete.append(self.utils.closedPositions.index(cpos))	
+		print(to_delete)
+		print(len(self.utils.closedPositions))
 		for i in to_delete:
 			del self.utils.closedPositions[i]
 
-		print(to_delete)
-		print(len(self.utils.closedPositions))
 		to_delete = []
 
 		for order in self.utils.orders:
