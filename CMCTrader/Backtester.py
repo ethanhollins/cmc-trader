@@ -347,6 +347,15 @@ class Backtester(object):
 			print("LOG:", str(log))
 			self.history.append(log)
 			self.utils.updateEvent(log)
+
+			print("posees")
+			print(self.utils.positions)
+			print(self.utils.closedPositions)
+
+		print("posees")
+		print(self.utils.positions)
+		print(self.utils.closedPositions)
+
 		# if self.utils.isLive:
 		self.updatePositions()
 
@@ -501,11 +510,16 @@ class Backtester(object):
 	def updatePositions(self):
 		latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
 
+		print("posees")
+		print(self.utils.positions)
+		print(self.utils.closedPositions)
+
+
 		print("latest:", str(latest_history_timestamp))
 
-		for pos in self.utils.positions:
-			if pos.isTemp:
-				del self.utils.positions[self.utils.positions.index(pos)]
+		# for pos in self.utils.positions:
+		# 	if pos.isTemp:
+		# 		del self.utils.positions[self.utils.positions.index(pos)]
 
 		updates = [i for i in self.actions if i.timestamp > latest_history_timestamp]
 
@@ -535,9 +549,13 @@ class Backtester(object):
 						current_pos.stopAndReverse(*update.args, **update.kwargs)
 				else:
 					if update.position.direction == 'buy':
-						self.utils.buy(update.args[1], sl = args[2], tp = args[3])
-					else:
-						self.utils.sell(update.args[1], sl = args[2], tp = args[3])
+						print('buy')
+						print(current_pos)
+						# self.utils.buy(update.args[1], sl = args[2], tp = args[3])
+					elif update.position.direction == 'sell':
+						print('sell')
+						print(current_pos)
+						# self.utils.sell(update.args[1], sl = args[2], tp = args[3])
 			
 			elif not current_pos == None:
 				if update.action == ActionType.CLOSE:
