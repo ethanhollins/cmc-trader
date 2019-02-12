@@ -461,6 +461,7 @@ class Backtester(object):
 			del self.utils.closedPositions[i]
 
 		print(to_delete)
+		print(len(self.utils.closedPositions))
 		to_delete = []
 
 		for order in self.utils.orders:
