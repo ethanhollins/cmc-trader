@@ -586,7 +586,7 @@ class Backtester(object):
 							pass
 
 						try:
-							self.plan.onTrade(pos)
+							self.plan.onTrade(pos, 'Stop Loss')
 						except AttributeError as e:
 							pass
 				else:
@@ -599,7 +599,7 @@ class Backtester(object):
 							pass
 
 						try:
-							self.plan.onTrade(pos)
+							self.plan.onTrade(pos, 'Stop Loss')
 						except AttributeError as e:
 							pass
 
@@ -619,7 +619,7 @@ class Backtester(object):
 							pass
 
 						try:
-							self.plan.onTrade(pos)
+							self.plan.onTrade(pos, 'Take Profit')
 						except AttributeError as e:
 							pass
 				else:
@@ -632,7 +632,7 @@ class Backtester(object):
 							pass
 
 						try:
-							self.plan.onTrade(pos)
+							self.plan.onTrade(pos, 'Take Profit')
 						except AttributeError as e:
 							pass
 

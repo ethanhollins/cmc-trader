@@ -206,6 +206,7 @@ class Utilities:
 						return self._marketOrder('buy', self.tickets[p], p, lotsize, sl, tp)
 					except:
 						print("ERROR: Pair " + p + " not found!")
+						return None
 
 		elif (ordertype == 'stopentry' or ordertype == 'se'):
 			if (len(pairs) <= 0):
@@ -217,6 +218,7 @@ class Utilities:
 						return self._stopentryOrder('buy', self.tickets[p], p, lotsize, entry, sl, tp)
 					except:
 						print("ERROR: Pair " + p + " not found!")
+						return None
 
 		elif (ordertype == 'limit' or  ordertype == 'l'):
 			if (len(pairs) <= 0):
@@ -228,10 +230,12 @@ class Utilities:
 						return self._limitOrder('buy', self.tickets[p], p, lotsize, entry, sl, tp)
 					except:
 						print("ERROR: Pair " + p + " not found!")
+						return None
 
 		else:
 			print("ERROR: Buy type not recognised!")
 
+		return None
 	
 	def sell(self, lotsize, pairs = [], ordertype = 'market', entry = 0, sl = 0.0, tp = 0.0):
 		if (ordertype == 'market' or ordertype == 'm'):
@@ -244,6 +248,7 @@ class Utilities:
 						return self._marketOrder('sell', self.tickets[p], p, lotsize, sl, tp)
 					except:
 						print("ERROR: Pair " + p + " not found!")
+						return None
 
 		elif (ordertype == 'stopentry' or ordertype == 'se'):
 			if (len(pairs) <= 0):
@@ -255,6 +260,7 @@ class Utilities:
 						return self._stopentryOrder('sell', self.tickets[p], p, lotsize, entry, sl, tp)
 					except:
 						print("ERROR: Pair " + p + " not found!")
+						return None
 
 		elif (ordertype == 'limit' or  ordertype == 'l'):
 			if (len(pairs) <= 0):
@@ -266,9 +272,12 @@ class Utilities:
 						return self._limitOrder('sell', self.tickets[p], p, lotsize, entry, sl, tp)
 					except:
 						print("ERROR: Pair " + p + " not found!")
+						return None
 
 		else:
 			print("ERROR: Sell type not recognised!")
+
+		return None
 
 # for pos in self.positions:
 # 						if value[0] == pos.orderID:
