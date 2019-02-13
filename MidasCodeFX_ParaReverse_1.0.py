@@ -72,7 +72,8 @@ class Direction(Enum):
 class State(Enum):
 	ONE = 1
 	TWO = 2
-	ENTERED = 3
+	TWO_POINT = 3
+	ENTERED = 4
 
 class Re_Entry_State(Enum):
 	ONE = 1
@@ -139,6 +140,7 @@ class Trigger(dict):
 		self.state = self._getState()
 		self.tradable = tradable
 		self.exit_type = ExitType.NONE
+		self.current_primary = None
 
 	def _getState(self):
 		if self.trigger_type == TriggerType.REGULAR:
@@ -733,7 +735,11 @@ def entrySetup(shift, trigger):
 		if trigger.state == State.ONE:
 			print("stateOne")
 			if entryConf(trigger.direction):
-				trigger.state = State.TWO
+				trigger.primary_comp = getCompStrand(trigger.direction, CompType.PRIMARY)
+				if trigger.primary_comp.is_two_point:
+					trigger.state = State.TWO_POINT
+				else:
+					trigger.state = State.TWO
 				entrySetup(shift, trigger)
 
 		elif trigger.state == State.TWO:
@@ -741,6 +747,14 @@ def entrySetup(shift, trigger):
 			if finalConf(shift, trigger.direction):
 				confirmation(shift, trigger)
 
+		elif trigger.state == State.TWO_POINT:
+			print("stateTwoPoint")
+			if twoPointConf(shift, trigger) == -1:
+				trigger.state = State.ONE
+				trigger.primary_comp = None
+				entrySetup(shift, trigger)
+			elif twoPointConf(shift, trigger):
+				confirmation(shift, trigger)
 
 def reEntrySetup(shift, trigger):
 
@@ -766,15 +780,21 @@ def entryConf(direction):
 def finalConf(shift, direction):
 	print("final conf")
 
-	primary_comp = getCompStrand(direction, CompType.PRIMARY)
+	return isParaConfirmation(shift, direction, reverse = True)
 
-	if primary_comp.is_two_point:
+def twoPointConf(shift, trigger):
+	print("two point conf")
+
+	primary_comp = getCompStrand(trigger.direction, CompType.PRIMARY)
+
+	if primary_comp and primary_comp == trigger.primary_comp:
+
 		if primary_comp.has_crossed:
-			return isParaConfirmation(shift, direction, reverse = True)
+			return isParaConfirmation(shift, trigger.direction, reverse = True)
 		else:
 			return False
 	else:
-		return isParaConfirmation(shift, direction, reverse = True)
+		return -1
 
 def hasCrossedStrandsConf(shift, comp):
 	end_sar = comp.strand.end
