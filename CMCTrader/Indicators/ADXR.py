@@ -5,60 +5,34 @@ X_START = 180
 
 class ADXR(object):
 	
-	def __init__(self, utils, index, valueCount):
+	def __init__(self, utils, index, colours):
 		self.index = index
 		self.utils = utils
-		self.history = self.initHistory(utils.tickets)
+		self.colours = colours
+		self.history = {}
 		self.canBeNegative = False
 		self.type = 'ADXR'
 
-		self.valueCount = valueCount
+	def insertValues(self, timestamp, values):
+		for i in range(len(values)):
+			values[i] = round(float(values[i]), 5)
 
-	def initHistory(self, tickets):
-		tempDict = {}
-		for key in tickets:
-			tempDict[key] = {}
-		return tempDict
-
-	def getValueRegions(self, startY):
-		regions = []
-		for i in range(self.valueCount):
-			regions.append((X_START, startY + (VALUE_OFFSET * i), X_START + VALUE_WIDTH, startY + VALUE_HEIGHT + (VALUE_OFFSET * i)))
-		return regions
-
-	def insertValues(self, pair, timestamp, values):
-		whitelist = set('0123456789.-')
-
-		try:
-			for i in range(self.valueCount):
-				values[i] = str(values[i])
-				values[i] = values[i].replace("D", "0")
-				values[i] = ''.join(filter(whitelist.__contains__, values[i]))
-
-				if "." not in values[i]:
-					values[i] = values[i][:len(values[i]) - 5] + '.' + values[i][len(values[i]) - 5:]
-				
-				values[i] = float(values[i])
-
-			self.history[pair][int(timestamp)] = values
-
-		except:
-			self._addFillerData(pair, timestamp)
+		self.history[int(timestamp)] = values
 
 	def getCurrent(self, pair):
 		timestamp = self.utils.getTimestampFromOffset(pair, 0, 1)
 		self.utils.getMissingTimestamps(timestamp)
 
-		return sorted(self.history[pair].items(), key=lambda kv: kv[0], reverse=True)[0][1]
+		return sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[0][1]
 
 	def get(self, pair, shift, amount):
 		timestamp = self.utils.getTimestampFromOffset(pair, shift, amount)
 		self.utils.getMissingTimestamps(timestamp)
 
-		return [i[1] for i in sorted(self.history[pair].items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]
+		return [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]
 
-	def _addFillerData(self, pair, timestamp):
-		if (int(timestamp) - 60) in self.history[pair]:
-			self.history[pair][int(timestamp)] = self.history[pair][int(timestamp) - 60]
+	def addFillerData(self, pair, timestamp):
+		if (int(timestamp) - 60) in self.history:
+			self.history[int(timestamp)] = self.history[int(timestamp) - 60]
 		else:
 			return

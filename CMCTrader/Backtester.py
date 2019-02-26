@@ -89,7 +89,8 @@ class Backtester(object):
 		def wrapper(*args, **kwargs):
 			self = args[0]
 			if (state == State.BACKTEST):
-				close = [i[1] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][3]
+				chart = self.getLowestPeriodChart()
+				close = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][3]
 
 				pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
 				pos.lotsize = args[4]
@@ -124,7 +125,10 @@ class Backtester(object):
 				latest_history_timestamp = self.historyLog.getLatestHistoryTimestamp()
 
 				pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
-				pos.entryprice = self.ohlc[args[3]][current_timestamp][3]
+				
+				chart = self.getLowestPeriodChart()
+
+				pos.entryprice = chart.ohlc[current_timestamp][3]
 				pos.openTime = current_timestamp
 				pos.isTemp = True
 				self.backtester.actions.append(Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
@@ -159,7 +163,8 @@ class Backtester(object):
 		def wrapper(*args, **kwargs):
 			self = args[0]
 			if (not state == State.NONE and not self.isLive):
-				return [i[1] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][3]
+				chart = self.getLowestPeriodChart()
+				return [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][3]
 			else:
 				return func(*args, **kwargs)
 		return wrapper
@@ -201,20 +206,26 @@ class Backtester(object):
 	def manual(self):
 
 		def runBacktest(filename):
-			if (os.path.exists(filename.strip()+'.json')):
-				with open(filename.strip()+'.json', 'r') as f:
+			name = self.utils.plan_name
+
+			if (os.path.exists(filename + '.json')):
+				with open(filename + '.json', 'r') as f:
 					values = json.load(f)
 
-				for pair in values['ohlc']:
-					values['ohlc'][pair] = {int(k):v for k,v in values['ohlc'][pair].items()}
+				# if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 45):#! figure out better way
 
-				for overlay in values['indicators']['overlays']:
-					overlay[pair] = {int(k):v for k,v in overlay[pair].items()}
+				for key in values:
 
-				for study in values['indicators']['studies']:
-					study[pair] = {int(k):v for k,v in study[pair].items()}
+					values[key]['ohlc'] = {int(k):v for k,v in values[key]['ohlc'].items()}
 
-				self.backtest(values['ohlc'], values['indicators'])
+					for i in range(len(values[key]['overlays'])):
+						values[key]['overlays'][i] = {int(k):v for k,v in values[key]['overlays'][i].items()}
+
+					for j in range(len(values[key]['studies'])):
+						values[key]['studies'][j] = {int(k):v for k,v in values[key]['studies'][j].items()}
+
+				self.backtest(values)
+
 			return
 
 		result = input("Enter filename (Press enter for manual): ")
@@ -222,11 +233,6 @@ class Backtester(object):
 		if (not result.strip() == "" and os.path.exists(result.strip()+'.json')):
 			runBacktest(result.strip())
 			return
-
-		pair = input("Enter pair: ")
-		while (pair not in self.utils.tickets.keys()):
-			print("Pair not found!")
-			pair = input("Enter pair: ")
 
 		conf = ""
 		while not conf.lower() == "y":
@@ -240,21 +246,21 @@ class Backtester(object):
 			endTime = input("End Time: ")
 			conf = input("(Y/n): ")
 
-		print(self.utils.ohlc)
-
-		self.utils.backtestByTime(pair, startDate.strip(), startTime.strip(), endDate.strip(), endTime.strip())
+		missing_timestamps = self.utils.backtestByTime(startDate.strip(), startTime.strip(), endDate.strip(), endTime.strip())
 
 		values = {}
+		for key in missing_timestamps:
+			chart_timestamps = missing_timestamps[key]
 
-		values['ohlc'] = self.utils.ohlc
-		values['indicators'] = { 'overlays' : [], 'studies' : [] }
+			pair = key.split('-')[0]
+			period = int(key.split('-')[1])
+			chart = self.utils.getChart(pair, period)
 
-		for i in range(len(self.utils.indicators['overlays'])):
-			values['indicators']['overlays'].append(self.utils.indicators['overlays'][i].history.copy()) 
-		for j in range(len(self.utils.indicators['studies'])):
-			values['indicators']['studies'].append(self.utils.indicators['studies'][j].history.copy())
+			chart_values = self.utils.formatForRecover(chart, chart_timestamps)
 
-		filename = "bt" + str(self.utils.plan_name) + "_" + str('-'.join(startDate.split('/'))) + "(1)"
+			values[key] = chart_values
+
+		filename = "bt" + str(self.utils.plan_name) + "_" + str('-'.join(startDate.split('/')))
 
 		with open(filename+'.json', 'w') as f:
 			json.dump(values, f)
@@ -262,7 +268,7 @@ class Backtester(object):
 		runBacktest(filename)
 
 
-	def backtest(self, ohlc, indicators):
+	def backtest(self, values):
 		global state, pair, current_timestamp, sorted_timestamps
 		state = State.BACKTEST
 
@@ -270,15 +276,19 @@ class Backtester(object):
 
 		# position_logs = None
 
-		for pair in ohlc:
-			pair = pair
+		for key in values:
+			pair = key.split('-')[0]
+			period = int(key.split('-')[1])
+			chart = self.utils.getChart(pair, period)
 
-			sorted_timestamps = [i[0] for i in sorted(ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)]
+			sorted_timestamps = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=False)]
+
+			self.removeTimestampsUntil(chart, sorted_timestamps[0])
 
 			for timestamp in sorted_timestamps:
 				current_timestamp = timestamp
 
-				self.insertValuesByTimestamp(timestamp, pair, ohlc, indicators)
+				self.insertValuesByTimestamp(timestamp, chart, values[key]['ohlc'], values[key]['overlays'], values[key]['studies'])
 
 				time = self.getLondonTime(timestamp)
 
@@ -296,7 +306,7 @@ class Backtester(object):
 
 		state = State.NONE
 
-	def recover(self, ohlc, indicators):
+	def recover(self, values):
 		global state, pair, current_timestamp, sorted_timestamps
 		state = State.RECOVER
 		self.has_run = False
@@ -312,12 +322,14 @@ class Backtester(object):
 		# self.utils.closedPositions = []
 		# self.resetBarValues()
 
-		for _pair in ohlc:
-			pair = _pair
+		for key in values:
+			pair = key.split('-')[0]
+			period = int(key.split('-')[1])
+			chart = self.utils.getChart(pair, period)
 
-			sorted_timestamps = [i[0] for i in sorted(ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)]
-
-			self.removeTimestampsUntil(pair, sorted_timestamps[0])
+			sorted_timestamps = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=False)]
+			print(sorted_timestamps)
+			self.removeTimestampsUntil(chart, sorted_timestamps[0])
 
 			real_time = self.utils.getLondonTime()
 
@@ -331,7 +343,7 @@ class Backtester(object):
 					
 					current_timestamp = timestamp
 					
-					self.insertValuesByTimestamp(timestamp, pair, ohlc, indicators)
+					self.insertValuesByTimestamp(timestamp, chart, values[key]['ohlc'], values[key]['overlays'], values[key]['studies'])
 					
 					time = self.getLondonTime(timestamp)
 
@@ -344,7 +356,7 @@ class Backtester(object):
 		position_logs = self.getPositionLogs()
 
 		for log in position_logs:
-			print("LOG:", str(log))
+			print("LOG:", str(log)) 
 			self.history.append(log)
 			self.utils.updateEvent(log)
 
@@ -390,7 +402,8 @@ class Backtester(object):
 			try:
 				self.plan.onLoop()
 			except AttributeError as e:
-				print(str(e), "continuing...")
+				# print(str(e), "continuing...")
+				print(traceback.format_exc())
 				pass
 			except Exception as e:
 				print(traceback.format_exc())
@@ -400,7 +413,8 @@ class Backtester(object):
 			try:
 				self.plan.onNewBar()
 			except AttributeError as e:
-				print(str(e), "continuing...")
+				# print(str(e), "continuing...")
+				print(traceback.format_exc())
 				pass
 			except Exception as e:
 				print(traceback.format_exc())
@@ -475,41 +489,63 @@ class Backtester(object):
 		for study in self.utils.indicators['studies']:
 			study.history = study.initHistory(self.utils.tickets)
 
-	def removeTimestampsUntil(self, pair, until):
-		reverse_sorted_timestamps = [i[0] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)]
+	def removeTimestampsUntil(self, chart, until):
+		reverse_sorted_timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)]
 
 		for timestamp in reverse_sorted_timestamps:
 
-			if (timestamp >= until):
-				del self.utils.ohlc[pair][timestamp]
+			if timestamp >= until:
+				del chart.ohlc[timestamp]
 				
-				for overlay in self.utils.indicators['overlays']:
-					del overlay.history[pair][timestamp]
-				for study in self.utils.indicators['studies']:
-					del study.history[pair][timestamp]
+				for overlay in chart.overlays:
+					del overlay.history[timestamp]
+				for study in chart.studies:
+					del study.history[timestamp]
 			else:
 				break
 
-	def insertValuesByTimestamp(self, timestamp, pair, ohlc, indicators):
-		self.utils.ohlc[pair][timestamp] = ohlc[pair][timestamp]
+	def insertValuesByTimestamp(self, timestamp, chart, ohlc, overlays, studies):
+		chart.ohlc[timestamp] = ohlc[timestamp]
 
-		for i in range(len(indicators['overlays'])):
+		for i in range(len(overlays)):
 
-			history = self.utils.indicators['overlays'][i].history
-			indicator = indicators['overlays'][i]
-			try:
-				history[pair][timestamp] = indicator[pair][timestamp]
-			except:
-				history[pair][timestamp] = indicator[pair][timestamp - 60]
+			history = chart.overlays[i].history
+			indicator = overlays[i]
 
-		for j in range(len(indicators['studies'])):
+			if timestamp in indicator:
+				history[timestamp] = indicator[timestamp]
+			else:
+				earliest_timestamp = [i[0] for i in sorted(indicator.items(), key=lambda kv:kv[0])][0]
+				print(earliest_timestamp)
+				current_timestamp = timestamp - chart.timestamp_offset
+				while current_timestamp >= earliest_timestamp:
+					if current_timestamp in indicator:
+						history[timestamp] = indicator[current_timestamp]
+						break
+					current_timestamp -= chart.timestamp_offset
 
-			history = self.utils.indicators['studies'][j].history
-			indicator = indicators['studies'][j]
-			try:
-				history[pair][timestamp] = indicator[pair][timestamp]
-			except:
-				history[pair][timestamp] = indicator[pair][timestamp - 60]
+				if current_timestamp < earliest_timestamp:
+					raise Exception("Could not find suitable replacement overlay value for", str(timestamp))
+
+		for j in range(len(studies)):
+
+			history = chart.studies[j].history
+			indicator = studies[j]
+			
+			if timestamp in indicator:
+				history[timestamp] = indicator[timestamp]
+			else:
+				earliest_timestamp = [i[0] for i in sorted(indicator.items(), key=lambda kv:kv[0])][0]
+				print(earliest_timestamp)
+				current_timestamp = timestamp - chart.timestamp_offset
+				while current_timestamp >= earliest_timestamp:
+					if current_timestamp in indicator:
+						history[timestamp] = indicator[current_timestamp]
+						break
+					current_timestamp -= chart.timestamp_offset
+
+				if current_timestamp < earliest_timestamp:
+					raise Exception("Could not find suitable replacement study value for", str(timestamp))
 
 	def getPositionLogs(self):
 		print("getPositionLogs")
@@ -615,8 +651,11 @@ class Backtester(object):
 					pass
 
 	def checkStopLoss(self):
-		high = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][1]
-		low = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][2]
+
+		chart = self.utils.getLowestPeriodChart()
+
+		high = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][1]
+		low = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][2]
 
 		for pos in self.utils.positions:
 			if not pos.sl == 0:
@@ -648,8 +687,11 @@ class Backtester(object):
 							pass
 
 	def checkTakeProfit(self):
-		high = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][1]
-		low = [i[1] for i in sorted(self.utils.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)][0][2]
+
+		chart = self.utils.getLowestPeriodChart()
+
+		high = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][1]
+		low = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][2]
 
 		for pos in self.utils.positions:
 			if not pos.tp == 0:

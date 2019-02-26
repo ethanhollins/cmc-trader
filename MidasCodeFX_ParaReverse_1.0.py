@@ -6,7 +6,6 @@ import types
 import copy
 
 VARIABLES = {
-	'TICKETS' : [Constants.GBPUSD],
 	'START_TIME' : '0:30',
 	'END_TIME' : '19:00',
 	'INDIVIDUAL' : None,
@@ -167,12 +166,14 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global sar
+	global sar, macd, macdz
 
 	utils = utilities
-	sar = utils.SAR(1)
+	sar = utils.SAR(Constants.GBPUSD, Constants.ONE_MINUTE, Constants.PINK)
+	macd = utils.MACD(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 30, 9)
+	macdz = utils.MACDZ(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
 
-	getTrigger(0, None)
+	# getTrigger(0, None)
 
 def onStartTrading():
 	''' Function called on trade start time '''

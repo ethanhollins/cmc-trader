@@ -26,9 +26,9 @@ from CMCTrader.HistoryLog import HistoryLog
 from CMCTrader.PositionLog import PositionLog
 from CMCTrader.OrderLog import OrderLog
 from CMCTrader.Utilities import Utilities
+from CMCTrader.Chart import Chart
 from CMCTrader import Constants
 from CMCTrader import RetrieveTicketElements
-
 
 CMC_WEBSITE = 'https://platform.cmcmarkets.com/'
 
@@ -100,6 +100,7 @@ class Start(object):
 			self.login()
 
 			self.tickets = {}
+			self.charts = []
 			self.threads = []
 			
 			self.setup()
@@ -113,6 +114,7 @@ class Start(object):
 		try:
 			self.login()
 			self.tickets = {}
+			self.charts = []
 			self.reSetup()
 		except Exception as e:
 			tb = traceback.format_exc()
@@ -216,24 +218,7 @@ class Start(object):
 		spaces = ' ' * (barLength - len(loadBar))
 
 		sys.stdout.write("\r"+ msg + "... [{0}]".format(loadBar + spaces))
-		sys.stdout.flush()
-
-	def initTicketBtns(self, pair):
-
-		'''
-
-		Initialize and find ticket body
-
-		'''
-
-		print("Initializing", str(pair), "ticket data...")
-		ticket_elements = RetrieveTicketElements.retrieveTicketElements(self.driver, pair)
-		
-		ticket = Ticket(driver=self.driver, pair=pair, ticket_elements=ticket_elements)
-
-		print(str(pair), "initialized!\n")
-
-		return ticket
+		sys.stdout.flush()	
 
 	def setup(self):
 		system('cls')
@@ -242,7 +227,8 @@ class Start(object):
 
 		try:
 			import importlib.util
-			spec = importlib.util.spec_from_file_location("CMCTrader.Plan", self.PATH)
+			name = self.PATH.split('\\')[len(self.PATH.split('\\'))-1].strip('.py')
+			spec = importlib.util.spec_from_file_location(name, self.PATH)
 			self.plan = importlib.util.module_from_spec(spec)
 			spec.loader.exec_module(self.plan)
 		except FileNotFoundError as e:
@@ -253,39 +239,20 @@ class Start(object):
 
 		print("Setting up platform...")
 
-		# Setup tickets, by default set up GBPUSD ticket
-		print("Setting up tickets...\n")
+		self.utils = Utilities(self.driver, self.plan, self.user_info)
 
 		try:
-			for t in self.plan.VARIABLES['TICKETS']:
-				self.tickets[t] = self.initTicketBtns(t)
-		except:
-			print("No tickets found in plan, defaulting to GBPUSD ticket...")
-			self.tickets[Constants.GBPUSD] = self.initTicketBtns(Constants.GBPUSD)
+			self.plan.init(self.utils)
+		except AttributeError as e:
+			pass
 
-		self.tAUDUSD = self.initTicketBtns(Constants.AUDUSD)
-
-		self.utils = Utilities(self.driver, self.plan, self.user_info, self.tickets, self.tAUDUSD)
-
-		print("\nTrading plan is LIVE...\n-----------------------\n")
-		# try:
-		self.plan.init(self.utils)
-		# except AttributeError as e:
-		# 	pass
-
-		# self.utils.updateValues()
-
-		self.seconds_elem = self.driver.execute_script(
-			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="s"]\');'
-		)
-
-		self.minutes_elem = self.driver.execute_script(
-			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="m"]\');'
-		)
+		self.utils.barReader.setChartRegions()
 
 		self.isDowntime = True
 		
 		self.utils.getRecovery()
+
+		print("\nTrading plan is LIVE...\n-----------------------\n")
 
 		self.functionCalls()
 		
@@ -293,46 +260,21 @@ class Start(object):
 		print("Setting up platform again...")
 		print("Setting up tickets again...")
 
-		self.tickets = {}
-		try:
-			for t in self.plan.VARIABLES['TICKETS']:
-				self.tickets[t] = self.initTicketBtns(t)
-		except:
-			print("No tickets found in plan, defaulting to GBPUSD ticket...")
-			self.tickets[Constants.GBPUSD] = self.initTicketBtns(Constants.GBPUSD)
-
-		self.tAUDUSD = self.initTicketBtns(Constants.AUDUSD)
-
 		if (not hasattr(self, 'utils')):
-			self.utils = Utilities(self.driver, self.plan, self.user_info, self.tickets, self.tAUDUSD)
+			self.utils = Utilities(self.driver, self.plan, self.user_info)
 		else:
-			self.utils.setTickets(self.tickets)
-			self.utils.setAUDUSDTicket(self.tAUDUSD)
-			self.utils.reinit()
-
-		self.seconds_elem = self.driver.execute_script(
-			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="s"]\');'
-		)
-
-		self.minutes_elem = self.driver.execute_script(
-			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="m"]\');'
-		)
+			self.utils.reinit(self.driver)
 
 		self.recoverData()
 		self.functionCalls()
 
 	def recoverData(self):
 		try:
-			missingTimestamps = self.utils.recoverMissingValues()
+			for chart in self.utils.charts:
+				missingTimestamps = self.utils.barReader.getMissingBarData(chart)
 
-			# try:
-			# 	if (len(missingTimestamps) > 0):
-			# 		self.plan.failsafe(missingTimestamps)
-			# except AttributeError as e:
-			# 	pass
-			if (len(missingTimestamps) > 0):
-				for pair in missingTimestamps:
-					self.utils.refreshValues(pair, missingTimestamps[pair])
+				if (len(missingTimestamps) > 0):
+					self.utils.recoverMissingData(chart, missingTimestamps)
 
 		except StaleElementReferenceException as e:
 			self.handleLostConnection()
@@ -349,66 +291,75 @@ class Start(object):
 					self.checkIfInApp()
 					# try:
 					if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
-						for pair in self.plan.VARIABLES['TICKETS']:
-							if (self.utils.isCurrentTimestamp(pair)):
-								self.plan.onLoop()
+						is_current = True
+						for chart in self.utils.charts:
+							if not chart.getCurrentTimestamp() <= chart.latest_timestamp:
+								is_current = False
+						if is_current:
+							self.plan.onLoop()
 					# except AttributeError as e:
 					# 	pass
 
 					if (self.needsUpdate()):
-						self.reinitBtns()
+						self.utils.reinit(self.driver, get_chart_regions=False)
 
 						self.utils.updatePositions()
 
-						isUpdated = self.updateBar()
+						is_updated, missing_timestamps = self.updateBar()
 					
-						if (isUpdated):
+						if (is_updated):
 							# self.utils.save_state = self.plan.SaveState(self.utils)
+							values = {}
+							for key in missing_timestamps:
+								pair = key.split('-')[0]
+								period = int(key.split('-')[1])
+								chart = self.utils.getChart(pair, period)
 
-							missingTimestamps = self.utils.recoverMissingValues()
-							if (len(missingTimestamps) > 0):
+								if len(missing_timestamps[key]) > 1:
+									chart_values = self.utils.formatForRecover(chart, missing_timestamps[key])
+									values[key] = chart_values
 
-								for pair in missingTimestamps:
-									self.utils.refreshValues(pair, missingTimestamps[pair])
-
-								# self.utils.save_state = self.plan.SaveState(self.utils)
-
-							if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
-								if (self.isDowntime):
-									try:
-										self.plan.onStartTrading()
-									except AttributeError as e:
-										pass
-									self.isDowntime = False
-
-								# try:
-								self.plan.onNewBar()
-								# except AttributeError as e:
-								# 	pass
-								try:
-									for key in self.utils.newsTimes.copy():
-										self.plan.onNews(key, self.utils.newsTimes[key])
-								except AttributeError as e:
-									pass
+							if len(values) > 0:
+								print("recover")
+								self.utils.backtester.recover(values)
 							else:
-								self.utils.setTradeTimes()
+								if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
+									if (self.isDowntime):
+										try:
+											self.plan.onStartTrading()
+										except AttributeError as e:
+											pass
+										self.isDowntime = False
 
-								try:
-									self.plan.onDownTime()
-								except AttributeError as e:
-									pass
-									
-								if (not self.isDowntime):
+									# try:
+									self.plan.onNewBar()
+									# except AttributeError as e:
+									# 	pass
 									try:
-										self.plan.onFinishTrading()
+										for key in self.utils.newsTimes.copy():
+											self.plan.onNews(key, self.utils.newsTimes[key])
 									except AttributeError as e:
 										pass
-									if (len(self.utils.closedPositions) > 0):
-										# for pos in closedPositions:
-										self.utils.closedPositions = []
-									self.isDowntime = True
+								else:
+									self.utils.setTradeTimes()
 
-							self.utils.updateRecovery()
+									try:
+										self.plan.onDownTime()
+									except AttributeError as e:
+										pass
+										
+									if (not self.isDowntime):
+										try:
+											self.plan.onFinishTrading()
+										except AttributeError as e:
+											pass
+										if (len(self.utils.closedPositions) > 0):
+											# for pos in closedPositions:
+											self.utils.closedPositions = []
+										self.isDowntime = True
+
+							for chart in self.utils.charts:
+								self.utils.updateRecovery(chart)
 						# except Exception as e:
 						# 	print(e)
 						# 	print("Unable to update bar!")
@@ -430,25 +381,13 @@ class Start(object):
 
 	def needsUpdate(self):
 
-		sorted_timestamps = [i[0] for i in sorted(self.utils.ohlc[Constants.GBPUSD].items(), key=lambda kv: kv[0], reverse=True)]
-		if len(sorted_timestamps) <= 0:
-			return True
-		
-		latest_timestamp = sorted_timestamps[0]
-
-		last_time = self.utils.convertTimestampToTime(latest_timestamp)
-
-		# print("needs update")
-		# print(last_time)
-
-		current_minute = int(self.minutes_elem.text)
-		if not last_time.minute == current_minute - 1:
-			return True
+		for chart in self.utils.charts:
+			if chart.needsUpdate():
+				return True
 
 		return False
 
 	def updateBar(self):
-		self.utils.refreshAll()
 		return self.utils.updateValues()
 
 	def timedRestart(self):
@@ -459,21 +398,6 @@ class Start(object):
 			if (time.minute == 10):
 				print("Scheduled restart commencing...")
 				self.restartCMC()
-
-	def reinitBtns(self):
-		self.tickets = {}
-		try:
-			for t in self.plan.VARIABLES['TICKETS']:
-				self.tickets[t] = self.initTicketBtns(t)
-		except:
-			self.tickets[Constants.GBPUSD] = self.initTicketBtns(Constants.GBPUSD)
-
-		self.tAUDUSD = self.initTicketBtns(Constants.AUDUSD)
-
-		self.utils.setTickets(self.tickets)
-		self.utils.setAUDUSDTicket(self.tAUDUSD)
-		self.utils.reinit(init_bar_reader = False)
-
 
 	def handleLostConnection(self):
 		while (True):

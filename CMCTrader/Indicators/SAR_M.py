@@ -1,32 +1,82 @@
+import talib
+import numpy as np
 from CMCTrader import Constants
+import time
 
-VALUE_WIDTH = 123
-VALUE_HEIGHT = 24
-X_START = 180
+class SAR_M(object):
 
-class SAR(object):
-	
-	def __init__(self, utils, index, chart, colour):
-		self.index = index
+	def __init__(self, utils, index, chart, acceleration, maximum):
 		self.utils = utils
+		self.index = index
 		self.chart = chart
-		self.colour = colour
+
+		self.acceleration = acceleration
+		self.maximum = maximum
 
 		self.history = {}
-		self.type = 'SAR'
-		self.collection_type = Constants.PIXEL_COLLECT
+		self.type = 'SAR_M'
+		self.collection_type = Constants.DATA_POINT_COLLECT
 
-	def insertValues(self, timestamp, value):
-		print("insert:", str(value), str(self.chart.ohlc[int(timestamp)][1]), str(self.chart.ohlc[int(timestamp)][2]))
-		value = round(float(value), 5)
-		mp = (self.chart.ohlc[int(timestamp)][1] + self.chart.ohlc[int(timestamp)][2]) / 2
-		print(mp)
-		if value < self.chart.ohlc[int(timestamp)][1] and value >= mp:
-			value = self.chart.ohlc[int(timestamp)][1]
-		elif value > self.chart.ohlc[int(timestamp)][2] and value < mp:
-			value = self.chart.ohlc[int(timestamp)][2]
-		self.history[int(timestamp)] = value
-			
+	def insertValues(self, timestamp, ohlc):
+		real = self._calculate(ohlc)
+		real = round(float(real), 5)
+		
+		self.history[int(timestamp)] = real
+
+	def _calculate(self, ohlc):
+		
+		# return talib.SAR(np.array(ohlc[1]), np.array(ohlc[2]), acceleration=self.acceleration, maximum=self.maximum)
+
+		is_rising = False
+
+		sars = [ohlc[1][0]]
+		ep = ohlc[2][0]
+		af = self.acceleration
+
+		for i in range(1, len(ohlc[0])):
+			high = ohlc[1][i]
+			low = ohlc[2][i]
+
+			if is_rising:
+				
+				if high > ep:
+					ep = high
+					af = min(af + self.acceleration, self.maximum)
+				
+				if low < sars[i-1]:
+					is_rising = False
+					sars.append(ep)
+					ep = low
+					af = self.acceleration
+					continue
+
+				sar = sars[i-1] + ( af * ( ep - sars[i-1] ) )
+
+				if sar > low:
+					sar = low
+
+			else:
+				
+				if low < ep:
+					ep = low
+					af = min(af + self.acceleration, self.maximum)
+				
+				if high > sars[i-1]:
+					is_rising = True
+					sars.append(ep)
+					ep = high
+					af = self.acceleration
+					continue
+
+				sar = sars[i-1] - ( af * ( sars[i-1] - ep ) )
+
+				if sar < high:
+					sar = high
+
+			sars.append(sar)
+
+		return sars[-1]
+
 	def getCurrent(self):
 		timestamp = self.chart.getRelativeTimestamp(0)
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
@@ -47,11 +97,9 @@ class SAR(object):
 		ohlcVals = [i[1] for i in sorted(self.chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)]
 		boolList = []
 		for i in range(amount):
-			if (sarVals[i + shift] < ohlcVals[i + shift][2]):
-				print(str(sarVals[i + shift]), str(ohlcVals[i + shift][2]))
+			if (sarVals[i + shift] <= ohlcVals[i + shift][2]):
 				boolList.append(True)
 			else:
-				print(str(sarVals[i + shift]), str(ohlcVals[i + shift][2]))
 				boolList.append(False)
 		return boolList
 
@@ -63,7 +111,7 @@ class SAR(object):
 		ohlcVals = [i[1] for i in sorted(self.chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)]
 		boolList = []
 		for i in range(amount):
-			if (sarVals[i + shift] > ohlcVals[i + shift][1]):
+			if (sarVals[i + shift] >= ohlcVals[i + shift][1]):
 				boolList.append(True)
 			else:
 				boolList.append(False)
@@ -89,3 +137,4 @@ class SAR(object):
 				return count
 
 			count += 1
+		

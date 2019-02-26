@@ -6,12 +6,11 @@ import types
 import copy
 
 VARIABLES = {
-	'TICKETS' : [Constants.GBPUSD],
 	'START_TIME' : '0:30',
 	'END_TIME' : '19:00',
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
-	'maximum_risk' : 4,
+	'maximum_risk' : 1.5,
 	'profit_limit' : 51,
 	'maximum_bank' : 500,
 	'PLAN' : None,
@@ -29,13 +28,16 @@ VARIABLES = {
 	'time_threshold_breakeven' : 1,
 	'time_threshold_no_trades' : 5,
 	'CONFIRMATION' : None,
-	'strand_size' : 22,
+	'min_diff' : 0.2,
 	'SAR' : None,
-	'sar_count_min' : 3,
+	'sar_count_valid' : 3,
+	'sar_count_ret' : 2,
+	'sar_count_extend': 1,
 	'MACD' : None,
 	'macd_threshold' : 2,
-	'CCI' : None,
-	'cci_threshold' : 0,
+	'PTI' : None,
+	'num_comp_strands': 4,
+	'comp_period': 1
 }
 
 class SortedList(list):
@@ -50,8 +52,7 @@ re_entry_trigger = None
 
 strands = SortedList()
 
-fixed_pivots = []
-floating_pivots = []
+comp_strands = []
 
 pending_entries = []
 pending_breakevens = []
@@ -71,21 +72,23 @@ class Direction(Enum):
 
 class State(Enum):
 	ONE = 1
-	ENTERED = 2
+	TWO = 2
+	THREE = 3
+	ENTERED = 4
 
 class Re_Entry_State(Enum):
 	ONE = 1
 	TWO = 2
 	ENTERED = 3
 
-class PivotType(Enum):
-	FIXED = 1
-	FLOATING = 2
-
 class TriggerType(Enum):
 	REGULAR = 1
 	RE_ENTRY = 2
 	CROSS_EXIT = 3
+
+class CompType(Enum):
+	PRIMARY = 1
+	SECONDARY = 2
 
 class TimeState(Enum):
 	TRADING = 1
@@ -98,7 +101,13 @@ class ExitType(Enum):
 	IMMEDIATE = 2
 	CROSS = 3
 
+class PtiDirection(Enum):
+	NONE = 1
+	LONG = 2
+	SHORT = 3
+
 time_state = TimeState.TRADING
+pti_direction = PtiDirection.NONE
 
 class Strand(dict):
 	def __init__(self, direction, start):
@@ -107,7 +116,7 @@ class Strand(dict):
 		self.end = 0
 		self.is_completed = False
 		self.count = len(strands)
-		self.is_crossed = False
+		self.length = 0
 		self.is_valid = False
 
 	def __getattr__(self, key):
@@ -116,18 +125,42 @@ class Strand(dict):
 	def __setattr__(self, key, value):
 		self[key] = value
 
+class CompStrand(dict):
+	def __init__(self, direction, half_val, comp_type, strand, is_two_point = False):
+		self.direction = direction
+		self.half_val = half_val
+		self.comp_type = comp_type
+		self.strand = strand
+		self.is_two_point = is_two_point
+		self.has_crossed = False
+		self.is_extended = False
+		self.comp_length = None
+
+	def __getattr__(self, key):
+		return self[key]
+
+	def __setattr__(self, key, value):
+		self[key] = value
+
 class Trigger(dict):
-	def __init__(self, direction, strand = None, pivot_type = None, start = 0, tradable = True, trigger_type = TriggerType.REGULAR):
+	def __init__(self, direction, start, tradable = True, trigger_type = TriggerType.REGULAR):
 		self.direction = direction
 		self.start = start
-		self.state = State.ONE
-		self.tradable = tradable
 		self.trigger_type = trigger_type
+		self.state = self._getState()
+		self.tradable = tradable
 		self.exit_type = ExitType.NONE
+		self.pti_confirmed = False
+		self.is_comp_confirmed = False
+		self.is_new_cycle = False
 
-		self.strand = strand
-		self.pivot_type = pivot_type
-		self.ret_count = 0
+	def _getState(self):
+		if self.trigger_type == TriggerType.REGULAR:
+			return State.ONE
+		elif self.trigger_type == TriggerType.RE_ENTRY:
+			return Re_Entry_State.ONE
+		else:
+			return None
 
 	def __getattr__(self, key):
 		return self[key]
@@ -146,10 +179,14 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global sar
+	global sar, macd, macdz
 
 	utils = utilities
-	sar = utils.SAR(1)
+	sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.2, 0.2)
+	macd = utils.MACD(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
+	macdz = utils.MACDZ(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
+
+	resetTriggers()
 
 def onStartTrading():
 	''' Function called on trade start time '''
@@ -235,7 +272,6 @@ def handleEntries():
 				elif news_trade_block:
 					print("Trade blocked on NEWS! Re-entry trigger activated.")
 					re_entry_trigger = Trigger(entry.direction, tradable = False, trigger_type = TriggerType.RE_ENTRY)
-					re_entry_trigger.state = Re_Entry_State.ONE
 
 					pos.quickExit()
 
@@ -253,7 +289,6 @@ def handleEntries():
 				elif news_trade_block:
 					print("Trade blocked on NEWS! Re-entry trigger activated.")
 					re_entry_trigger = Trigger(entry.direction, tradable = False, trigger_type = TriggerType.RE_ENTRY)
-					re_entry_trigger.state = Re_Entry_State.ONE
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
@@ -275,7 +310,6 @@ def handleEntries():
 				elif news_trade_block:
 					print("Trade blocked on NEWS! Re-entry trigger activated.")
 					re_entry_trigger = Trigger(entry.direction, tradable = False, trigger_type = TriggerType.RE_ENTRY)
-					re_entry_trigger.state = Re_Entry_State.ONE
 
 					pos.quickExit()
 
@@ -291,7 +325,6 @@ def handleEntries():
 				elif news_trade_block:
 					print("Trade blocked on NEWS! Re-entry trigger activated.")
 					re_entry_trigger = Trigger(entry.direction, tradable = False, trigger_type = TriggerType.RE_ENTRY)
-					re_entry_trigger.state = Re_Entry_State.ONE
 
 					del pending_entries[pending_entries.index(entry)]
 				else:
@@ -352,9 +385,9 @@ def handleStop():
 	for pos in utils.positions:
 		
 		if pos.direction == 'buy':
-			profit = utils.getTotalProfit() + pos.getProfit(price_type = 'h')
+			profit = pos.getProfit(price_type = 'h')
 		else:
-			profit = utils.getTotalProfit() + pos.getProfit(price_type = 'l')
+			profit = pos.getProfit(price_type = 'l')
 
 		if profit >= VARIABLES['breakeven_point'] and stop_state.value < StopState.BREAKEVEN.value:
 			print("Reached BREAKEVEN point:", str(profit))
@@ -403,11 +436,31 @@ def handleExits(shift):
 	if is_exit:
 		pending_exits = []
 
+def onTrade(pos, event):
+	print("onTrade")
+
+	listened_events = ['Buy Trade', 'Sell Trade']
+
+	if event in listened_events:
+		if pos.direction == 'buy':
+			configureCompStrandsOnEntry(Direction.SHORT)
+		else:
+			configureCompStrandsOnEntry(Direction.LONG)
+
+	resetTriggers()
+
 def onEntry(pos):
 	print("onEntry")
 
-	global current_triggers, re_entry_trigger, stop_state
-	current_triggers = []
+	global re_entry_trigger, stop_state
+
+	if pos.direction == 'buy':
+		trigger = getDirectionTrigger(Direction.LONG)
+		trigger.state = State.ENTERED
+	else:
+		trigger = getDirectionTrigger(Direction.SHORT)
+		trigger.state = State.ENTERED
+
 	re_entry_trigger = None
 
 	stop_state = StopState.NONE
@@ -417,13 +470,10 @@ def onStopLoss(pos):
 
 	global re_entry_trigger
 
-	if stop_state.value <= StopState.BREAKEVEN.value:
-		if pos.direction == 'buy':
-			re_entry_trigger = Trigger(Direction.LONG, tradable = True, trigger_type = TriggerType.RE_ENTRY)
-		elif pos.direction == 'sell':
-			re_entry_trigger = Trigger(Direction.SHORT, tradable = True, trigger_type = TriggerType.RE_ENTRY)
-
-		re_entry_trigger.state = Re_Entry_State.ONE
+	if pos.direction == 'buy':
+		re_entry_trigger = Trigger(Direction.LONG, 0, tradable = True, trigger_type = TriggerType.RE_ENTRY)
+	elif pos.direction == 'sell':
+		re_entry_trigger = Trigger(Direction.SHORT, 0, tradable = True, trigger_type = TriggerType.RE_ENTRY)
 
 def onNews(title, time):
 	''' 
@@ -520,15 +570,63 @@ def checkTime():
 def runSequence(shift):
 	''' Main trade plan sequence '''
 	onNewCycle(shift)
-
-	onTrigger(shift)
-
+	for trigger in current_triggers:
+		checkCompConf(shift, trigger)
 	for trigger in current_triggers:
 		entrySetup(shift, trigger)
 
 	reEntrySetup(shift, re_entry_trigger)
 
-	entryPivot(shift, entry_pivot)
+def resetTriggers(direction = None):
+	global current_triggers
+
+	long_t = Trigger(Direction.LONG, 0, tradable = True, trigger_type = TriggerType.REGULAR)
+	short_t = Trigger(Direction.SHORT, 0, tradable = True, trigger_type = TriggerType.REGULAR)
+
+	if direction:
+		if direction == Direction.LONG:
+			current = getDirectionTrigger(Direction.LONG)
+			if current:
+				del current_triggers[current_triggers.index(current)]
+			current_triggers.append(long_t)
+		else:
+			current = getDirectionTrigger(Direction.SHORT)
+			if current:
+				del current_triggers[current_triggers.index(current)]
+			current_triggers.append(short_t)
+	else:
+		current_triggers = [long_t, short_t]
+
+def getTrigger(shift, pos):
+
+	directions = [Direction.LONG, Direction.SHORT]
+
+	if pos:
+		if pos.direction == 'buy':
+			if getDirectionTrigger(Direction.LONG):
+				del current_triggers[current_triggers.index(getDirectionTrigger(Direction.LONG))]
+			del directions[0]
+			print(pos.direction)
+		elif pos.direction == 'sell':
+			if getDirectionTrigger(Direction.SHORT):
+				del current_triggers[current_triggers.index(getDirectionTrigger(Direction.SHORT))]
+			del directions[1]
+			print(pos.direction)
+
+	for direction in directions:
+		if not getDirectionTrigger(direction):
+			trigger = Trigger(direction, 0, tradable = True, trigger_type = TriggerType.REGULAR)
+
+			current_triggers.append(trigger)
+
+def configureCompStrandsOnEntry(direction):
+	primary_strand = getCompStrand(direction, CompType.PRIMARY)
+
+	if primary_strand:
+		secondary_strand = getCompStrand(direction, CompType.SECONDARY)
+		del comp_strands[comp_strands.index(secondary_strand)]
+
+		primary_strand.comp_type = CompType.SECONDARY
 
 def onNewCycle(shift):
 	''' 
@@ -536,264 +634,351 @@ def onNewCycle(shift):
 	a strand has started their new cycle.
 	'''
 
-	if sar.isNewCycle(VARIABLES['TICKETS'][0], shift):
+	if sar.isNewCycle(shift):
 
-		if sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
+		if sar.isRising(shift, 1)[0]:
 			direction = Direction.SHORT
+			opp_direction = Direction.LONG
 		else:
 			direction = Direction.LONG
+			opp_direction = Direction.SHORT
+
+		strand = Strand(direction, sar.get(shift, 1)[0])
 		
 		if len(strands) > 0:
-			strands[0].is_completed = True
-			strands[0].end = sar.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0]
-	
-		strand = Strand(direction, sar.get(VARIABLES['TICKETS'][0], shift, 1)[0])
-		strands.append(strand)
+			print("new cycle:\n")
 
+			if not strands[0].direction == direction:
+
+				last_strand = getNthDirectionStrand(opp_direction, 1)
+
+				last_strand.is_completed = True
+				last_strand.end = sar.get(shift + 1, 1)[0]
+				last_strand.length = sar.strandCount(shift + 1)
+
+				getPTI()
+
+				print(sar.strandCount(shift + 1))
+
+				trigger = getDirectionTrigger(direction)
+
+				if sar.strandCount(shift + 1) >= VARIABLES['sar_count_valid']:
+
+					trigger.is_new_cycle = True
+
+					current_sar = sar.get(shift, 1)[0]
+
+					print("last strand:", str(last_strand))
+					print("current sar:", str(current_sar))
+
+					if isValidStrandBetween(strand.direction):
+						
+						primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
+						if primary_strand:
+							secondary_strand = getCompStrand(strand.direction, CompType.SECONDARY)
+							if secondary_strand:
+								del comp_strands[comp_strands.index(secondary_strand)]
+							
+							primary_strand.comp_type = CompType.SECONDARY
+
+						comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.PRIMARY, last_strand)
+						
+						comp_strands.append(comp_strand)
+
+					elif last_strand:
+
+						secondary_strand = getCompStrand(strand.direction, CompType.SECONDARY)
+						if secondary_strand:
+							del comp_strands[comp_strands.index(secondary_strand)]
+
+						primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
+						
+						comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.SECONDARY, last_strand)
+
+						if getNthDirectionStrand(strand.direction, 1) and primary_strand and getNthDirectionStrand(strand.direction, 1).length == VARIABLES['sar_count_extend']:
+							comp_strand.is_extended = True
+							if comp_strand.strand.start > primary_strand.strand.start:
+								comp_strand.strand.start = primary_strand.strand.start
+
+						if primary_strand:
+							del comp_strands[comp_strands.index(primary_strand)]
+
+						comp_strands.append(comp_strand)
+
+		strands.append(strand)
 		print("New Strand:", str(strand.direction))
 
-def onTrigger(shift):
-
-	if isNumStrands(1):
-		isStrandValid(shift)
-
-		long_triggers = [trigger for trigger in current_triggers if trigger.direction == Direction.LONG and trigger.trigger_type == TriggerType.REGULAR]
-		short_triggers = [trigger for trigger in current_triggers if trigger.direction == Direction.SHORT and trigger.trigger_type == TriggerType.REGULAR]
-
-		pos_direction = None
-		
-		if len(utils.positions) > 0:
-			pos_direction = utils.positions[0].direction
-
-		if pos_direction == None:
-			if isNumValidStrands(2, Direction.LONG):
-				if len(long_triggers) <= 0:
-					t = Trigger(Direction.LONG, tradable = True)
-					current_triggers.append(t)
-
-				getCrossStrand(Direction.LONG)
-
-			if isNumValidStrands(2, Direction.SHORT):
-				if len(short_triggers) <= 0:
-					t = Trigger(Direction.SHORT, tradable = True)
-					current_triggers.append(t)
-
-				getCrossStrand(Direction.SHORT)
-
-		elif pos_direction == 'buy':
-			if isNumValidStrands(2, Direction.SHORT):
-				if len(short_triggers) <= 0:
-					t = Trigger(Direction.SHORT, tradable = True)
-					current_triggers.append(t)
-
-				getCrossStrand(Direction.SHORT)
-
-		else:
-			if isNumValidStrands(2, Direction.LONG):
-				if len(long_triggers) <= 0:
-					t = Trigger(Direction.LONG, tradable = True)
-					current_triggers.append(t)
-
-				getCrossStrand(Direction.LONG)
-
-	print("Cross strand long:", str(cross_strand_long))
-	print("Cross strand short:", str(cross_strand_short))
-
-def getLongTrigger():
+def getDirectionTrigger(direction):
 	for trigger in current_triggers:
-		if trigger.direction == Direction.LONG:
+		if trigger.direction == direction:
 			return trigger
 
-def getShortTrigger():
-	for trigger in current_triggers:
-		if trigger.direction == Direction.SHORT:
-			return trigger
+	return None
 
-def isNumStrands(count):
-	return len(strands) >= count
+def getNthDirectionStrand(direction, count):
 
-def isNumValidStrands(count, direction):
-	return len([i for i in strands if i.is_valid and i.direction == direction]) >= count
+	current_count = 0
+	for i in range(len(strands)):
+		if strands[i].direction == direction:
+			current_count += 1
+			if count == current_count:
+				print("at: " + str(i))
+				print(strands[i])
+				return strands[i]
 
-def isStrandValid(shift):
-	if not strands[0].is_valid and sar.strandCount(VARIABLES['TICKETS'][0], shift) >= VARIABLES['sar_count_min']:
-		strands[0].is_valid = True
+	return None
 
-def getCrossStrand(direction):
+def getCompStrand(direction, comp_type):
+	for strand in comp_strands:
+		if strand.direction == direction and strand.comp_type == comp_type:
+			return strand
 
-	global cross_strand_long, cross_strand_short
+	return None
 
-	direction_strands = [strand for strand in strands.getSorted() if strand.direction == direction and strand.is_valid][:2]
+def getPTI():
 
-	if len(direction_strands) >= 2:
-		if direction == Direction.LONG:
-			if direction_strands[0].start >= direction_strands[1].start:
-				
-				if isTriggerRetValid(Direction.LONG, direction_strands[0]):
-					cross_strand_long = direction_strands[0]
+	global pti_direction
+
+
+
+	long_strands = [i for i in strands.getSorted() if i.direction == Direction.SHORT]
+	short_strands = [i for i in strands.getSorted() if i.direction == Direction.LONG]
+
+	temp_direction = None
+
+	if len(long_strands) > VARIABLES['num_comp_strands'] + VARIABLES['comp_period']-1 and len(short_strands) > VARIABLES['num_comp_strands'] + VARIABLES['comp_period']-1:
+		long_len = 0
+		short_len = 0
+
+		temp_direction = PtiDirection.NONE
+		for i in range(VARIABLES['comp_period']):
+
+			for strand in long_strands[i:VARIABLES['num_comp_strands'] + i]:
+				long_len += strand.length
 			
-			else:
+			for strand in short_strands[i:VARIABLES['num_comp_strands'] + i]:
+				short_len += strand.length
 
-				if isTriggerRetValid(Direction.LONG, direction_strands[1]):
-					cross_strand_long = direction_strands[1]
+			if long_len > short_len and (temp_direction == PtiDirection.NONE or temp_direction == PtiDirection.LONG):
+				temp_direction = PtiDirection.LONG
 
-		else:
-			if direction_strands[0].start <= direction_strands[1].start:
-
-				if isTriggerRetValid(Direction.SHORT, direction_strands[0]):
-					cross_strand_short = direction_strands[0]
+			elif short_len > long_len and (temp_direction == PtiDirection.NONE or temp_direction == PtiDirection.SHORT):
+				temp_direction = PtiDirection.SHORT
 
 			else:
-				
-				if isTriggerRetValid(Direction.SHORT, direction_strands[1]):
-					cross_strand_short = direction_strands[1]
+				temp_direction = None
 
-	elif len(direction_strands) >= 1:
-		if direction == Direction.LONG:
-			cross_strand_long = direction_strands[0]
-		else:
-			cross_strand_short = direction_strands[0]
-
-def isTriggerRetValid(direction, strand):
-
-	if direction == Direction.LONG:
-		if cross_strand_long and not strand == cross_strand_long:
-			if cross_strand_long.start < strand.start:
-				if getLongTrigger().ret_count >= 1:
-					print("ret not valid")
-					return False
-				else:
-					getLongTrigger().ret_count += 1
-			else:
-				getLongTrigger().ret_count = 0
-				return True
+	if temp_direction:
+		pti_direction = temp_direction
 	else:
-		if cross_strand_short and not strand == cross_strand_short:
-			if cross_strand_short.start > strand.start:
-				if getShortTrigger().ret_count >= 1:
-					print("ret not valid")
-					return False
-				else:
-					getShortTrigger().ret_count += 1
+		pti_direction = PtiDirection.NONE
 
-			else:
-				getShortTrigger().ret_count = 0
+def isValidStrandBetween(direction):
+	comp_strand = getCompStrand(direction, CompType.PRIMARY)
+	if not comp_strand:
+		comp_strand = getCompStrand(direction, CompType.SECONDARY)
+
+	print("comp strand:\n", str(comp_strand))
+
+	if comp_strand:
+		direction_strands = [i for i in strands.getSorted() if i.direction == direction and i.count > comp_strand.strand.count]
+		
+		for strand in direction_strands:
+			print(str(strand.count)+":")
+			print(strand)
+
+			if strand.length >= VARIABLES['sar_count_ret']:
+				print("Valid inbetween strand found")
 				return True
 
-	return True
+	return False
+
+def checkCompConf(shift, trigger):
+	if not trigger == None and trigger.tradable and not trigger.state == State.ENTERED:
+
+		if trigger.state == State.ONE and trigger.is_new_cycle:
+			print("stateOne")
+			if rangeConf(shift, trigger.direction):
+
+				if trigger.direction == Direction.LONG:
+					opp_direction = Direction.SHORT
+				else:
+					opp_direction = Direction.LONG
+
+				opp_trigger = getDirectionTrigger(opp_direction)
+				if opp_trigger:
+					opp_trigger.is_comp_confirmed = False
+
+				trigger.is_comp_confirmed = True
+				trigger.state = State.TWO
+				entrySetup(shift, trigger)
 
 def entrySetup(shift, trigger):
 	''' Checks for swing sequence once trigger has been formed '''
 
-	if not trigger == None and trigger.tradable:
+	if not trigger == None and trigger.tradable and not trigger.state == State.ENTERED:
 
-		if trigger.state == State.ONE:
-			if triggerConf(shift, trigger.direction):
-				trigger.state = State.ENTERED
-				confirmation(shift, trigger)
+		if not trigger.is_comp_confirmed:
+			print("turn off")
+			trigger.state = State.ONE
+
+		if trigger.state == State.TWO:
+
+			if tParaConf(shift, trigger.direction):
+				trigger.state = State.THREE
+				entrySetup(shift, trigger)
+			else:
+				if ptiConf(shift, trigger.direction):
+					trigger.pti_confirmed = True
+				else:
+					trigger.pti_confirmed = False
+
+		elif trigger.state == State.THREE:
+			print("stateTwo")
+			
+			if tParaConf(shift, trigger.direction):
+				if directionConf(shift, trigger):
+					trigger.state = State.ENTERED
+					confirmation(shift, trigger)
+			else:
+				trigger.state = State.TWO
+				trigger.pti_confirmed = False
+
+		trigger.is_new_cycle = False
 
 def reEntrySetup(shift, trigger):
 
 	if not trigger == None and trigger.tradable and not trigger.state == State.ENTERED:
-		if trigger.state == Re_Entry_State.ONE:
-			if reEntryInitConf(shift, trigger.direction):
-				trigger.state = Re_Entry_State.TWO
-				reEntrySetup(shift, trigger)
 
-		if trigger.state == Re_Entry_State.TWO:
-			if triggerConf(shift, trigger.direction, is_re_entry = True):
+		if trigger.state == State.ONE:
+
+			if tParaConf(shift, trigger.direction):
+				trigger.state = State.TWO
+				entrySetup(shift, trigger)
+			else:
+				if ptiConf(shift, trigger.direction):
+					trigger.pti_confirmed = True
+				else:
+					trigger.pti_confirmed = False
+
+		elif trigger.state == Re_Entry_State.TWO:
+			if directionConf(shift, trigger):
 				trigger.state = Re_Entry_State.ENTERED
 				confirmation(shift, trigger)
 
-def triggerConf(shift, direction, is_re_entry = False):
-	print("---Direction:", str(direction))
+def rangeConf(shift, direction):
 
-	if isStrandCrossed(shift, direction) or is_re_entry:
-		print("Strand is crossed.")
-		print("Conf:", str(isParaConfirmation(shift, direction)), str(isMacdConfirmation(shift, direction)), str(isCciBiasConfirmation(shift, direction)))
-		if isParaConfirmation(shift, direction) and isMacdConfirmation(shift, direction) and isCciBiasConfirmation(shift, direction):
-			print("Trigger is confirmed")
-			return True
+	primary_comp = getCompStrand(direction, CompType.PRIMARY)
+	secondary_comp = getCompStrand(direction, CompType.SECONDARY)
+
+	if primary_comp and secondary_comp:
+		if direction == Direction.LONG:
+			return primary_comp.half_val >= secondary_comp.half_val + utils.convertToPrice(VARIABLES['min_diff'])
+		else:
+			return primary_comp.half_val <= secondary_comp.half_val - utils.convertToPrice(VARIABLES['min_diff'])
 
 	return False
 
-def reEntryInitConf(shift, direction):
-	if isParaConfirmation(shift, direction, reverse = True):
+def tParaConf(shift, direction):
+	print("tParaConf", str(direction))
+
+	return isParaConfirmation(shift, direction)
+
+def ptiConf(shift, direction):
+	print("PTI conf")
+
+	if direction == Direction.LONG and pti_direction == PtiDirection.LONG:
+		return True
+	elif direction == Direction.SHORT and pti_direction == PtiDirection.SHORT:
 		return True
 
 	return False
 
-def isStrandCrossed(shift, direction):
+def directionConf(shift, trigger):
+	print("Direction conf")
 
-	sar_val = sar.get(VARIABLES['TICKETS'][0], shift, 1)[0]
-	print("sar val:", str(sar_val))
+	return trigger.pti_confirmed or (isMacdConfirmation(trigger.direction) and isParaConfirmation(shift, trigger.direction))
 
-	if direction == Direction.LONG and cross_strand_long:
-		if sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]:
-			if sar_val > cross_strand_long.start:
-				return True
+def hasCrossedStrandsConf(shift, comp):
+	end_sar = comp.strand.end
 
-	elif direction == Direction.SHORT and cross_strand_short:
-		if sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]:
-			if sar_val < cross_strand_short.start:
-				return True
+	first_t_strand = getNthDirectionStrand(comp.direction, 1)
+	second_t_strand = getNthDirectionStrand(comp.direction, 2)
 
-	return False
+	if comp.direction == Direction.LONG:
+		if end_sar > first_t_strand.start or end_sar > second_t_strand.start:
+			comp.has_crossed = True
+	else:
+		if end_sar < first_t_strand.start or end_sar < second_t_strand.start:
+			comp.has_crossed = True
 
 def isParaConfirmation(shift, direction, reverse = False):
 
 	if reverse:
 		if direction == Direction.SHORT:
-			return sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+			print("long:", str(sar.isRising(shift, 1)[0]))
+			return sar.isRising(shift, 1)[0]
 		else:
-			return sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
+			print("short:", str(sar.isFalling(shift, 1)[0]))
+			return sar.isFalling(shift, 1)[0]
 	
 	else:
 		if direction == Direction.LONG:
-			print("long:", str(sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]))
-			return sar.isRising(VARIABLES['TICKETS'][0], shift, 1)[0]
+			print("long:", str(sar.isRising(shift, 1)[0]))
+			return sar.isRising(shift, 1)[0]
 		else:
-			print("short:", str(sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]))
-			return sar.isFalling(VARIABLES['TICKETS'][0], shift, 1)[0]
+			print("short:", str(sar.isFalling(shift, 1)[0]))
+			return sar.isFalling(shift, 1)[0]
 
-def isMacdConfirmation(shift, direction):
+def isMacdConfirmation(direction):
 
-	hist = macd.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
+	hist = macd.getCurrent()[2]
+	histz = macdz.getCurrent()[2]
 
-	print("hist:", str(hist))
-
-	if direction == Direction.LONG:
-		return hist >= VARIABLES['macd_threshold'] * 0.00001
-	else:
-		return hist <= -VARIABLES['macd_threshold'] * 0.00001
-
-def isCciBiasConfirmation(shift, direction):
-	
-	last_chidx = cci.get(VARIABLES['TICKETS'][0], shift + 1, 1)[0][0]
-	chidx = cci.get(VARIABLES['TICKETS'][0], shift, 1)[0][0]
-
-	print(str(last_chidx), str(chidx))
+	print("MACDZ:", str(histz))
 
 	if direction == Direction.LONG:
-		if chidx > last_chidx:
+		if hist > 0 and histz >= 0:
+			return True
+		if hist >= 0 and histz > 0:
 			return True
 	else:
-		if chidx < last_chidx:
+		if hist < 0 and histz <= 0:
+			return True
+		if hist <= 0 and histz < 0:
 			return True
 
-	return False
 
 def confirmation(shift, trigger):
 	''' Checks for overbought, oversold and confirm entry '''
 
 	print("confirmation")
 
+	if len(utils.positions) > 0:
+		if utils.positions[0].direction == 'buy' and trigger.direction == Direction.LONG:
+			resetTriggers(direction = Direction.LONG)
+			return
+		elif utils.positions[0].direction == 'sell' and trigger.direction == Direction.SHORT:
+			resetTriggers(direction = Direction.SHORT)
+			return
+
 	pending_entries.append(trigger)
+
+	global re_entry_trigger
+
+	re_entry_trigger = None
 
 def report():
 	''' Prints report for debugging '''
 
 	print("\n")
+
+	for i in comp_strands:
+		print(i)
+
+	print("\n")
+
+	print("PTI Direction:", str(pti_direction))
 
 	for trigger in current_triggers:
 		print("CURRENT TRIGGER:\n ", str(trigger))

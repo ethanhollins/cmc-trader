@@ -4,51 +4,30 @@ X_START = 180
 
 class SMA(object):
 
-	def __init__(self, utils, index):
+	def __init__(self, utils, index, colour):
 		self.utils = utils
 		self.index = index
-		self.history = self.initHistory(utils.tickets)
+		self.colour = colour
+		self.history = {}
 		self.type = 'SMA'
 
-		self.valueCount = 1
-
-	def initHistory(self, tickets):
-		tempDict = {}
-		for key in tickets:
-			tempDict[key] = {}
-		return tempDict
-
-	def getValueRegions(self, startY):
-		return [
-			(X_START, startY, X_START + VALUE_WIDTH, startY + VALUE_HEIGHT)
-		]
-
-	def insertValues(self, pair, timestamp, values):
-		whitelist = set('0123456789.-')
-
-		try:
-			values[0] = str(values[0])
-			values[0] = values[0].replace("D", "0")
-			values[0] = ''.join(filter(whitelist.__contains__, values[0]))
-
-			self.history[pair][int(timestamp)] = float(values[0])
-		except:
-			self._addFillerData(pair, timestamp)
+	def insertValues(self, timestamp, value):
+		self.history[int(timestamp)] = round(float(value), 5)
 
 	def getCurrent(self, pair):
 		timestamp = self.utils.getTimestampFromOffset(pair, 0, 1)
 		self.utils.getMissingTimestamps(timestamp)
 
-		return sorted(self.history[pair].items(), key=lambda kv: kv[0], reverse=True)[0][1]
+		return sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[0][1]
 
 	def get(self, pair, shift, amount):
 		timestamp = self.utils.getTimestampFromOffset(pair, shift, amount)
 		self.utils.getMissingTimestamps(timestamp)
 
-		return [i[1] for i in sorted(self.history[pair].items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]
+		return [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]
 
-	def _addFillerData(self, pair, timestamp):
-		if (int(timestamp) - 60) in self.history[pair]:
-			self.history[pair][int(timestamp)] = self.history[pair][int(timestamp) - 60]
+	def addFillerData(self, timestamp):
+		if (int(timestamp) - 60) in self.history:
+			self.history[int(timestamp)] = self.history[int(timestamp) - 60]
 		else:
 			return

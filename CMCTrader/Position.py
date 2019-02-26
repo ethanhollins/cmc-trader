@@ -154,19 +154,21 @@ def profit_redirect_backtest(func):
 
 		if self.utils.backtester.isRecover() or self.utils.backtester.isBacktesting():
 
+			chart = self.utils.getLowestPeriodChart()
+
 			try:
 				price_type = kwargs['price_type']
 			except:
 				price_type = 'c'
 
 			if price_type == 'o':
-				price = self.utils.ohlc[self.pair][bt.current_timestamp][0]
+				price = chart.ohlc[bt.current_timestamp][0]
 			elif price_type == 'h':
-				price = self.utils.ohlc[self.pair][bt.current_timestamp][1]
+				price = chart.ohlc[bt.current_timestamp][1]
 			elif price_type == 'l':
-				price = self.utils.ohlc[self.pair][bt.current_timestamp][2]
+				price = chart.ohlc[bt.current_timestamp][2]
 			else:
-				price = self.utils.ohlc[self.pair][bt.current_timestamp][3]
+				price = chart.ohlc[bt.current_timestamp][3]
 
 			if (float(self.closeprice) == 0):
 				if (self.direction == 'buy'):

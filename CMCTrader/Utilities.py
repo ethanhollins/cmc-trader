@@ -23,19 +23,27 @@ from botocore.exceptions import ClientError
 
 from CMCTrader import DBManager as db
 from CMCTrader import Log
+from CMCTrader import Constants
+from CMCTrader import RetrieveTicketElements
+
+from CMCTrader.Chart import Chart
+from CMCTrader.Ticket import Ticket
 from CMCTrader.Position import Position
 from CMCTrader.HistoryLog import HistoryLog
 from CMCTrader.PositionLog import PositionLog
 from CMCTrader.OrderLog import OrderLog
-from CMCTrader.BarReader import BarReader
+from CMCTrader.BarReader2 import BarReader
 from CMCTrader.Backtester import Backtester
 from CMCTrader.SocketManager import SocketManager
 
 from CMCTrader.Indicators.SMA import SMA
 from CMCTrader.Indicators.SAR import SAR
+from CMCTrader.Indicators.SAR_M import SAR_M
 from CMCTrader.Indicators.RSI import RSI
 from CMCTrader.Indicators.CCI import CCI
 from CMCTrader.Indicators.MACD import MACD
+from CMCTrader.Indicators.MACDZ import MACDZ
+from CMCTrader.Indicators.MACDZ_M import MACDZ_M
 from CMCTrader.Indicators.ADXR import ADXR
 from CMCTrader.Indicators.DMI import DMI
 
@@ -43,11 +51,12 @@ CMC_WEBSITE = 'https://platform.cmcmarkets.com/'
 
 class Utilities:
 
-	def __init__(self, driver, plan, user_info, tickets, tAUDUSD):
+	def __init__(self, driver, plan, user_info):
 		self.driver = driver
 		self.plan = plan
-		self.tickets = tickets
-		self.tAUDUSD = tAUDUSD
+		self.charts = []
+		self.tickets = []
+		self.tAUDUSD = self.createTicket(Constants.AUDUSD)
 
 		self.user_id = json.loads(user_info)['user_id']
 		self.plan_name = json.loads(user_info)['user_program']
@@ -55,6 +64,7 @@ class Utilities:
 		Log.set_utils(self)
 
 		self._initVARIABLES()
+
 
 		self.positionLog = PositionLog(self.driver)
 		self.orderLog = OrderLog(self.driver)
@@ -64,9 +74,6 @@ class Utilities:
 		self.orders = []
 		self.positions = []
 		self.closedPositions = []
-
-		self.ohlc = self._initOHLC() 
-		self.indicators = {"overlays" : [], "studies" : []}
 
 		self.newsTimes = {}
 
@@ -91,25 +98,23 @@ class Utilities:
 
 		self._startPrompt()
 
-	def reinit(self, init_bar_reader = True):
+	def reinit(self, driver, get_chart_regions=True):
+		self.driver = driver
 		self.historyLog.reinit(self.driver)
 		self.positionLog.reinit(self.driver)
 		self.orderLog.reinit(self.driver)
+		self.barReader.reinit(self.driver)
 
 		all_positions = self.positions + self.closedPositions + self.orders
 		for i in all_positions:
 			i.driver = self.driver
 
-		if (init_bar_reader):
-			self.barReader.reinit(self.driver)
-		else:
-			self.barReader.driver = self.driver
+		self.reinitCharts()
+		self.reinitTickets()
+		self.reinitAUDUSDTicket()
 
-	def _initOHLC(self):
-		temp = {}
-		for key in self.tickets:
-			temp[key] = {}
-		return temp
+		if get_chart_regions:
+			self.barReader.setChartRegions()
 
 	def _initVARIABLES(self):
 		result = db.getItems(self.user_id, 'user_variables')
@@ -147,47 +152,106 @@ class Utilities:
 		t = threading.Thread(target = task)
 		t.start()
 
-	def SMA(self, index):
-		sma = SMA(self, index)
-		self.indicators['overlays'].append(sma)
-		self.indicators['overlays'].sort(key = lambda x: x.index)
+	def SMA(self, pair, chart_period):
+		chart = self.getChart(pair, chart_period)
+		sma = SMA(self, len(chart.overlays), chart)
+		chart.overlays.append(sma)
+		chart.overlays.sort(key=lambda x: x.index)
 		return sma
 
-	def SAR(self, index):
-		sar = SAR(self, index)
-		self.indicators['overlays'].append(sar)
-		self.indicators['overlays'].sort(key = lambda x: x.index)
+	def SAR(self, pair, chart_period, colour):
+		chart = self.getChart(pair, chart_period)
+		sar = SAR(self, len(chart.overlays), chart, colour)
+		chart.overlays.append(sar)
+		chart.overlays.sort(key=lambda x: x.index)
 		return sar
 
-	def RSI(self, index, count):
-		rsi = RSI(self, index, count)
-		self.indicators['studies'].append(rsi)
-		self.indicators['studies'].sort(key = lambda x: x.index)
+	def SAR_M(self, pair, chart_period, acceleration, maximum):
+		chart = self.getChart(pair, chart_period)
+		sar_m = SAR_M(self, len(chart.overlays), chart, acceleration, maximum)
+		chart.overlays.append(sar_m)
+		chart.overlays.sort(key=lambda x: x.index)
+		return sar_m
+
+	def RSI(self, pair, chart_period):
+		chart = self.getChart(pair, chart_period)
+		rsi = RSI(self, len(chart.studies))
+		chart.studies.append(rsi)
+		chart.studies.sort(key=lambda x: x.index)
 		return rsi
 
-	def CCI(self, index, count):
-		cci = CCI(self, index, count)
-		self.indicators['studies'].append(cci)
-		self.indicators['studies'].sort(key = lambda x: x.index)
+	def CCI(self, pair, chart_period, timeperiod):
+		chart = self.getChart(pair, chart_period)
+		cci = CCI(self, len(chart.studies), chart, timeperiod)
+		chart.studies.append(cci)
+		chart.studies.sort(key=lambda x: x.index)
 		return cci
 
-	def MACD(self, index, count):
-		macd = MACD(self, index, count)
-		self.indicators['studies'].append(macd)
-		self.indicators['studies'].sort(key = lambda x: x.index)
+	def MACD(self, pair, chart_period, fastperiod, slowperiod, signalperiod):
+		chart = self.getChart(pair, chart_period)
+		macd = MACD(self, len(chart.studies), chart, fastperiod, slowperiod, signalperiod)
+		chart.studies.append(macd)
+		chart.studies.sort(key=lambda x: x.index)
 		return macd
 
-	def ADXR(self, index, count):
-		adxr = ADXR(self, index, count)
-		self.indicators['studies'].append(adxr)
-		self.indicators['studies'].sort(key = lambda x: x.index)
+	def MACDZ(self, pair, chart_period, fastperiod, slowperiod, signalperiod):
+		chart = self.getChart(pair, chart_period)
+		macdz = MACDZ(self, len(chart.studies), chart, fastperiod, slowperiod, signalperiod)
+		chart.studies.append(macdz)
+		chart.studies.sort(key=lambda x: x.index)
+		return macdz
+
+	def MACDZ_M(self, pair, chart_period, fastperiod, slowperiod, signalperiod):
+		chart = self.getChart(pair, chart_period)
+		macdz_m = MACDZ_M(self, len(chart.studies), chart, fastperiod, slowperiod, signalperiod)
+		chart.studies.append(macdz_m)
+		chart.studies.sort(key=lambda x: x.index)
+		return macdz_m
+
+	def ADXR(self, pair, chart_period):
+		chart = self.getChart(pair, chart_period)
+		adxr = ADXR(self, len(chart.studies), chart)
+		chart.studies.append(adxr)
+		chart.studies.sort(key=lambda x: x.index)
 		return adxr
 
-	def DMI(self, index, count):
-		dmi = DMI(self, index, count)
-		self.indicators['studies'].append(dmi)
-		self.indicators['studies'].sort(key = lambda x: x.index)
+	def DMI(self, pair, chart_period):
+		chart = self.getChart(pair, chart_period)
+		dmi = DMI(self, len(chart.studies), chart)
+		chart.studies.append(dmi)
+		chart.studies.sort(key=lambda x: x.index)
 		return dmi
+
+	def createChart(self, pair, period):
+		self.getTicket(pair)
+		chart = Chart(self.driver, pair, period)
+		self.charts.append(chart)
+		return chart
+
+	def getChart(self, pair, period):
+		for chart in self.charts:
+			if chart.pair == pair and chart.period == period:
+				return chart
+		
+		return self.createChart(pair, period)
+
+	def createTicket(self, pair):
+		print("Initializing", str(pair), "ticket data...")
+		ticket_elements = RetrieveTicketElements.retrieveTicketElements(self.driver, pair)
+		
+		ticket = Ticket(driver=self.driver, pair=pair, ticket_elements=ticket_elements)
+		self.tickets.append(ticket)
+
+		print(str(pair), "initialized!\n")
+
+		return ticket
+
+	def getTicket(self, pair):
+		for t in self.tickets:
+			if t.pair == pair:
+				return t
+
+		return self.createTicket(pair)
 
 	def convertToPips(self, price):
 		return price / 0.00001 / 10
@@ -198,36 +262,39 @@ class Utilities:
 	def buy(self, lotsize, pairs = [], ordertype = 'market', entry = 0, sl = 0.0, tp = 0.0):
 		if (ordertype == 'market' or ordertype == 'm'):
 			if (len(pairs) <= 0):
-				for key in self.tickets:
-					return self._marketOrder('buy', self.tickets[key], key, lotsize, sl, tp)
+				for ticket in self.tickets:
+					return self._marketOrder('buy', ticket, ticket.pair, lotsize, sl, tp)
 			else:
 				for p in pairs:
 					try:
-						return self._marketOrder('buy', self.tickets[p], p, lotsize, sl, tp)
+						ticket = self.getTicket(p)
+						return self._marketOrder('buy', ticket, p, lotsize, sl, tp)
 					except:
 						print("ERROR: Pair " + p + " not found!")
 						return None
 
 		elif (ordertype == 'stopentry' or ordertype == 'se'):
 			if (len(pairs) <= 0):
-				for key in self.tickets:
-					return self._stopentryOrder('buy', self.tickets[key], key, lotsize, entry, sl, tp)
+				for ticket in self.tickets:
+					return self._stopentryOrder('buy', ticket, ticket.pair, lotsize, entry, sl, tp)
 			else:
 				for p in pairs:
 					try:
-						return self._stopentryOrder('buy', self.tickets[p], p, lotsize, entry, sl, tp)
+						ticket = self.getTicket(p)
+						return self._stopentryOrder('buy', ticket, p, lotsize, entry, sl, tp)
 					except:
 						print("ERROR: Pair " + p + " not found!")
 						return None
 
 		elif (ordertype == 'limit' or  ordertype == 'l'):
 			if (len(pairs) <= 0):
-				for key in self.tickets:
-					return self._limitOrder('buy', self.tickets[key], key, lotsize, entry, sl, tp)
+				for ticket in self.tickets:
+					return self._limitOrder('buy', ticket, ticket.pair, lotsize, entry, sl, tp)
 			else:
 				for p in pairs:
 					try:
-						return self._limitOrder('buy', self.tickets[p], p, lotsize, entry, sl, tp)
+						ticket = self.getTicket(p)
+						return self._limitOrder('buy', ticket, p, lotsize, entry, sl, tp)
 					except:
 						print("ERROR: Pair " + p + " not found!")
 						return None
@@ -240,36 +307,40 @@ class Utilities:
 	def sell(self, lotsize, pairs = [], ordertype = 'market', entry = 0, sl = 0.0, tp = 0.0):
 		if (ordertype == 'market' or ordertype == 'm'):
 			if (len(pairs) <= 0):
-				for key in self.tickets:
-					return self._marketOrder('sell', self.tickets[key], key, lotsize, sl, tp)
+				print(self.tickets)
+				for ticket in self.tickets:
+					return self._marketOrder('sell', ticket, ticket.pair, lotsize, sl, tp)
 			else:
 				for p in pairs:
 					try:
-						return self._marketOrder('sell', self.tickets[p], p, lotsize, sl, tp)
+						ticket = self.getTicket(p)
+						return self._marketOrder('sell', ticket, p, lotsize, sl, tp)
 					except:
 						print("ERROR: Pair " + p + " not found!")
 						return None
 
 		elif (ordertype == 'stopentry' or ordertype == 'se'):
 			if (len(pairs) <= 0):
-				for key in self.tickets:
-					return self._stopentryOrder('sell', self.tickets[key], key, lotsize, entry, sl, tp)
+				for ticket in self.tickets:
+					return self._stopentryOrder('sell', ticket, ticket.pair, lotsize, entry, sl, tp)
 			else:
 				for p in pairs:
 					try:
-						return self._stopentryOrder('sell', self.tickets[p], p, lotsize, entry, sl, tp)
+						ticket = self.getTicket(p)
+						return self._stopentryOrder('sell', ticket, p, lotsize, entry, sl, tp)
 					except:
 						print("ERROR: Pair " + p + " not found!")
 						return None
 
 		elif (ordertype == 'limit' or  ordertype == 'l'):
 			if (len(pairs) <= 0):
-				for key in self.tickets:
-					return self._limitOrder('sell', self.tickets[key], key, lotsize, entry, sl, tp)
+				for ticket in self.tickets:
+					return self._limitOrder('sell', ticket, ticket.pair, lotsize, entry, sl, tp)
 			else:
 				for p in pairs:
 					try:
-						return self._limitOrder('sell', self.tickets[p], p, lotsize, entry, sl, tp)
+						ticket = self.getTicket(p)
+						return self._limitOrder('sell', ticket, p, lotsize, entry, sl, tp)
 					except:
 						print("ERROR: Pair " + p + " not found!")
 						return None
@@ -309,7 +380,8 @@ class Utilities:
 
 			if not event[0] in position_id_list:
 				print("UTILITIES:", str(event))
-				pos = self.createPosition(utils = self, ticket = self.tickets[event[3]], orderID = event[0], pair = event[3], ordertype = 'market', direction = 'buy')
+				ticket = self.getTicket(event[3])
+				pos = self.createPosition(utils = self, ticket = ticket, orderID = event[0], pair = event[3], ordertype = 'market', direction = 'buy')
 				pos.openTime = event[1]
 				pos.entryprice = float(event[5])
 				pos.lotsize = int(event[4])
@@ -337,7 +409,8 @@ class Utilities:
 
 			if not event[0] in position_id_list:
 				print("UTILITIES:", str(event))
-				pos = self.createPosition(utils = self, ticket = self.tickets[event[3]], orderID = event[0], pair = event[3], ordertype = 'market', direction = 'sell')
+				ticket = self.getTicket(event[3])
+				pos = self.createPosition(utils = self, ticket = ticket, orderID = event[0], pair = event[3], ordertype = 'market', direction = 'sell')
 				pos.openTime = event[1]
 				pos.entryprice = float(event[5])
 				pos.lotsize = int(event[4])
@@ -364,7 +437,8 @@ class Utilities:
 			order_id_list = [i.orderID for i in self.orders]
 
 			if not event[0] in order_id_list:
-				pos = self.createPosition(utils = self, ticket = self.tickets[event[3]], orderID = event[0], pair = event[3], ordertype = 'stopentry', direction = 'buy')
+				ticket = self.getTicket(event[3])
+				pos = self.createPosition(utils = self, ticket = ticket, orderID = event[0], pair = event[3], ordertype = 'stopentry', direction = 'buy')
 				pos.openTime = event[1]
 				pos.entryprice = float(event[5])
 				pos.lotsize = int(event[4])
@@ -378,7 +452,8 @@ class Utilities:
 			order_id_list = [i.orderID for i in self.orders]
 
 			if not event[0] in order_id_list:
-				pos = self.createPosition(utils = self, ticket = self.tickets[event[3]], orderID = event[0], pair = event[3], ordertype = 'stopentry', direction = 'sell')
+				ticket = self.getTicket(event[3])
+				pos = self.createPosition(utils = self, ticket = ticket, orderID = event[0], pair = event[3], ordertype = 'stopentry', direction = 'sell')
 				pos.openTime = event[1]
 				pos.entryprice = float(event[5])
 				pos.lotsize = int(event[4])
@@ -672,76 +747,19 @@ class Utilities:
 
 	@Backtester.price_redirect_backtest
 	def getBid(self, pair):
-		return float(self.tickets[pair].getBidPrice())
+		ticket = self.getTicket(pair)
+		return float(ticket.getBidPrice())
 
 	@Backtester.price_redirect_backtest
 	def getAsk(self, pair):
-		return float(self.tickets[pair].getAskPrice())
-
-	def updateValues(self):
-		for key in self.tickets:
-			if (not self.barReader.getCurrentBarInfo(key)):
-				return False
-			self.latestTimestamp[key] = self.barReader.getLatestBarTimestamp(key)
-		return True
+		ticket = self.getTicket(pair)
+		return float(ticket.getAskPrice())
 	
 	def getMissingValues(self, pair, shift, amount):
 		print("getMissingValues")
 		self.barReader.getBarInfo(pair, shift, amount)
 
-	@Backtester.dict_redirect_backtest
-	def recoverMissingValues(self):
-		allMissingTimestamps = {}
-		for pair in self.tickets:
-			if (len(self.ohlc[pair]) <= 0):
-				continue
-
-			oldestTimestamp = sorted(self.ohlc[pair].items(), key=lambda kv: kv[0])[0][0]
-			currentTime = self.getCurrentTimestamp()
-
-			ohlcTimestamps = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)]
-
-			currentTimestamp = oldestTimestamp
-			missingTimestamps = []
-			while (currentTimestamp < currentTime):
-				if (currentTimestamp in ohlcTimestamps):
-					pass
-				else:
-					if (currentTimestamp > currentTime - (60 * 50)):
-						missingTimestamps.append(currentTimestamp)
-
-				currentTimestamp += 60
-
-			if (len(missingTimestamps) > 0):
-				self.barReader.getBarInfoByTimestamp(pair, missingTimestamps)					
-				allMissingTimestamps[pair] = missingTimestamps
-
-		return allMissingTimestamps
-
-	@Backtester.skip_on_backtest
-	def getMissingTimestamps(self, timestamp):
-		for pair in self.tickets:
-			oldestTimestamp = timestamp
-			currentTime = self.getCurrentTimestamp()
-
-			ohlcTimestamps = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)]
-
-			currentTimestamp = oldestTimestamp
-			missingTimestamps = []
-			while (currentTimestamp < currentTime):
-				if (currentTimestamp in ohlcTimestamps):
-					pass
-				else:
-					if (currentTimestamp > currentTime - (60 * 50)):
-						missingTimestamps.append(currentTimestamp)
-
-				currentTimestamp += 60
-
-			if (len(missingTimestamps) > 0):
-				self.barReader.getBarInfoByTimestamp(pair, missingTimestamps)
-
-
-	def backtestByTime(self, pair, startDate, startTime, endDate, endTime):
+	def backtestByTime(self, startDate, startTime, endDate, endTime):
 		parts = startDate.split('/')
 		day = parts[0]
 		month = parts[1]
@@ -752,13 +770,13 @@ class Utilities:
 		month = parts[1]
 		parts = endTime.split(':')
 		endTime = self.convertTimeToTimestamp(int(day), int(month), int(parts[0]), int(parts[1]))
-		self.barReader.manualBarCollectionByTimestamp(pair, startTime, endTime)
+		return self.barReader.getBarDataByStartEndTimestamp(startTime, endTime)
 
 	def getCurrentTimestamp(self):
 		tz = pytz.timezone('Australia/Melbourne')
 		date = datetime.datetime.now(tz = tz)
 
-		then = datetime.datetime(year = 2018, month = 1, day = 1)
+		then = Constants.DT_START_DATE
 		now = datetime.datetime(year = date.year, month = date.month, day = date.day, hour = date.hour, minute = date.minute, second = 0)
 
 		return int((now - then).total_seconds())
@@ -787,26 +805,23 @@ class Utilities:
 	def convertDateTimeToTimestamp(self, now):
 		tz = pytz.timezone('Australia/Melbourne')
 
-		then = datetime.datetime(year = 2018, month = 1, day = 1)
-		print(now)
+		then = Constants.DT_START_DATE
 		now = now.astimezone(tz)
-		print(now)
 		now = now.replace(tzinfo=None)
-		print(now)
 		return int((now - then).total_seconds())
 
 	def convertTimeToTimestamp(self, day, month, hour, minute):
 		tz = pytz.timezone('Australia/Melbourne')
 		date = datetime.datetime.now(tz = tz)
 
-		then = datetime.datetime(year = 2018, month = 1, day = 1)
+		then = Constants.DT_START_DATE
 		now = datetime.datetime(year = date.year, month = month, day = day, hour = hour, minute = minute, second = 0)
 
 		return int((now - then).total_seconds())
 
 	def convertTimestampToTime(self, timestamp):
-		then = datetime.datetime(year = 2018, month = 1, day = 1)
-		return then + datetime.timedelta(seconds = timestamp)
+		return Constants.DT_START_DATE + datetime.timedelta(seconds = timestamp)
+
 
 	def setTradeTimes(self, currentTime = None):
 		if ('START_TIME' in self.plan.VARIABLES.keys() and 'END_TIME' in self.plan.VARIABLES.keys()):
@@ -1000,154 +1015,148 @@ class Utilities:
 			currentTime = self.getCurrentTimestamp()
 		return currentTime - (shift + amount + 1) * 60
 
-	def isCurrentTimestamp(self, pair):
-		currentTimestamp = self.getCurrentTimestamp()
-		try:
-			if (currentTimestamp - 60 == self.latestTimestamp[pair]):
-				return True
-		except:
-			return False
-		return False
+	def updateValues(self):
+		return self.barReader.updateAllBarData()
 
-	def setTickets(self, tickets):
-		self.tickets = tickets
+	def reinitCharts(self):
+		for chart in self.charts:
+			chart.reinit(self.driver)
 
-	def setAUDUSDTicket(self, tAUDUSD):
-		self.tAUDUSD = tAUDUSD
+	def reinitTickets(self):
+		self.tickets = []
+		for chart in self.charts:
+			pair = chart.pair
+			self.getTicket(pair)
 
-	@Backtester.redirect_backtest
-	def refreshAll(self):
-		for pair in self.tickets:
-			self.refreshChart(pair)
+	def reinitAUDUSDTicket(self):
+		self.tAUDUSD = self.createTicket(Constants.AUDUSD)
 
-			# timestamp = self.latestTimestamp[pair]
-			# changed_timestamps = self.checkTimestampValues(pair, timestamp)
+	# @Backtester.redirect_backtest
+	# def refreshAll(self):
+	# 	for pair in self.tickets:
+	# 		self.refreshChart(pair)
 
-			# if (len(changed_timestamps) > 0):
-			# 	self.refreshValues(pair, changed_timestamps)
+	# 		# timestamp = self.latestTimestamp[pair]
+	# 		# changed_timestamps = self.checkTimestampValues(pair, timestamp)
 
-	@Backtester.redirect_backtest
-	def refreshChart(self, pair):
-		chart = self.barReader.getChart(pair)
+	# 		# if (len(changed_timestamps) > 0):
+	# 		# 	self.refreshValues(pair, changed_timestamps)
 
-		self.barReader.moveToChart(pair)
+	# @Backtester.redirect_backtest
+	# def refreshChart(self, pair):
+	# 	chart = self.barReader.getChart(pair)
 
-		chart_id = self.driver.execute_script(
-						'return arguments[0].getAttribute("id");',
-						chart
-					)
+	# 	self.barReader.moveToChart(pair)
 
-		chart_select = self.driver.execute_script(
-						'var chart_select = arguments[0].querySelector(\'button[class="feature-window-saved-states-toggle"]\');'
-						'chart_select.click();'
-						'return chart_select;',
-						chart
-					)
+	# 	chart_id = self.driver.execute_script(
+	# 					'return arguments[0].getAttribute("id");',
+	# 					chart
+	# 				)
 
-		chart_title = self.driver.execute_script(
-						'return arguments[0].getAttribute("title");',
-						chart_select
-					)
+	# 	chart_select = self.driver.execute_script(
+	# 					'var chart_select = arguments[0].querySelector(\'button[class="feature-window-saved-states-toggle"]\');'
+	# 					'chart_select.click();'
+	# 					'return chart_select;',
+	# 					chart
+	# 				)
 
-		wait = ui.WebDriverWait(self.driver, 10)
-		wait.until(EC.presence_of_element_located(
-			(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'feature-window-saved-states')]//li[contains(@title, '"+str(chart_title)+"')]")
-		))
+	# 	chart_title = self.driver.execute_script(
+	# 					'return arguments[0].getAttribute("title");',
+	# 					chart_select
+	# 				)
 
-		refresh_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'feature-window-saved-states')]//li[contains(@title, '"+str(chart_title)+"')]")
+	# 	wait = ui.WebDriverWait(self.driver, 10)
+	# 	wait.until(EC.presence_of_element_located(
+	# 		(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'feature-window-saved-states')]//li[contains(@title, '"+str(chart_title)+"')]")
+	# 	))
 
-		refresh_btn.click()
+	# 	refresh_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'feature-window-saved-states')]//li[contains(@title, '"+str(chart_title)+"')]")
+
+	# 	refresh_btn.click()
 
 
-		wait = ui.WebDriverWait(self.driver, 60)
-		wait.until(lambda driver : not self.chartTimestampCheck(pair))
+	# 	wait = ui.WebDriverWait(self.driver, 60)
+	# 	wait.until(lambda driver : not self.chartTimestampCheck(pair))
 		
-		self.barReader.setCanvases(self.barReader.chartDict)
+	# 	self.barReader.setCanvases(self.barReader.chartDict)
 
-		wait = ui.WebDriverWait(self.driver, 60)
-		wait.until(lambda driver : self.chartTimestampCheck(pair))
+	# 	wait = ui.WebDriverWait(self.driver, 60)
+	# 	wait.until(lambda driver : self.chartTimestampCheck(pair))
 		
-		time.sleep(0.5)
+	# 	time.sleep(0.5)
 
-		self.barReader.setCanvases(self.barReader.chartDict)
+	# 	self.barReader.setCanvases(self.barReader.chartDict)
 
-		self.barReader.dragCanvases()
+	# 	self.barReader.dragCanvases()
 
-	def refreshValues(self, pair, changed_timestamps):
-		# timestamp = self.latestTimestamp[pair]
+	# def refreshValues(self, pair, changed_timestamps):
+	# 	# timestamp = self.latestTimestamp[pair]
 
-		# changed_timestamps = self.checkTimestampValues(pair, timestamp)
+	# 	# changed_timestamps = self.checkTimestampValues(pair, timestamp)
 
-		# if (len(changed_timestamps) > 0):
+	# 	# if (len(changed_timestamps) > 0):
 
-		print(changed_timestamps)
+	# 	print(changed_timestamps)
 
-		# self.save_state.load()
+	# 	# self.save_state.load()
 
-		print("Backtesting changed timestamps")
+	# 	print("Backtesting changed timestamps")
 		
-		values = self.formatForRecover(pair, changed_timestamps)
-		self.backtester.recover(values['ohlc'], values['indicators'])
+	# 	values = self.formatForRecover(pair, changed_timestamps)
+	# 	self.backtester.recover(values['ohlc'], values['indicators'])
 
-	def refreshAllValues(self, pair):
+	# def refreshAllValues(self, pair):
 
-		self.plan.initVariables()
-		# self.save_state.load()
+	# 	self.plan.initVariables()
+	# 	# self.save_state.load()
 
-		first_timestamp = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)][0]
+	# 	first_timestamp = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)][0]
 
-		print("Backtesting changed timestamps")
+	# 	print("Backtesting changed timestamps")
 		
-		values = self.formatForRecover(pair, first_timestamp)
-		self.backtester.recover(values['ohlc'], values['indicators'])
+	# 	values = self.formatForRecover(pair, first_timestamp)
+	# 	self.backtester.recover(values['ohlc'], values['indicators'])
 
-	def formatForRecover(self, pair, missing_timestamps):
+	def formatForRecover(self, chart, missing_timestamps):
 		if (type(missing_timestamps) == list):
-			print("islist")
 			earliest_timestamp = self.getEarliestTimestamp(missing_timestamps)
 		else:
-			print("isnt")
 			earliest_timestamp = missing_timestamps
 
-		missing_timestamps = []
-		sorted_timestamps = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=True)]
-		for timestamp in sorted_timestamps:
-			if (timestamp >= earliest_timestamp):
-				missing_timestamps.append(timestamp)
-			else:
-				break
+		if not earliest_timestamp % chart.timestamp_offset == 0:
+			earliest_timestamp -= earliest_timestamp % chart.timestamp_offset
 
-		# print(missing_timestamps)
+		offset = chart.getRelativeOffset(earliest_timestamp)
+
+		missing_timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0:offset+1]
+
+		print(missing_timestamps)
 
 		values = {}
 
 		values['ohlc'] = {}
-		values['indicators'] = { 'overlays' : [], 'studies' : [] }
+		values['overlays'] = []
+		values['studies'] = []
 
-		for pair in self.ohlc:
-			values['ohlc'][pair] = {}
+		for timestamp in missing_timestamps:
+			values['ohlc'][timestamp] = chart.ohlc[timestamp]
+
+		count = 0
+		for overlay in chart.overlays:
+			values['overlays'].append({})
 			for timestamp in missing_timestamps:
-				values['ohlc'][pair][timestamp] = self.ohlc[pair][timestamp]
-
-		count = 0
-		for overlay in self.indicators['overlays']:
-			for pair in overlay.history:
-				values['indicators']['overlays'].append({ pair : {} })
-
-				for timestamp in missing_timestamps:
-					values['indicators']['overlays'][count][pair][timestamp] = overlay.history[pair][timestamp]
+				print(values['overlays'])
+				values['overlays'][count][timestamp] = overlay.history[timestamp]
 			count += 1
 
 		count = 0
-		for study in self.indicators['studies']:
-			for pair in study.history:
-				values['indicators']['studies'].append({ pair : {} })
-
-				for timestamp in missing_timestamps:
-					values['indicators']['studies'][count][pair][timestamp] = study.history[pair][timestamp]
+		for study in chart.studies:
+			values['studies'].append({})
+			for timestamp in missing_timestamps:
+				values['studies'][count][timestamp] = study.history[timestamp]
 			count += 1
 
-		# print(values)
+		print(values)
 		return values
 
 	def isChartAvailable(self, chart_id):
@@ -1156,6 +1165,17 @@ class Utilities:
 		checker_class = availability_checker.get_attribute("class")
 
 		return 'active' in str(checker_class)
+
+	def getLowestPeriodChart(self):
+		lowest_chart = None
+		for chart in self.charts:
+			if lowest_chart:
+				if chart.timestamp_offset < lowest_chart.timestamp_offset:
+					lowest_chart = chart
+			else:
+				lowest_chart = chart
+
+		return lowest_chart
 
 	def chartTimestampCheck(self, pair):
 		try:
@@ -1175,44 +1195,66 @@ class Utilities:
 		except:
 			return False
 
-	def checkTimestampValues(self, pair, timestamp):
-		return self.barReader.checkBarInfoByTimestamp(pair, [timestamp])
-
-	def updateRecovery(self):
+	def updateRecovery(self, chart):
 		values = {}
 
-		values['timestamp'] = self.getCurrentTimestamp()
-		values['ohlc'] = self.ohlc
-		values['indicators'] = { 'overlays' : [], 'studies' : [] }
+		name = self.plan.__name__
 
-		for i in range(len(self.indicators['overlays'])):
-			values['indicators']['overlays'].append(self.indicators['overlays'][i].history.copy()) 
-		for j in range(len(self.indicators['studies'])):
-			values['indicators']['studies'].append(self.indicators['studies'][j].history.copy())
+		values[chart.pair+"-"+str(chart.period)] = {
+			'timestamp': chart.getCurrentTimestamp(),
+			'ohlc': chart.ohlc,
+			'overlays': [],
+			'studies': []
+		}
 
-		with open('recover.json', 'w') as f:
+		for i in range(len(chart.overlays)):
+			values[chart.pair+"-"+str(chart.period)]['overlays'].append(chart.overlays[i].history.copy()) 
+		for j in range(len(chart.studies)):
+			values[chart.pair+"-"+str(chart.period)]['studies'].append(chart.studies[j].history.copy())
+
+		with open('recover_'+name+'.json', 'w') as f:
 			json.dump(values, f)
 
 	def getRecovery(self):
-		if (os.path.exists('recover.json')):
-			with open('recover.json', 'r') as f:
+		name = self.plan_name
+
+		if (os.path.exists('recover_'+name+'.json')):
+			with open('recover_'+name+'.json', 'r') as f:
 				values = json.load(f)
 
-			if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 45):
-				for pair in values['ohlc']:
-					values['ohlc'][pair] = {int(k):v for k,v in values['ohlc'][pair].items()}
+			# if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 45):#! figure out better way
+			new_values = {}
+			for key in values:
 
-				for overlay in values['indicators']['overlays']:
-					overlay[pair] = {int(k):v for k,v in overlay[pair].items()}
+				values[key]['ohlc'] = {int(k):v for k,v in values[key]['ohlc'].items()}
 
-				for study in values['indicators']['studies']:
-					study[pair] = {int(k):v for k,v in study[pair].items()}
+				for i in range(len(values[key]['overlays'])):
+					values[key]['overlays'][i] = {int(k):v for k,v in values[key]['overlays'][i].items()}
 
+				for j in range(len(values[key]['studies'])):
+					values[key]['studies'][j] = {int(k):v for k,v in values[key]['studies'][j].items()}
 
-				self.backtester.recover(values['ohlc'], values['indicators'])
+				pair = key.split('-')[0]
+				period = int(key.split('-')[1])
+				chart = self.getChart(pair, period)
+				latest_timestamp = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=True)][0]
 
-			else:
-				os.remove('recover.json')
+				missing_timestamps = self.barReader.getMissingBarDataByTimestamp(chart, latest_timestamp)
+				chart_values = self.formatForRecover(chart, missing_timestamps)
+				values[key]['ohlc'] = {**values[key]['ohlc'], **chart_values['ohlc']}
+
+				for i in range(len(values[key]['overlays'])):
+					values[key]['overlays'][i]  = {**values[key]['overlays'][i], **chart_values['overlays'][i]}
+
+				for j in range(len(values[key]['studies'])):
+					values[key]['studies'][i] = {**values[key]['studies'][i], **chart_values['studies'][i]}
+
+				print(values[key])
+
+			self.backtester.recover(values)
+
+			# else:
+			# 	os.remove('recover.json')
 
 	def createPosition(self, utils, ticket, orderID, pair, ordertype, direction):
 		return Position(utils, ticket, orderID, pair, ordertype, direction)
