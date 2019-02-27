@@ -231,7 +231,7 @@ class Chart(object):
 			Constants.READ_X, self.getRegionByIndex(0)[1]['start']
 		)
 
-	def getCurrentTimestamp(self):
+	def getCurrentTimestamp(self, debug=False):
 		date = self.driver.execute_script(
 			self.getObj() +
 			'var x = arguments[0];'
@@ -240,6 +240,8 @@ class Chart(object):
 			Constants.READ_X, self.getRegionByIndex(0)[1]['start']
 		)
 		date = ' '.join(date.split(' ')[:5])
+		if debug:
+			print(date)
 		dt = self.convertRawDateToDatetime(date)
 		return self.convertDatetimeToTimestamp(dt)
 

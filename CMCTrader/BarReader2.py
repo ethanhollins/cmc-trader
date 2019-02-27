@@ -29,6 +29,7 @@ class BarReader(object):
 		print("Getting chart regions")
 
 		for chart in self.utils.charts:
+			chart.resetZoom()
 			img = self._getImage(chart)
 			arr = self._getImageArray(img)[:, Constants.READ_X-1:Constants.READ_X]
 
@@ -62,8 +63,9 @@ class BarReader(object):
 	
 	def getMissingBarData(self, chart):
 		chart.resetZoom()
-		
-		latest_timestamp = chart.getCurrentTimestamp()
+
+		print("getMissingBarData:")
+		latest_timestamp = chart.getCurrentTimestamp(debug=True)
 		ohlc_timestamps = chart.getTimestamps()
 		current_timestamp = chart.latest_timestamp
 
@@ -178,6 +180,8 @@ class BarReader(object):
 			data_points[index]['close']
 		]
 
+		print(ohlc)
+
 		chart.ohlc[timestamp] = ohlc
 
 		img = None
@@ -226,7 +230,7 @@ class BarReader(object):
 					if colour in listened_colours:
 
 						value = chart.getValueAt(read_value_x, i + region[1]['start'] - 0.5)
-						print(value)
+
 						chart.overlays[listened_colours.index(colour)].insertValues(timestamp, value)
 						
 						listened_colours[listened_colours.index(colour)] = [-1]
@@ -266,7 +270,7 @@ class BarReader(object):
 				]
 
 				study.insertValues(timestamp, ohlc)
-
+				
 			elif study.collection_type == Constants.PIXEL_COLLECT:
 				index += 1
 				read_value_x = Constants.READ_X
