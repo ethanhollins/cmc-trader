@@ -697,8 +697,15 @@ def onNewCycle(shift):
 
 						if getNthDirectionStrand(strand.direction, 1) and primary_strand and getNthDirectionStrand(strand.direction, 1).length == VARIABLES['sar_count_extend']:
 							comp_strand.is_extended = True
-							if comp_strand.strand.start > primary_strand.strand.start:
-								comp_strand.strand.start = primary_strand.strand.start
+							if strand.direction == Direction.LONG:
+								if comp_strand.strand.start > primary_strand.strand.start:
+									comp_strand.strand.start = primary_strand.strand.start
+							else:
+								if comp_strand.strand.start < primary_strand.strand.start:
+									comp_strand.strand.start = primary_strand.strand.start
+
+							comp_strand.half_val = round((current_sar + comp_strand.strand.start)/2, 5)
+
 
 						if primary_strand:
 							del comp_strands[comp_strands.index(primary_strand)]
@@ -739,8 +746,6 @@ def getPTI():
 
 	global pti_direction
 
-
-
 	long_strands = [i for i in strands.getSorted() if i.direction == Direction.SHORT]
 	short_strands = [i for i in strands.getSorted() if i.direction == Direction.LONG]
 
@@ -770,8 +775,6 @@ def getPTI():
 
 	if temp_direction:
 		pti_direction = temp_direction
-	else:
-		pti_direction = PtiDirection.NONE
 
 def isValidStrandBetween(direction):
 	comp_strand = getCompStrand(direction, CompType.PRIMARY)
@@ -850,19 +853,19 @@ def reEntrySetup(shift, trigger):
 
 	if not trigger == None and trigger.tradable and not trigger.state == State.ENTERED:
 
-		if trigger.state == State.ONE:
+		# if trigger.state == State.ONE:
 
-			if tParaConf(shift, trigger.direction):
-				trigger.state = State.TWO
-				entrySetup(shift, trigger)
-			else:
-				if ptiConf(shift, trigger.direction):
-					trigger.pti_confirmed = True
-				else:
-					trigger.pti_confirmed = False
+		# 	if tParaConf(shift, trigger.direction):
+		# 		trigger.state = State.TWO
+		# 		entrySetup(shift, trigger)
+		# 	else:
+		# 		if ptiConf(shift, trigger.direction):
+		# 			trigger.pti_confirmed = True
+		# 		else:
+		# 			trigger.pti_confirmed = False
 
-		elif trigger.state == Re_Entry_State.TWO:
-			if directionConf(shift, trigger):
+		if trigger.state == Re_Entry_State.ONE:
+			if reEntryConf(shift, trigger):
 				trigger.state = Re_Entry_State.ENTERED
 				confirmation(shift, trigger)
 
@@ -898,6 +901,11 @@ def directionConf(shift, trigger):
 	print("Direction conf")
 
 	return trigger.pti_confirmed or (isMacdConfirmation(trigger.direction) and isParaConfirmation(shift, trigger.direction))
+
+def reEntryConf(shift, trigger):
+	print("re entry conf")
+
+	return isMacdConfirmation(trigger.direction) and isParaConfirmation(shift, trigger.direction)
 
 def hasCrossedStrandsConf(shift, comp):
 	end_sar = comp.strand.end
