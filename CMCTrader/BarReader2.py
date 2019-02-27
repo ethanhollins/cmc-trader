@@ -325,11 +325,11 @@ class BarReader(object):
 	def _isBarCurrent(self, chart):
 		chart.resetZoom()
 
-		# try:
-		wait = ui.WebDriverWait(self.driver, 59, poll_frequency=0.001)
-		wait.until(lambda driver : self._isBarDateCurrent(chart))
-		# except:
-		# 	return False
+		try:
+			wait = ui.WebDriverWait(self.driver, 59, poll_frequency=0.001)
+			wait.until(lambda driver : self._isBarDateCurrent(chart))
+		except:
+			return False
 
 		return True
 
