@@ -746,7 +746,7 @@ def getPTI():
 
 	temp_direction = None
 
-	if len(long_strands) > VARIABLES['num_comp_strands'] + VARIABLES['comp_period']-1 and len(short_strands) > VARIABLES['num_comp_strands'] + VARIABLES['comp_period']-1:
+	if len(long_strands) >= VARIABLES['num_comp_strands'] + VARIABLES['comp_period']-1 and len(short_strands) >= VARIABLES['num_comp_strands'] + VARIABLES['comp_period']-1:
 		long_len = 0
 		short_len = 0
 
