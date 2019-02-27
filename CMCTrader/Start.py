@@ -250,7 +250,7 @@ class Start(object):
 
 		self.isDowntime = True
 		
-		# self.utils.getRecovery()
+		self.utils.getRecovery()
 
 		print("\nTrading plan is LIVE...\n-----------------------\n")
 
