@@ -265,7 +265,7 @@ class Start(object):
 		else:
 			self.utils.reinit(self.driver)
 
-		self.recoverData()
+		# self.recoverData()
 		self.functionCalls()
 
 	def recoverData(self):
