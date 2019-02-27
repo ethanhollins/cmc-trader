@@ -45,8 +45,8 @@ DT_START_DATE = datetime.datetime(year = 2018, month = 1, day = 1)
 
 # Bar read X position
 # READ_X = 1070 # zoom: 1
-READ_X = 1240 # zoom: 1.025
-READ_X_2 = 1350 # zoom: 1.05
+READ_X = 304 # zoom: 1.025
+# READ_X_2 = 1350 # zoom: 1.05
 
 # Collection Type
 PIXEL_COLLECT = 0

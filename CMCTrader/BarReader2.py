@@ -30,12 +30,15 @@ class BarReader(object):
 
 		for chart in self.utils.charts:
 			chart.resetZoom()
+
+			read_value_x = chart.getWidth() - Constants.READ_X
+
 			img = self._getImage(chart)
-			arr = self._getImageArray(img)[:, Constants.READ_X-1:Constants.READ_X]
+			arr = self._getImageArray(img)[:, read_value_x-1:read_value_x]
 
 			last_window = -1
 			for i in range(arr.shape[0]):
-				new_window = chart.getWindowAt(Constants.READ_X, i)
+				new_window = chart.getWindowAt(read_value_x, i)
 				if not new_window == last_window:
 					if new_window == -1:
 						chart.regions[last_window]["end"] = int(i)
@@ -214,7 +217,7 @@ class BarReader(object):
 
 		if do_pixel_collection:
 			collection_completed = False
-			read_value_x = Constants.READ_X
+			read_value_x = chart.getWidth() - Constants.READ_X
 
 			while not collection_completed:
 
@@ -222,7 +225,7 @@ class BarReader(object):
 					img = self._getImage(chart)
 
 				region = chart.getRegionByIndex(0)
-				arr = self._getImageArray(img)[region[1]['start']:int(region[1]['end']), Constants.READ_X:Constants.READ_X+1]
+				arr = self._getImageArray(img)[region[1]['start']:int(region[1]['end']), read_value_x:read_value_x+1]
 
 				for i in range(arr.shape[0]):
 					colour = arr[i].tolist()[0]
@@ -247,7 +250,7 @@ class BarReader(object):
 
 				if not_done:
 					print("DID NOT FIND OVERLAY, TRYING AGAIN!")
-					read_value_x = Constants.READ_X_2
+					read_value_x = chart.getWidth() - Constants.READ_X_2
 					chart.resetZoom(zoom=1.05)
 					chart.panLeft(offset-2)
 					img = self._getImage(chart)
@@ -270,10 +273,10 @@ class BarReader(object):
 				]
 
 				study.insertValues(timestamp, ohlc)
-				
+
 			elif study.collection_type == Constants.PIXEL_COLLECT:
 				index += 1
-				read_value_x = Constants.READ_X
+				read_value_x = chart.getWidth() - Constants.READ_X
 
 				while True:
 
@@ -281,7 +284,7 @@ class BarReader(object):
 						img = self._getImage(chart)
 
 					region = chart.getRegionByIndex(index)
-					arr = self._getImageArray(img)[region[1]['start']:region[1]['end'], Constants.READ_X:Constants.READ_X+1]
+					arr = self._getImageArray(img)[region[1]['start']:region[1]['end'], read_value_x:read_value_x+1]
 
 					listened_colours = []
 					for study in chart.studies:
@@ -302,7 +305,7 @@ class BarReader(object):
 					for colour in listened_colours:
 						if not colour == [-1]:
 							print("DID NOT FIND STUDY, TRYING AGAIN!")
-							read_value_x = Constants.READ_X_2
+							read_value_x = chart.getWidth() - Constants.READ_X_2
 							chart.resetZoom(1.05)
 							chart.panLeft(offset-2)
 							img = self._getImage(chart)

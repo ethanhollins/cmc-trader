@@ -54,8 +54,6 @@ class Chart(object):
 	def getId(self):
 		return self.driver.execute_script(
 			self.getObj() +
-			'console.log(obj);'
-			'console.log(obj.id);'
 			'return obj.id;'
 		)
 
@@ -64,6 +62,18 @@ class Chart(object):
 			'var id = arguments[0];'
 			'return document.querySelector("canvas#" + id);',
 			self.id
+		)
+
+	def getWidth(self):
+		return self.driver.execute_script(
+			self.getObj() +
+			'return obj.getWidth();'
+		)
+
+	def getHeight(self):
+		return self.driver.execute_script(
+			self.getObj() +
+			'return obj.getHeight();'
 		)
 
 	def getParent(self):
@@ -214,7 +224,6 @@ class Chart(object):
 				self.getObj() +
 				'var x = arguments[0];'
 				'var y = arguments[1];'
-				'console.log(obj.getValueAt(x, y));'
 				'return String(obj.getValueAt(x, y));',
 				x, y
 			))
@@ -228,7 +237,7 @@ class Chart(object):
 			'var x = arguments[0];'
 			'var y = arguments[1];'
 			'return obj.getBarAt(x, y);',
-			Constants.READ_X, self.getRegionByIndex(0)[1]['start']
+			self.getWidth() - Constants.READ_X, self.getRegionByIndex(0)[1]['start']
 		)
 
 	def getCurrentTimestamp(self, debug=False):
@@ -237,7 +246,7 @@ class Chart(object):
 			'var x = arguments[0];'
 			'var y = arguments[1];'
 			'return String(obj.getDateAt(x, y));',
-			Constants.READ_X, self.getRegionByIndex(0)[1]['start']
+			self.getWidth() - Constants.READ_X, self.getRegionByIndex(0)[1]['start']
 		)
 		date = ' '.join(date.split(' ')[:5])
 		if debug:
