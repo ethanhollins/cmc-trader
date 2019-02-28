@@ -6,7 +6,7 @@ import types
 import copy
 
 VARIABLES = {
-	'START_TIME' : '0:30',
+	'START_TIME' : '6:00',
 	'END_TIME' : '19:00',
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
@@ -47,8 +47,11 @@ class SortedList(list):
 	def getSorted(self):
 		return sorted(list(self), key=lambda x: x.count, reverse = True)
 
+on_down_time = False
+
 current_triggers = []
 re_entry_trigger = None
+re_entry_direction = None
 
 strands = SortedList()
 
@@ -219,6 +222,9 @@ def onFinishTrading():
 def onNewBar():
 	''' Function called on every new bar '''
 
+	global on_down_time
+	on_down_time = False
+
 	print("\nonNewBar")
 	checkTime()
 
@@ -232,8 +238,13 @@ def onNewBar():
 def onDownTime():
 	''' Function called outside of trading time '''
 
+	global on_down_time
+	on_down_time = True
+
 	print("onDownTime")
 	ausTime = utils.printTime(utils.getAustralianTime())
+
+	runSequence(0)
 
 	report()
 
@@ -437,16 +448,23 @@ def handleExits(shift):
 		pending_exits = []
 
 def onTrade(pos, event):
+
+	global re_entry_direction
+
 	print("onTrade")
 
+	if (pos.direction == 'buy' and re_entry_direction == Direction.LONG) or (pos.direction == 'sell' and re_entry_direction == Direction.SHORT):
+		re_entry_direction = None
+		return
+	
 	listened_events = ['Buy Trade', 'Sell Trade']
 
 	if event in listened_events:
 		if pos.direction == 'buy':
 			configureCompStrandsOnEntry(Direction.SHORT)
-		else:
+		elif pos.direction == 'sell':
 			configureCompStrandsOnEntry(Direction.LONG)
-
+	
 	resetTriggers()
 
 def onEntry(pos):
@@ -692,25 +710,18 @@ def onNewCycle(shift):
 							del comp_strands[comp_strands.index(secondary_strand)]
 
 						primary_strand = getCompStrand(strand.direction, CompType.PRIMARY)
-						
-						comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.SECONDARY, last_strand)
 
 						if getNthDirectionStrand(strand.direction, 1) and primary_strand and getNthDirectionStrand(strand.direction, 1).length == VARIABLES['sar_count_extend']:
-							comp_strand.is_extended = True
-							if strand.direction == Direction.LONG:
-								if comp_strand.strand.start > primary_strand.strand.start:
-									comp_strand.strand.start = primary_strand.strand.start
-							else:
-								if comp_strand.strand.start < primary_strand.strand.start:
-									comp_strand.strand.start = primary_strand.strand.start
+							primary_strand.is_extended = True
+							primary_strand.half_val = round((current_sar + primary_strand.strand.start)/2, 5)
 
-							comp_strand.half_val = round((current_sar + comp_strand.strand.start)/2, 5)
+						else:
+							comp_strand = CompStrand(strand.direction, round((current_sar + last_strand.start)/2, 5), CompType.SECONDARY, last_strand)
 
+							if primary_strand:
+								del comp_strands[comp_strands.index(primary_strand)]
 
-						if primary_strand:
-							del comp_strands[comp_strands.index(primary_strand)]
-
-						comp_strands.append(comp_strand)
+							comp_strands.append(comp_strand)
 
 		strands.append(strand)
 		print("New Strand:", str(strand.direction))
@@ -960,7 +971,13 @@ def isMacdConfirmation(direction):
 def confirmation(shift, trigger):
 	''' Checks for overbought, oversold and confirm entry '''
 
+	global re_entry_direction
+
 	print("confirmation")
+
+	if on_down_time:
+		resetTriggers(direction = trigger.direction)
+		return
 
 	if len(utils.positions) > 0:
 		if utils.positions[0].direction == 'buy' and trigger.direction == Direction.LONG:
@@ -969,6 +986,9 @@ def confirmation(shift, trigger):
 		elif utils.positions[0].direction == 'sell' and trigger.direction == Direction.SHORT:
 			resetTriggers(direction = Direction.SHORT)
 			return
+
+	if trigger.trigger_type == TriggerType.RE_ENTRY:
+		re_entry_direction = trigger.direction
 
 	pending_entries.append(trigger)
 
