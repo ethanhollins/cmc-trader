@@ -1,5 +1,6 @@
 import talib
 import numpy as np
+from CMCTrader import Constants
 
 class CCI(object):
 	
@@ -9,19 +10,17 @@ class CCI(object):
 		self.chart = chart
 
 		self.timeperiod = timeperiod
-		self.req_val_count = self.timeperiod
 
 		self.history = {}
 		self.type = 'CCI'
 		self.collection_type = Constants.DATA_POINT_COLLECT
 
 	def insertValues(self, timestamp, ohlc):
-		arrays = self._calculate(ohlc)
+		array = self._calculate(ohlc)
 
 		values = []
-		for arr in arrays:
-			val = arr[arr.size-1]
-			values.append(round(float(val), 5))
+		val = array[len(array)-1]
+		values.append(round(float(val), 5))
 
 		self.history[int(timestamp)] = values
 

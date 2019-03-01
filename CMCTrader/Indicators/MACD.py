@@ -12,7 +12,6 @@ class MACD(object):
 		self.fastperiod = fastperiod
 		self.slowperiod = slowperiod
 		self.signalperiod = signalperiod
-		self.req_val_count = 38
 
 		self.history = {}
 		self.type = 'MACD'

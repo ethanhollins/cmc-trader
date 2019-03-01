@@ -12,3 +12,4 @@ build
 *.pyx
 setup.py
 old/
+todo.txt
