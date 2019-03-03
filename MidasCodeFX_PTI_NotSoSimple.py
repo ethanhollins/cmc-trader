@@ -814,12 +814,12 @@ def ptiConf(shift, direction):
 def directionConf(shift, direction):
 	print("Direction conf")
 
-	return isMacdConfirmation(direction) and isCCIConfirmation(shift, direction) and isParaConfirmation(shift, direction)
+	return ( isMacdHistConfirmation(direction) or isMacdZeroConfirmation(direction) ) and isCCIConfirmation(shift, direction) and isParaConfirmation(shift, direction)
 
 def reEntryConf(shift, direction):
 	print("re entry conf")
 
-	return isMacdConfirmation(direction) and isParaConfirmation(shift, direction)
+	return isMacdEitherConfirmation(direction) and isParaConfirmation(shift, direction)
 
 def isParaConfirmation(shift, direction, reverse = False):
 
@@ -839,7 +839,32 @@ def isParaConfirmation(shift, direction, reverse = False):
 			print("short:", str(sar.isFalling(shift, 1)[0]))
 			return sar.isFalling(shift, 1)[0]
 
-def isMacdConfirmation(direction):
+def isMacdHistConfirmation(direction):
+
+	hist = macd.getCurrent()[2]
+
+	if direction == Direction.LONG:
+		if hist > 0:
+			return True
+	else:
+		if hist < 0:
+			return True
+
+def isMacdZeroConfirmation(direction):
+
+	hist = macd.getCurrent()[2]
+	histz = macdz.getCurrent()[2]
+
+	print("MACDZ:", str(histz))
+
+	if direction == Direction.LONG:
+		if hist >= 0 and histz > 0:
+			return True
+	else:
+		if hist <= 0 and histz < 0:
+			return True
+
+def isMacdEitherConfirmation(direction):
 
 	hist = macd.getCurrent()[2]
 	histz = macdz.getCurrent()[2]

@@ -313,7 +313,7 @@ class Position(object):
 			)
 
 	def _getOrderTicket(self):
-		return self.utils.tickets[self.pair]
+		return self.utils.getTicket(self.pair)
 
 	@stopandreverse_redirect
 	def stopAndReverse(self, lotsize, sl = 0, tp = 0):
