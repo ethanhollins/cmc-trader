@@ -179,13 +179,14 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global sar, macd, macdz, cci
+	global sar, macd, macdz, cci, rsi
 
 	utils = utilities
 	sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.2, 0.2)
 	macd = utils.MACD(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
 	macdz = utils.MACDZ(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
 	cci = utils.CCI(Constants.GBPUSD, Constants.ONE_MINUTE, 5)
+	rsi = utils.RSI(Constants.GBPUSD, Constants.ONE_MINUTE, 10)
 
 	resetTriggers()
 
@@ -814,7 +815,7 @@ def ptiConf(shift, direction):
 def directionConf(shift, direction):
 	print("Direction conf")
 
-	return ( isMacdHistConfirmation(direction) or isMacdZeroConfirmation(direction) ) and isCCIConfirmation(shift, direction) and isParaConfirmation(shift, direction)
+	return ( isMacdHistConfirmation(direction) or isMacdZeroConfirmation(direction) ) and isCCIConfirmation(shift, direction) and isParaConfirmation(shift, direction) and isRSIConfirmation(shift, direction)
 
 def reEntryConf(shift, direction):
 	print("re entry conf")
@@ -897,6 +898,17 @@ def isCCIConfirmation(shift, direction):
 
 	return False
 
+def isRSIConfirmation(shift, direction):
+	strength = rsi.getCurrent()[0]
+
+	if direction == Direction.LONG:
+		if strength > 0:
+			return True
+	else:
+		if strength < 0:
+			return True
+
+	return False
 
 def confirmation(shift, trigger):
 	''' Checks for overbought, oversold and confirm entry '''

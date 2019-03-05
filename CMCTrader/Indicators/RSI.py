@@ -1,41 +1,40 @@
-VALUE_WIDTH = 123
-VALUE_HEIGHT = 24
-VALUE_OFFSET = 27
-X_START = 180
+import talib
+import numpy as np
+from CMCTrader import Constants
 
 class RSI(object):
-
-	def __init__(self, utils, index, colours):
-		self.index = index
+	
+	def __init__(self, utils, index, chart, timeperiod):
 		self.utils = utils
-		self.colours = colours
-		self.history = {}
-		self.canBeNegative = False
-		self.type = 'RSI'
+		self.index = index
+		self.chart = chart
 
-	def insertValues(self, timestamp, values):
-		for i in range(len(values)):
-			values[i] = round(float(values[i])*100, 2)
+		self.timeperiod = timeperiod
+
+		self.history = {}
+		self.type = 'RSI'
+		self.collection_type = Constants.DATA_POINT_COLLECT
+
+	def insertValues(self, timestamp, ohlc):
+		array = self._calculate(ohlc)
+
+		values = []
+		val = array[len(array)-1]
+		values.append(round(float(val), 2))
 
 		self.history[int(timestamp)] = values
 
-	def getCurrent(self, pair):
-		timestamp = self.utils.getTimestampFromOffset(pair, 0, 1)
-		self.utils.getMissingTimestamps(timestamp)
+	def _calculate(self, ohlc):
+		return list(talib.RSI(np.array(ohlc[3]), timeperiod=self.timeperiod))
+
+	def getCurrent(self):
+		timestamp = self.chart.getRelativeTimestamp(0)
+		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[0][1]
 
-	def get(self, pair, shift, amount):
-		timestamp = self.utils.getTimestampFromOffset(pair, shift, amount)
-		self.utils.getMissingTimestamps(timestamp)
+	def get(self, shift, amount):
+		timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]
-
-	def _getMissingValues(self, pair, shift, amount):
-		self.utils.getMissingValues(pair, shift, amount)
-
-	def addFillerData(self, pair, timestamp):
-		if (int(timestamp) - 60) in self.history:
-			self.history[int(timestamp)] = self.history[int(timestamp) - 60]
-		else:
-			return

@@ -173,9 +173,9 @@ class Utilities:
 		chart.overlays.sort(key=lambda x: x.index)
 		return sar_m
 
-	def RSI(self, pair, chart_period):
+	def RSI(self, pair, chart_period, timeperiod):
 		chart = self.getChart(pair, chart_period)
-		rsi = RSI(self, len(chart.studies))
+		rsi = RSI(self, len(chart.studies), chart, timeperiod)
 		chart.studies.append(rsi)
 		chart.studies.sort(key=lambda x: x.index)
 		return rsi
