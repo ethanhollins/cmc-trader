@@ -902,10 +902,10 @@ def isRSIConfirmation(shift, direction):
 	strength = rsi.getCurrent()[0]
 
 	if direction == Direction.LONG:
-		if strength > 0:
+		if strength > 50:
 			return True
 	else:
-		if strength < 0:
+		if strength < 50:
 			return True
 
 	return False
