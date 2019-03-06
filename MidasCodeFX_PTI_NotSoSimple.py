@@ -789,7 +789,7 @@ def entrySetup(shift, trigger):
 
 		if trigger.state == State.TWO:
 
-			if directionConf(shift, trigger.direction):
+			if directionConf(shift, trigger.direction) or directionConfTwo(shift, trigger.direction):
 				trigger.state = State.ENTERED
 				confirmation(shift, trigger)
 
@@ -816,6 +816,11 @@ def directionConf(shift, direction):
 	print("Direction conf")
 
 	return ( isMacdHistConfirmation(direction) or isMacdZeroConfirmation(direction) ) and isCCIConfirmation(shift, direction) and isParaConfirmation(shift, direction) and isRSIConfirmation(shift, direction)
+
+def directionConfTwo(shift, direction):
+	print("Direction conf two")
+
+	return isMacdPosConfirmation(direction) and isParaConfirmation(shift, direction) and isRSIConfirmation(shift, direction)
 
 def reEntryConf(shift, direction):
 	print("re entry conf")
@@ -881,6 +886,19 @@ def isMacdEitherConfirmation(direction):
 		if hist < 0 and histz <= 0:
 			return True
 		if hist <= 0 and histz < 0:
+			return True
+
+def isMacdPosConfirmation(direction):
+	hist = macd.getCurrent()[2]
+	histz = macdz.getCurrent()[2]
+
+	print("MACDZ:", str(histz))
+
+	if direction == Direction.LONG:
+		if hist > 0 and histz > 0:
+			return True
+	else:
+		if hist < 0 and histz < 0:
 			return True
 
 def isCCIConfirmation(shift, direction):
