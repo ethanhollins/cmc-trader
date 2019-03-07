@@ -211,6 +211,8 @@ def onStartTrading():
 	is_nnt = False
 	is_be = False
 
+	modifyTriggersOnStart()
+
 def onFinishTrading():
 	''' Function called on trade end time '''
 
@@ -594,26 +596,6 @@ def runSequence(shift):
 
 	reEntrySetup(shift, re_entry_trigger)
 
-def resetTriggers(direction = None):
-	global current_triggers
-
-	long_t = Trigger(Direction.LONG, 0, tradable = True, trigger_type = TriggerType.REGULAR)
-	short_t = Trigger(Direction.SHORT, 0, tradable = True, trigger_type = TriggerType.REGULAR)
-
-	if direction:
-		if direction == Direction.LONG:
-			current = getDirectionTrigger(Direction.LONG)
-			if current:
-				del current_triggers[current_triggers.index(current)]
-			current_triggers.append(long_t)
-		else:
-			current = getDirectionTrigger(Direction.SHORT)
-			if current:
-				del current_triggers[current_triggers.index(current)]
-			current_triggers.append(short_t)
-	else:
-		current_triggers = [long_t, short_t]
-
 def getTrigger(shift, pos):
 
 	directions = [Direction.LONG, Direction.SHORT]
@@ -635,6 +617,32 @@ def getTrigger(shift, pos):
 			trigger = Trigger(direction, 0, tradable = True, trigger_type = TriggerType.REGULAR)
 
 			current_triggers.append(trigger)
+
+def resetTriggers(direction = None):
+	global current_triggers
+
+	long_t = Trigger(Direction.LONG, 0, tradable = True, trigger_type = TriggerType.REGULAR)
+	short_t = Trigger(Direction.SHORT, 0, tradable = True, trigger_type = TriggerType.REGULAR)
+
+	if direction:
+		if direction == Direction.LONG:
+			current = getDirectionTrigger(Direction.LONG)
+			if current:
+				del current_triggers[current_triggers.index(current)]
+			current_triggers.append(long_t)
+		else:
+			current = getDirectionTrigger(Direction.SHORT)
+			if current:
+				del current_triggers[current_triggers.index(current)]
+			current_triggers.append(short_t)
+	else:
+		current_triggers = [long_t, short_t]
+
+def modifyTriggersOnStart():
+
+	for trigger in current_triggers:
+		if trigger.state.value > State.ONE.value:
+			trigger.state = State.ONE
 
 def configureCompStrandsOnEntry(direction):
 	primary_strand = getCompStrand(direction, CompType.PRIMARY)
