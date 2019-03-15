@@ -35,7 +35,6 @@ class Chart(object):
 
 	def getObj(self):
 		pair = self.pair[:3] + '/' + self.pair[3:]
-
 		return (
 				'var obj = null;'
 				'var charts = window.ProChart.charts;'
@@ -284,7 +283,7 @@ class Chart(object):
 		raw = self.driver.execute_script(
 				self.getObj() +
 				'var data_point = obj.reader.dataPoints[arguments[0]];'
-				'return String(data_point.recordedTime);',
+				'return String(data_point.time);',
 				index
 			)
 
@@ -301,4 +300,5 @@ class Chart(object):
 	
 	def convertDatetimeToTimestamp(self, dt):
 		then = Constants.DT_START_DATE
+		print("this:", str(int((dt - then).total_seconds())))
 		return int((dt - then).total_seconds())

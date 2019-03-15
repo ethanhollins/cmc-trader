@@ -1,4 +1,5 @@
 from selenium import webdriver
+import selenium.webdriver.support.ui as ui
 
 import datetime
 
@@ -144,9 +145,50 @@ class PositionLog(object):
 
 	def getChildPositionElems(self):
 		return self.driver.execute_script(
+			'console.log(arguments[0].querySelectorAll(\'[class="row child trade clickable"]\'));'
 			'return arguments[0].querySelectorAll(\'[class="row child trade clickable"]\');',
 			self.getPositionLogTableElem()
 		)
+
+	def getCurrentPositions(self):
+		self.getParentPositionGroupElems()
+		self.getParentElemDict()
+
+		positions = []
+
+		for key in self.parentElemDict:
+			amount = self.getParentPositionAmount(self.parentElemDict[key])
+
+			if (int(amount) > 0):
+				self.openPositionLogList(self.parentElemDict[key])
+
+				wait = ui.WebDriverWait(self.driver, 10)
+				wait.until(lambda driver : len(self.getChildPositionElems()) > 0)
+				
+				positions += self.driver.execute_script(
+					'var order_list = [];'
+					'for (let i = 0; i < arguments[0].length; i++)'
+					'{'
+					'  var orderID = arguments[0][i].querySelectorAll(\'div\')[1].querySelector(\'span\').innerHTML;' +
+					'  orderID = orderID.split(\' \')[0];'
+					'  order_list.push(orderID);'
+					'}'
+					'return order_list;',
+					self.getChildPositionElems()
+				)
+
+		return positions
+
+	def openPositionLogList(self, elem):
+		self.driver.execute_script(
+				'var class_str = arguments[0].querySelectorAll(\'div\')[0].getAttribute("class");'
+				'if (class_str.includes("collapsed"))'
+				'{'
+				'    console.log("collapsed");'
+				'    arguments[0].querySelectorAll(\'div\')[0].click();'
+				'}',
+				elem
+			)
 
 	def getPositionModifyButton(self, position):
 		modifyBtn = None

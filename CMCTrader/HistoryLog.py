@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
+import selenium.webdriver.support.ui as ui
 
 import datetime
 
@@ -44,29 +45,32 @@ class HistoryLog(object):
 				'for (let i = 0; i < rows.length; i++)'
 				'{'
 				'  console.log(rows[i]);'
-				'  var cols = rows[i].querySelectorAll(\'div\');'
-				'  var sl = cols[8].querySelector(\'span[class="label"]\').innerHTML;'
-				'  if (sl == "-")'
+				'  if (!rows[i].getAttribute("style").includes("display: none;"))'
 				'  {'
-				'    sl = "0";'
+				'    var cols = rows[i].querySelectorAll(\'div\');'
+				'    var sl = cols[8].querySelector(\'span[class="label"]\').innerHTML;'
+				'    if (sl == "-")'
+				'    {'
+				'      sl = "0";'
+				'    }'
+				'    var tp = cols[9].querySelector(\'span\').innerHTML;'
+				'    if (tp == "-")'
+				'    {'
+				'      tp = "0";'
+				'    }'
+				#    list = [0: id, 1: time, 2: type, 3: product, 4: units, 5: price, 6: sl, 7: tp, 8: closed id, 9: is_trailing]
+				'    list.push(['
+				'        cols[2].querySelector(\'span\').innerHTML,'
+				'        cols[0].querySelector(\'span\').innerHTML,'
+				'        cols[1].querySelector(\'span\').innerHTML,'
+				'        cols[5].querySelector(\'span\').innerHTML,'
+				'        cols[6].querySelector(\'span\').innerHTML,'
+				'        cols[7].querySelector(\'span\').innerHTML,' 
+				'        sl, tp,'
+				'        cols[4].querySelector(\'span\').innerHTML,'
+				'        false'
+				'      ]);'
 				'  }'
-				'  var tp = cols[9].querySelector(\'span\').innerHTML;'
-				'  if (tp == "-")'
-				'  {'
-				'    tp = "0";'
-				'  }'
-				# list = [0: id, 1: time, 2: type, 3: product, 4: units, 5: price, 6: sl, 7: tp, 8: closed id, 9: is_trailing]
-				'  list.push(['
-				'      cols[2].querySelector(\'span\').innerHTML,'
-				'      cols[0].querySelector(\'span\').innerHTML,'
-				'      cols[1].querySelector(\'span\').innerHTML,'
-				'      cols[5].querySelector(\'span\').innerHTML,'
-				'      cols[6].querySelector(\'span\').innerHTML,'
-				'      cols[7].querySelector(\'span\').innerHTML,' 
-				'      sl, tp,'
-				'      cols[4].querySelector(\'span\').innerHTML,'
-				'      false'
-				'    ]);'
 				'}'
 				'return list;',
 				self.historyLogElem
@@ -94,6 +98,36 @@ class HistoryLog(object):
 			del row_list[row_list.index(i)]
 
 		return row_list
+
+	def getHistoryByOrderId(self, order_id):
+		history_search = self.driver.execute_script(
+				'var history_search = document.querySelector(\'input[placeholder="Search"]\');'
+				'history_search.value = arguments[1];'
+				'return history_search;',
+				self.historyLogElem, order_id
+			)
+
+		ActionChains(self.driver).move_to_element(history_search).perform()
+
+		history_search.send_keys(' ')
+
+		wait = ui.WebDriverWait(self.driver, 10)
+		wait.until(lambda driver : order_id in history_search.get_attribute("value"))
+
+		history = self.getFilteredHistory()
+
+		self.driver.execute_script(
+				'var history_search = document.querySelector(\'input[placeholder="Search"]\');'
+				'history_search.value = "";',
+				self.historyLogElem
+			)
+
+		history_search.send_keys(' ')
+
+		wait = ui.WebDriverWait(self.driver, 10)
+		wait.until(lambda driver : history_search.get_attribute("value") == ' ')
+
+		return self.sortEvents(history)
 
 	def getHistoryPropertiesById(self, historyID):
 		return [i for i in self.getFilteredHistory() if i[0] == historyID]

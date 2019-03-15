@@ -24,30 +24,29 @@ class BarReader(object):
 	def reinit(self, driver):
 		self.driver = driver
 
-	def setChartRegions(self):
+	def setChartRegions(self, chart):
 
 		print("Getting chart regions")
 
-		for chart in self.utils.charts:
-			chart.resetZoom()
+		chart.resetZoom()
 
-			read_value_x = chart.getWidth() - Constants.READ_X
+		read_value_x = chart.getWidth() - Constants.READ_X
 
-			img = self._getImage(chart)
-			arr = self._getImageArray(img)[:, read_value_x-1:read_value_x]
+		img = self._getImage(chart)
+		arr = self._getImageArray(img)[:, read_value_x-1:read_value_x]
 
-			last_window = -1
-			for i in range(arr.shape[0]):
-				new_window = chart.getWindowAt(read_value_x, i)
-				if not new_window == last_window:
-					if new_window == -1:
-						chart.regions[last_window]["end"] = int(i)
-					else:
-						chart.regions[new_window] = {"start": int(i), "index": len(chart.regions)}
+		last_window = -1
+		for i in range(arr.shape[0]):
+			new_window = chart.getWindowAt(read_value_x, i)
+			if not new_window == last_window:
+				if new_window == -1:
+					chart.regions[last_window]["end"] = int(i)
+				else:
+					chart.regions[new_window] = {"start": int(i), "index": len(chart.regions)}
 
-					last_window = new_window
+				last_window = new_window
 
-			print(chart.regions)
+		print(chart.regions)
 
 	def updateAllBarData(self):
 		charts = self.utils.charts
@@ -95,13 +94,20 @@ class BarReader(object):
 	def getMissingBarDataByTimestamp(self, chart, timestamp):
 		chart.resetZoom()
 
-		latest_timestamp = chart.getCurrentTimestamp()
+		latest_timestamp = chart.getCurrentTimestamp(debug=True)
 		ohlc_timestamps = chart.getTimestamps()
 		current_timestamp = timestamp
 
 		missing_timestamps = []
 
-		while (current_timestamp <= latest_timestamp):
+		comp_timestamp = latest_timestamp
+		while current_timestamp < comp_timestamp:
+			comp_timestamp -= chart.timestamp_offset
+
+		offset = current_timestamp % comp_timestamp
+		current_timestamp -= offset
+
+		while current_timestamp <= latest_timestamp:
 			if not current_timestamp in ohlc_timestamps:
 				missing_timestamps.append(current_timestamp)
 
@@ -117,13 +123,20 @@ class BarReader(object):
 
 	def getBarDataByStartEndTimestamp(self, start, end):
 		missing_timestamps = {}
+		print(self.utils.charts)
 		for chart in self.utils.charts:
+			latest_timestamp = chart.getCurrentTimestamp(debug=True)
 			req_timestamps = []
 			current_timestamp = start
-			while current_timestamp <= end:
-				if not current_timestamp % chart.timestamp_offset == 0:
-					current_timestamp -= current_timestamp % chart.timestamp_offset
 
+			comp_timestamp = latest_timestamp
+			while current_timestamp < comp_timestamp:
+				comp_timestamp -= chart.timestamp_offset
+
+			offset = current_timestamp % comp_timestamp
+			current_timestamp -= offset
+
+			while current_timestamp <= end:
 				req_timestamps.append(current_timestamp)
 				current_timestamp += chart.timestamp_offset
 
@@ -141,8 +154,7 @@ class BarReader(object):
 
 	def performBarRead(self, chart, timestamp):
 			
-		index = chart.getDataPointsLength()-1 - chart.getRealBarOffset(timestamp)
-
+		index = chart.getDataPointsLength()-2 - chart.getRealBarOffset(timestamp)
 		if index < 0:
 			index = 0
 		elif index > chart.getDataPointsLength()-1:
@@ -152,12 +164,9 @@ class BarReader(object):
 
 		passed_fwd = False
 		passed_back = False
+
 		while not dp_timestamp == timestamp:
-			try:
-				dp_timestamp = chart.getTimestampFromDataPoint(index)
-			except:
-				print("ERROR: Index out of range")
-				continue
+			dp_timestamp = chart.getTimestampFromDataPoint(index)
 
 			if passed_fwd and passed_back:
 				print("Bar doesn't exist,", str(timestamp))

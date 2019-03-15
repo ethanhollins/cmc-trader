@@ -38,3 +38,18 @@ class RSI(object):
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]
+
+	def getByTime(self, dt):
+
+		timestamp = self.utils.convertDateTimeToTimestamp(dt)
+		latest_timestamp = self.chart.getCurrentTimestamp()
+
+		while timestamp < latest_timestamp:
+			latest_timestamp -= self.chart.timestamp_offset
+
+		offset = timestamp % latest_timestamp
+		timestamp -= offset
+
+		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
+
+		return self.history[timestamp]

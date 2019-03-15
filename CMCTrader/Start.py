@@ -246,11 +246,11 @@ class Start(object):
 		except AttributeError as e:
 			pass
 
-		self.utils.barReader.setChartRegions()
-
 		self.isDowntime = True
 		
 		self.utils.getRecovery()
+
+		self.utils.getAllOpenPositions()
 
 		print("\nTrading plan is LIVE...\n-----------------------\n")
 
@@ -287,7 +287,7 @@ class Start(object):
 			if (not self.utils.isStopped):
 				self.utils.isLive = True
 				try:
-					self.timedRestart()
+					# self.timedRestart()
 					self.checkIfInApp()
 					# try:
 					if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
@@ -455,7 +455,3 @@ class Start(object):
 
 	def getFilePath(self):
 		return '\\'.join(path.realpath(__file__).split('\\')[0:-1])
-
-# class end
-
-# main = Main()

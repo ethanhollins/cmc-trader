@@ -59,12 +59,12 @@ class Utilities:
 		self.tAUDUSD = self.createTicket(Constants.AUDUSD)
 
 		self.user_id = json.loads(user_info)['user_id']
+		self.trader_id = self.user_id
 		self.plan_name = json.loads(user_info)['user_program']
 
 		Log.set_utils(self)
 
 		self._initVARIABLES()
-
 
 		self.positionLog = PositionLog(self.driver)
 		self.orderLog = OrderLog(self.driver)
@@ -91,8 +91,6 @@ class Utilities:
 
 		self.historyLog = HistoryLog(self.driver, self)
 
-		# self.save_state = self.plan.SaveState(self)
-		
 		# self.socket_manager = SocketManager(self)
 		# self.socket_manager.send("cmd", "lololol")
 
@@ -119,14 +117,15 @@ class Utilities:
 	def _initVARIABLES(self):
 		result = db.getItems(self.user_id, 'user_variables')
 
-		if (result['user_variables'] == None):
-			db_vars = {}
-		else:
-			db_vars = json.loads(result['user_variables'])
-			if (self.plan_name in db_vars):
+		if result['user_variables']:
+			db_vars = result['user_variables']
+			if self.plan_name in db_vars:
 				plan_vars = db_vars[self.plan_name]
 			else:
 				plan_vars = {}
+		else:
+			db_vars = {}
+			plan_vars = {}
 
 		set_current, set_past = set(self.plan.VARIABLES.keys()), set(plan_vars.keys())
 		intersect = set_current.intersection(set_past)
@@ -143,9 +142,12 @@ class Utilities:
 			self.plan.VARIABLES[i] = type(self.plan.VARIABLES[i])(plan_vars[i])
 
 		db_vars[self.plan_name] = { k : v for k,v in sorted(plan_vars.items(), key = lambda kv: list(self.plan.VARIABLES.keys()).index(kv[0])) }
-		update_dict = { 'user_variables' : json.dumps(db_vars) }
 		
-		db.updateItems(self.user_id, update_dict)
+		for key in db_vars[self.plan_name]:
+			if type(db_vars[self.plan_name][key]) == float:
+				db_vars[self.plan_name][key] = str(db_vars[self.plan_name][key])
+
+		db.updateItems(self.user_id, { 'user_variables' : db_vars })
 
 	def _startPrompt(self):
 		task = self._prompt
@@ -174,6 +176,8 @@ class Utilities:
 		return sar_m
 
 	def RSI(self, pair, chart_period, timeperiod):
+		print("new chart")
+
 		chart = self.getChart(pair, chart_period)
 		rsi = RSI(self, len(chart.studies), chart, timeperiod)
 		chart.studies.append(rsi)
@@ -223,12 +227,16 @@ class Utilities:
 		return dmi
 
 	def createChart(self, pair, period):
+		print("new chart:", str(period))
 		self.getTicket(pair)
 		chart = Chart(self.driver, pair, period)
+		self.barReader.setChartRegions(chart)
 		self.charts.append(chart)
 		return chart
 
 	def getChart(self, pair, period):
+		print("new chart:", str(period))
+
 		for chart in self.charts:
 			if chart.pair == pair and chart.period == period:
 				return chart
@@ -252,6 +260,40 @@ class Utilities:
 				return t
 
 		return self.createTicket(pair)
+
+	def getGlobalStorage(self):
+		result = db.getItems(self.trader_id, 'user_global_storage')
+		if result['user_global_storage'] and self.plan_name in result['user_global_storage']:
+			return result['user_global_storage'][self.plan_name]
+		else:
+			return None
+
+	def updateGlobalStorage(self, storage):
+		temp = self.getGlobalStorage()
+		if temp:
+			temp[self.plan_name] = storage
+		else:
+			temp = {self.plan_name : storage}
+
+		db.updateItems(self.trader_id, {'user_global_storage' : temp})
+
+	def getLocalStorage(self):
+		result = db.getItems(self.user_id, 'user_local_storage')
+		if result['user_local_storage'] and self.plan_name in result['user_local_storage']:
+			return result['user_local_storage'][self.plan_name]
+		else:
+			return None
+
+	def updateLocalStorage(self, storage):
+		temp = self.getLocalStorage()
+		if temp:
+			print("is not none")
+			temp[self.plan_name] = storage
+		else:
+			print("is none")
+			temp = {self.plan_name : storage}
+
+		db.updateItems(self.user_id, {'user_local_storage' : temp})
 
 	def convertToPips(self, price):
 		return price / 0.00001 / 10
@@ -374,7 +416,7 @@ class Utilities:
 		for event in history:
 			self.updateEvent(event)
 		
-	def updateEvent(self, event):
+	def updateEvent(self, event, run_callback_funcs = True):
 		if event[2] == 'Buy Trade':
 			position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
 
@@ -394,15 +436,16 @@ class Utilities:
 					if event[0] == pos.orderID:
 						break
 
-			try:
-				self.plan.onEntry(pos)
-			except AttributeError as e:
-				pass
+			if run_callback_funcs:
+				try:
+					self.plan.onEntry(pos)
+				except AttributeError as e:
+					pass
 
-			try:
-				self.plan.onTrade(pos, event[2])
-			except AttributeError as e:
-				pass
+				try:
+					self.plan.onTrade(pos, event[2])
+				except AttributeError as e:
+					pass
 
 		elif event[2] == 'Sell Trade':
 			position_id_list = [i.orderID for i in self.positions] + [j.orderID for j in self.closedPositions]
@@ -422,16 +465,17 @@ class Utilities:
 				for pos in self.positions + self.closedPositions:
 					if event[0] == pos.orderID:
 						break
-						
-			try:
-				self.plan.onEntry(pos)
-			except AttributeError as e:
-				pass
+			
+			if run_callback_funcs:
+				try:
+					self.plan.onEntry(pos)
+				except AttributeError as e:
+					pass
 
-			try:
-				self.plan.onTrade(pos, event[2])
-			except AttributeError as e:
-				pass
+				try:
+					self.plan.onTrade(pos, event[2])
+				except AttributeError as e:
+					pass
 
 		elif event[2] == 'Buy SE Order':
 			order_id_list = [i.orderID for i in self.orders]
@@ -473,10 +517,11 @@ class Utilities:
 					self.closedPositions.append(pos)
 					del self.positions[self.positions.index(pos)]
 
-					try:
-						self.plan.onTrade(pos, event[2])
-					except AttributeError as e:
-						pass
+					if run_callback_funcs:
+						try:
+							self.plan.onTrade(pos, event[2])
+						except AttributeError as e:
+							pass
 
 			for order in self.orders:
 				if event[0] == order.orderID:
@@ -496,21 +541,22 @@ class Utilities:
 					self.closedPositions.append(pos)
 					del self.positions[self.positions.index(pos)]
 
-					if event[2] == 'Take Profit':
-						try:
-							self.plan.onTakeProfit(pos)
-						except AttributeError as e:
-							pass
-					elif event[2] == 'Stop Loss':
-						try:
-							self.plan.onStopLoss(pos)
-						except AttributeError as e:
-							pass
+					if run_callback_funcs:
+						if event[2] == 'Take Profit':
+							try:
+								self.plan.onTakeProfit(pos)
+							except AttributeError as e:
+								pass
+						elif event[2] == 'Stop Loss':
+							try:
+								self.plan.onStopLoss(pos)
+							except AttributeError as e:
+								pass
 
-					try:
-						self.plan.onTrade(pos, event[2])
-					except AttributeError as e:
-						pass
+						try:
+							self.plan.onTrade(pos, event[2])
+						except AttributeError as e:
+							pass
 
 		elif (event[2] == 'SE Order Sell Trade' or event[2] == 'SE Order Buy Trade' or
 			event[2] == 'Limit Order Sell Trade' or event[2] == 'Limit Order Buy Trade'):
@@ -524,10 +570,11 @@ class Utilities:
 					self.positions.append(order)
 					del self.orders[self.orders.index(order)]
 
-					try:
-						self.plan.onEntry(order)
-					except AttributeError as e:
-						pass
+					if run_callback_funcs:
+						try:
+							self.plan.onEntry(order)
+						except AttributeError as e:
+							pass
 
 		elif event[2] == 'Buy Trade Modified' or event[2] == 'Sell Trade Modified':
 			positions_list = self.positions + self.closedPositions
@@ -578,6 +625,19 @@ class Utilities:
 	def positionExists(self, pos):
 		return self.positionLog.positionExists(pos)
 
+	def getAllOpenPositions(self):
+		position_id_list = [i.orderID for i in self.positions + self.closedPositions]
+		print(position_id_list)
+
+		for order_id in self.positionLog.getCurrentPositions():
+			if not order_id in position_id_list:
+				print("adding pos:", str(order_id))
+				history = self.historyLog.getHistoryByOrderId(order_id)
+
+				for event in history:
+					self.updateEvent(event, run_callback_funcs=False)
+		print(self.positions)
+
 	@Backtester.market_redirect_backtest
 	def _marketOrder(self, direction, ticket, pair, lotsize, sl, tp):
 		ticket.makeVisible()
@@ -609,14 +669,17 @@ class Utilities:
 
 		pos = Position(utils = self, ticket = ticket, orderID = orderID, pair = pair, ordertype = 'market', direction = direction)
 
-		positionModifyBtn = None
+		# positionModifyBtn = None
 
-		wait = ui.WebDriverWait(self.driver, 10)
-		wait.until(lambda driver : self.positionLog.getPositionModifyButton(pos) is not None)
+		# wait = ui.WebDriverWait(self.driver, 10)
+		# wait.until(lambda driver : self.positionLog.getPositionModifyButton(pos) is not None)
 
-		positionModifyBtn = self.positionLog.getPositionModifyButton(pos)
+		# positionModifyBtn = self.positionLog.getPositionModifyButton(pos)
 
-		pos.modifyBtn = positionModifyBtn
+		# pos.modifyBtn = positionModifyBtn
+
+		wait = ui.WebDriverWait(self.driver, 10, poll_frequency=0.001)
+		wait.until(lambda driver : len(self.historyLog.getHistoryPropertiesById(orderID)[0]) > 0)
 
 		properties = self.historyLog.getHistoryPropertiesById(orderID)[0]
 
@@ -808,6 +871,7 @@ class Utilities:
 		then = Constants.DT_START_DATE
 		now = now.astimezone(tz)
 		now = now.replace(tzinfo=None)
+		print(now)
 		return int((now - then).total_seconds())
 
 	def convertTimeToTimestamp(self, day, month, hour, minute):
@@ -1247,7 +1311,7 @@ class Utilities:
 					values[key]['overlays'][i]  = {**values[key]['overlays'][i], **chart_values['overlays'][i]}
 
 				for j in range(len(values[key]['studies'])):
-					values[key]['studies'][i] = {**values[key]['studies'][i], **chart_values['studies'][i]}
+					values[key]['studies'][j] = {**values[key]['studies'][j], **chart_values['studies'][j]}
 
 				print(values[key])
 
