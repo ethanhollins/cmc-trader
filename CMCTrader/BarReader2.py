@@ -123,7 +123,7 @@ class BarReader(object):
 
 	def getBarDataByStartEndTimestamp(self, start, end):
 		missing_timestamps = {}
-		print(self.utils.charts)
+		
 		for chart in self.utils.charts:
 			latest_timestamp = chart.getCurrentTimestamp(debug=True)
 			req_timestamps = []

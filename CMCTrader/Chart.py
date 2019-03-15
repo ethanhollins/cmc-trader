@@ -300,5 +300,4 @@ class Chart(object):
 	
 	def convertDatetimeToTimestamp(self, dt):
 		then = Constants.DT_START_DATE
-		print("this:", str(int((dt - then).total_seconds())))
 		return int((dt - then).total_seconds())
