@@ -278,6 +278,7 @@ def onLoop():
 		return
 
 	handleEntries()		# Handle all pending entries
+	handleStop()
 
 def handleEntries():
 	''' Handle all pending entries '''
@@ -336,6 +337,7 @@ def handleStop():
 	'''
 	for pos in utils.positions:
 		if pos in pending_breakevens:
+			profit = pos.getProfit(price_type = 'c')
 			if profit > VARIABLES['breakeven_min_pips']:
 				pos.breakeven()
 				if pos.apply():
@@ -381,6 +383,10 @@ def onStopLoss(pos):
 	global losses
 
 	losses += 1
+
+	if losses >= VARIABLES['max_losses']:
+		for pos in session_positions:
+			pending_breakevens.append(pos)
 
 	session_closed_positions.append(pos)
 	del session_positions[session_positions.index(pos)]
