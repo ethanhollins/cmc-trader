@@ -359,7 +359,7 @@ class Backtester(object):
 		for log in position_logs:
 			print("LOG:", str(log)) 
 			self.history.append(log)
-			self.utils.updateEvent(log)
+			self.utils.updateEvent(log, run_callback_funcs = False)
 
 			print("posees")
 			print(self.utils.positions)
