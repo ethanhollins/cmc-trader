@@ -382,14 +382,16 @@ def onStopLoss(pos):
 
 	global losses
 
-	losses += 1
+	if pos in session_positions:
+		print("STOPLOSS pos in session")
+		losses += 1
 
-	session_closed_positions.append(pos)
-	del session_positions[session_positions.index(pos)]
+		session_closed_positions.append(pos)
+		del session_positions[session_positions.index(pos)]
 
-	if losses >= VARIABLES['max_losses']:
-		for pos in session_positions:
-			pending_breakevens.append(pos)
+		if losses >= VARIABLES['max_losses']:
+			for pos in session_positions:
+				pending_breakevens.append(pos)
 
 def onTakeProfit(pos):
 	print("onStopLoss")
@@ -399,8 +401,8 @@ def onTakeProfit(pos):
 	if pos in session_positions:
 		no_new_trades = True
 
-	session_closed_positions.append(pos)
-	del session_positions[session_positions.index(pos)]
+		session_closed_positions.append(pos)
+		del session_positions[session_positions.index(pos)]
 
 def checkTime():
 	''' 

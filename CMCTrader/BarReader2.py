@@ -134,6 +134,7 @@ class BarReader(object):
 				comp_timestamp -= chart.timestamp_offset
 
 			offset = current_timestamp % comp_timestamp
+			print("offset:", str(offset))
 			current_timestamp -= offset
 
 			while current_timestamp <= end:

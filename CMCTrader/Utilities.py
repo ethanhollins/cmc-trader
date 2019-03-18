@@ -1260,22 +1260,23 @@ class Utilities:
 		except:
 			return False
 
-	def updateRecovery(self, chart):
+	def updateRecovery(self):
 		values = {}
 
 		name = self.plan.__name__
 
-		values[chart.pair+"-"+str(chart.period)] = {
-			'timestamp': chart.getCurrentTimestamp(),
-			'ohlc': chart.ohlc,
-			'overlays': [],
-			'studies': []
-		}
+		for chart in self.utils.charts:
+			values[chart.pair+"-"+str(chart.period)] = {
+				'timestamp': chart.getCurrentTimestamp(),
+				'ohlc': chart.ohlc,
+				'overlays': [],
+				'studies': []
+			}
 
-		for i in range(len(chart.overlays)):
-			values[chart.pair+"-"+str(chart.period)]['overlays'].append(chart.overlays[i].history.copy()) 
-		for j in range(len(chart.studies)):
-			values[chart.pair+"-"+str(chart.period)]['studies'].append(chart.studies[j].history.copy())
+			for i in range(len(chart.overlays)):
+				values[chart.pair+"-"+str(chart.period)]['overlays'].append(chart.overlays[i].history.copy()) 
+			for j in range(len(chart.studies)):
+				values[chart.pair+"-"+str(chart.period)]['studies'].append(chart.studies[j].history.copy())
 
 		with open('recover_'+name+'.json', 'w') as f:
 			json.dump(values, f)

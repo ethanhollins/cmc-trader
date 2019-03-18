@@ -358,8 +358,8 @@ class Start(object):
 											self.utils.closedPositions = []
 										self.isDowntime = True
 
-							for chart in self.utils.charts:
-								self.utils.updateRecovery(chart)
+							
+							self.utils.updateRecovery()
 						# except Exception as e:
 						# 	print(e)
 						# 	print("Unable to update bar!")
