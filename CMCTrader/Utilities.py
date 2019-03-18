@@ -112,7 +112,8 @@ class Utilities:
 		self.reinitAUDUSDTicket()
 
 		if get_chart_regions:
-			self.barReader.setChartRegions()
+			for chart in self.charts:
+				self.barReader.setChartRegions(chart)
 
 	def _initVARIABLES(self):
 		result = db.getItems(self.user_id, 'user_variables')

@@ -410,7 +410,6 @@ def checkTime():
 
 	if not (london_time.hour < utils.endTime.hour and london_time.hour >= 0):
 		nnt_time += datetime.timedelta(days=1)
-		be_time += datetime.timedelta(days=1)
 
 	if london_time > utils.endTime and time_state.value < TimeState.CLOSE.value:
 		time_state = TimeState.CLOSE
@@ -420,9 +419,17 @@ def checkTime():
 			for pos in utils.positions:
 				pos.close()
 		else:
-			for pos in session_positions:
-				if pos.getProfit(price_type = 'c') > VARIABLES['breakeven_min_pips']:
-					pending_breakevens.append(pos)
+			profit = 0;
+			for pos in session_positions + session_closed_positions:
+				profit += pos.getProfit(price_type = 'c')
+
+			if profit >= 0:
+				for pos in session_positions:
+					pos.close()
+			else:
+				for pos in session_positions:
+					if pos.getProfit(price_type = 'c') > VARIABLES['breakeven_min_pips']:
+						pending_breakevens.append(pos)
 				
 	elif london_time > nnt_time and time_state.value < TimeState.NNT.value:
 		print("No more trades")
