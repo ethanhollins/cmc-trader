@@ -1265,7 +1265,7 @@ class Utilities:
 
 		name = self.plan.__name__
 
-		for chart in self.utils.charts:
+		for chart in self.charts:
 			values[chart.pair+"-"+str(chart.period)] = {
 				'timestamp': chart.getCurrentTimestamp(),
 				'ohlc': chart.ohlc,
