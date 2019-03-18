@@ -384,12 +384,12 @@ def onStopLoss(pos):
 
 	losses += 1
 
+	session_closed_positions.append(pos)
+	del session_positions[session_positions.index(pos)]
+
 	if losses >= VARIABLES['max_losses']:
 		for pos in session_positions:
 			pending_breakevens.append(pos)
-
-	session_closed_positions.append(pos)
-	del session_positions[session_positions.index(pos)]
 
 def onTakeProfit(pos):
 	print("onStopLoss")
