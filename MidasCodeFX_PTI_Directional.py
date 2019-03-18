@@ -288,7 +288,7 @@ def handleEntries():
 		
 		if entry.direction == Direction.LONG:
 			
-			for pos in utils.positions:
+			for pos in session_positions:
 				if pos.direction == 'buy':
 					del pending_entries[pending_entries.index(entry)]
 					return
@@ -302,7 +302,7 @@ def handleEntries():
 
 		else:
 
-			for pos in utils.positions:
+			for pos in session_positions:
 				if (pos.direction == 'sell'):
 					del pending_entries[pending_entries.index(entry)]
 					return
