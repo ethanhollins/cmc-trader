@@ -805,13 +805,14 @@ def confirmation(shift, trigger):
 		resetTriggers(direction = trigger.direction)
 		return
 
-	if len(utils.positions) > 0:
-		if utils.positions[0].direction == 'buy' and trigger.direction == Direction.LONG:
-			resetTriggers(direction = Direction.LONG)
-			return
-		elif utils.positions[0].direction == 'sell' and trigger.direction == Direction.SHORT:
-			resetTriggers(direction = Direction.SHORT)
-			return
+	if len(session_positions) > 0:
+		for pos in session_positions:
+			if pos.direction == 'buy' and trigger.direction == Direction.LONG:
+				resetTriggers(direction = Direction.LONG)
+				return
+			elif pos.direction == 'sell' and trigger.direction == Direction.SHORT:
+				resetTriggers(direction = Direction.SHORT)
+				return
 
 	pending_entries.append(trigger)
 
