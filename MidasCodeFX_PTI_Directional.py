@@ -671,7 +671,7 @@ def entrySetup(shift, trigger):
 
 		if trigger.state == State.TWO:
 
-			if directionConf(shift, trigger.direction) or directionConfTwo(shift, trigger.direction):
+			if directionConf(shift, trigger.direction):
 				trigger.state = State.ENTERED
 				confirmation(shift, trigger)
 
@@ -685,10 +685,15 @@ def ptiConf(shift, direction):
 
 	return False
 
+# def directionConf(shift, direction):
+# 	print("Direction conf")
+
+# 	return ( isMacdHistConfirmation(direction) or isMacdZeroConfirmation(direction) ) and isCCIConfirmation(shift, direction) and isParaConfirmation(shift, direction) and isRSIConfirmation(shift, direction)
+
 def directionConf(shift, direction):
 	print("Direction conf")
 
-	return ( isMacdHistConfirmation(direction) or isMacdZeroConfirmation(direction) ) and isCCIConfirmation(shift, direction) and isParaConfirmation(shift, direction) and isRSIConfirmation(shift, direction)
+	return isMacdHistConfirmation(direction) and isParaConfirmation(shift, direction) and isRSIConfirmation(shift, direction)
 
 def directionConfTwo(shift, direction):
 	print("Direction conf two")
