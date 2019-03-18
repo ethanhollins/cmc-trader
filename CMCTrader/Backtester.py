@@ -127,6 +127,7 @@ class Backtester(object):
 				pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
 				
 				chart = self.getLowestPeriodChart()
+				close = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][3]
 
 				pos.entryprice = chart.ohlc[current_timestamp][3]
 				pos.openTime = current_timestamp
