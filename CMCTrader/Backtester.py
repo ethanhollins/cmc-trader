@@ -277,31 +277,32 @@ class Backtester(object):
 
 		# position_logs = None
 
-		for key in values:
-			pair = key.split('-')[0]
-			period = int(key.split('-')[1])
-			chart = self.utils.getChart(pair, period)
+		chart = self.utils.getLowestPeriodChart()
 
-			sorted_timestamps = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=False)]
+		pair = chart.pair
+		period = chart.period
+		key = '-'.join([pair, str(period)])
 
-			self.removeTimestampsUntil(chart, sorted_timestamps[0])
+		sorted_timestamps = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=False)]
 
-			for timestamp in sorted_timestamps:
-				current_timestamp = timestamp
+		self.removeTimestampsUntil(chart, sorted_timestamps[0])
 
-				self.insertValuesByTimestamp(timestamp, chart, values[key]['ohlc'], values[key]['overlays'], values[key]['studies'])
+		for timestamp in sorted_timestamps:
+			current_timestamp = timestamp
 
-				time = self.getLondonTime(timestamp)
+			self.insertValuesByTimestamp(timestamp, chart, values[key]['ohlc'], values[key]['overlays'], values[key]['studies'])
 
-				self.utils.setTradeTimes(currentTime = time)
+			time = self.getLondonTime(timestamp)
 
-				self.checkStopLoss()
-				self.checkTakeProfit()
+			self.utils.setTradeTimes(currentTime = time)
 
-				if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
-					self.runMainLoop(time)
+			self.checkStopLoss()
+			self.checkTakeProfit()
 
-				input("Press enter to continue...")
+			if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
+				self.runMainLoop(time)
+
+			input("Press enter to continue...")
 
 		print(t.time() - start_time)
 
@@ -323,32 +324,37 @@ class Backtester(object):
 		# self.utils.closedPositions = []
 		# self.resetBarValues()
 
-		for key in values:
-			pair = key.split('-')[0]
-			period = int(key.split('-')[1])
-			chart = self.utils.getChart(pair, period)
+		chart = self.utils.getLowestPeriodChart()
 
-			sorted_timestamps = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=False)]
-			print(sorted_timestamps)
-			self.removeTimestampsUntil(chart, sorted_timestamps[0])
+		pair = chart.pair
+		period = chart.period
+		key = '-'.join([pair, str(period)])
 
-			real_time = self.utils.getLondonTime()
+		sorted_timestamps = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=False)]
+		print(sorted_timestamps)
+		self.removeTimestampsUntil(chart, sorted_timestamps[0])
 
-			# self.utils.setTradeTimes(currentTime = real_time)
-			print(str(self.utils.startTime), str(self.utils.endTime))
+		real_time = self.utils.getLondonTime()
 
-			for timestamp in sorted_timestamps:
-				print(timestamp)
+		# self.utils.setTradeTimes(currentTime = real_time)
+		print(str(self.utils.startTime), str(self.utils.endTime))
 
-				if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
-					
-					current_timestamp = timestamp
-					
-					self.insertValuesByTimestamp(timestamp, chart, values[key]['ohlc'], values[key]['overlays'], values[key]['studies'])
-					
-					time = self.getLondonTime(timestamp)
+		for timestamp in sorted_timestamps:
+			print(timestamp)
 
-					self.runMainLoop(time)
+			if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
+				
+				current_timestamp = timestamp
+				
+
+				self.insertValuesByTimestamp(timestamp, chart, values[key]['ohlc'], values[key]['overlays'], values[key]['studies'])
+				
+				time = self.getLondonTime(timestamp)
+
+				self.checkStopLoss()
+				self.checkTakeProfit()
+				
+				self.runMainLoop(time)
 
 		state = State.NONE
 

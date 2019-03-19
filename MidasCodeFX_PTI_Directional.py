@@ -201,7 +201,7 @@ def init(utilities):
 	rsi = utils.RSI(Constants.GBPUSD, Constants.ONE_MINUTE, 10)
 
 	four_hour_rsi = utils.RSI(Constants.GBPUSD, Constants.FOUR_HOURS, 14)
-	daily_rsi = utils.RSI(Constants.GBPUSD, Constants.ONE_DAY, 14)
+	# daily_rsi = utils.RSI(Constants.GBPUSD, Constants.ONE_DAY, 14)
 	
 	resetTriggers()
 
@@ -431,7 +431,7 @@ def checkTime():
 			for pos in session_positions + session_closed_positions:
 				profit += pos.getProfit(price_type = 'c')
 
-			if profit >= 0:
+			if profit >= 1:
 				for pos in session_positions:
 					pos.close()
 			else:

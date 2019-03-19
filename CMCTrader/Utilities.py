@@ -1288,6 +1288,8 @@ class Utilities:
 			with open('recover_'+name+'.json', 'r') as f:
 				values = json.load(f)
 
+			print(values)
+
 			# if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 45):#! figure out better way
 			new_values = {}
 			for key in values:
@@ -1303,6 +1305,7 @@ class Utilities:
 				pair = key.split('-')[0]
 				period = int(key.split('-')[1])
 				chart = self.getChart(pair, period)
+				# print(str(key), values[key]['ohlc'])
 				latest_timestamp = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=True)][0]
 
 				missing_timestamps = self.barReader.getMissingBarDataByTimestamp(chart, latest_timestamp)
@@ -1315,7 +1318,7 @@ class Utilities:
 				for j in range(len(values[key]['studies'])):
 					values[key]['studies'][j] = {**values[key]['studies'][j], **chart_values['studies'][j]}
 
-				print(values[key])
+				# print(values[key])
 
 			self.backtester.recover(values)
 
