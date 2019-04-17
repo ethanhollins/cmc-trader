@@ -247,17 +247,23 @@ class Backtester(object):
 			endTime = input("End Time: ")
 			conf = input("(Y/n): ")
 
-		missing_timestamps = self.utils.backtestByTime(startDate.strip(), startTime.strip(), endDate.strip(), endTime.strip())
+		timestamps = self.utils.backtestByTime(startDate.strip(), startTime.strip(), endDate.strip(), endTime.strip())
+
+		parts = startDate.strip().split('/')
+		day = parts[0]
+		month = parts[1]
+		parts = startTime.strip().split(':')
+		startTime = self.utils.convertTimeToTimestamp(int(day), int(month), int(parts[0]), int(parts[1]))
 
 		values = {}
-		for key in missing_timestamps:
-			chart_timestamps = missing_timestamps[key]
+		for key in timestamps:
+			chart_timestamps = timestamps[key]
 
 			pair = key.split('-')[0]
 			period = int(key.split('-')[1])
 			chart = self.utils.getChart(pair, period)
 
-			chart_values = self.utils.formatForRecover(chart, chart_timestamps)
+			chart_values = self.utils.formatForBacktest(chart, startTime, chart_timestamps, chart.ohlc)
 
 			values[key] = chart_values
 

@@ -10,6 +10,7 @@ testdrivers.py
 *.json
 build
 *.pyx
+*.pyc
 setup.py
 old/
 todo.txt

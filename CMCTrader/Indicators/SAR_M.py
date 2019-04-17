@@ -23,9 +23,13 @@ class SAR_M(object):
 		
 		self.history[int(timestamp)] = real
 
-	def _calculate(self, ohlc):
+	def getValue(self, ohlc):
+		real = self._calculate(ohlc)
+		real = round(float(real), 5)
 		
-		# return talib.SAR(np.array(ohlc[1]), np.array(ohlc[2]), acceleration=self.acceleration, maximum=self.maximum)
+		return real
+
+	def _calculate(self, ohlc):
 
 		is_rising = False
 

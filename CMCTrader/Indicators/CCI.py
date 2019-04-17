@@ -24,6 +24,15 @@ class CCI(object):
 
 		self.history[int(timestamp)] = values
 
+	def getValue(self, ohlc):
+		array = self._calculate(ohlc)
+
+		values = []
+		val = array[len(array)-1]
+		values.append(round(float(val), 5))
+
+		return values
+
 	def _calculate(self, ohlc):
 		return list(talib.CCI(np.array(ohlc[1]), np.array(ohlc[2]), np.array(ohlc[3]), timeperiod=self.timeperiod))
 

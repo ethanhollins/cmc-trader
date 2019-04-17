@@ -27,6 +27,16 @@ class MACD(object):
 
 		self.history[int(timestamp)] = values
 
+	def getValue(self, ohlc):
+		arrays = self._calculate(ohlc)
+
+		values = []
+		for arr in arrays:
+			val = arr[arr.size-1]
+			values.append(round(float(val), 5))
+
+		return values
+
 	def _calculate(self, ohlc):
 		return list(talib.MACD(np.array(ohlc[3]), fastperiod=self.fastperiod, slowperiod=self.slowperiod, signalperiod=self.signalperiod))
 

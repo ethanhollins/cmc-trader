@@ -28,6 +28,16 @@ class MACDZ(object):
 
 		self.history[int(timestamp)] = values
 
+	def getValue(self, ohlc):
+		arrays = self._calculate(ohlc)
+
+		values = []
+		for arr in arrays:
+			val = arr[arr.size-1]
+			values.append(round(float(val), 5))
+
+		return values
+
 	def _calculate(self, ohlc):
 		ema_f_one = talib.EMA(np.array(ohlc[3]), timeperiod=self.fastperiod)
 		ema_f_two = talib.EMA(ema_f_one, timeperiod=self.fastperiod)

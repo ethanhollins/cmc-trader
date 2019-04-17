@@ -24,6 +24,15 @@ class RSI(object):
 
 		self.history[int(timestamp)] = values
 
+	def getValue(self, ohlc):
+		array = self._calculate(ohlc)
+
+		values = []
+		val = array[len(array)-1]
+		values.append(round(float(val), 2))
+
+		return values
+
 	def _calculate(self, ohlc):
 		return list(talib.RSI(np.array(ohlc[3]), timeperiod=self.timeperiod))
 

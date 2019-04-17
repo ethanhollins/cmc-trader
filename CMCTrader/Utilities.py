@@ -177,8 +177,6 @@ class Utilities:
 		return sar_m
 
 	def RSI(self, pair, chart_period, timeperiod):
-		print("new chart")
-
 		chart = self.getChart(pair, chart_period)
 		rsi = RSI(self, len(chart.studies), chart, timeperiod)
 		chart.studies.append(rsi)
@@ -228,7 +226,6 @@ class Utilities:
 		return dmi
 
 	def createChart(self, pair, period):
-		print("new chart:", str(period))
 		self.getTicket(pair)
 		chart = Chart(self.driver, pair, period)
 		self.barReader.setChartRegions(chart)
@@ -236,8 +233,6 @@ class Utilities:
 		return chart
 
 	def getChart(self, pair, period):
-		print("new chart:", str(period))
-
 		for chart in self.charts:
 			if chart.pair == pair and chart.period == period:
 				return chart
@@ -829,6 +824,7 @@ class Utilities:
 		month = parts[1]
 		parts = startTime.split(':')
 		startTime = self.convertTimeToTimestamp(int(day), int(month), int(parts[0]), int(parts[1]))
+
 		parts = endDate.split('/')
 		day = parts[0]
 		month = parts[1]
@@ -855,8 +851,44 @@ class Utilities:
 		tz = pytz.timezone('Europe/London')
 		return datetime.datetime.now(tz = tz)
 
+	@Backtester.london_time_redirect_backtest
+	def getNewYorkTime(self):
+		tz = pytz.timezone('America/New_York')
+		return datetime.datetime.now(tz = tz)
+
+	def getTime(self, timezone):
+		tz = pytz.timezone(timezone)
+		return datetime.datetime.now(tz = tz)
+
+	def convertTimezone(self, time, timezone):
+		tz = pytz.timezone(timezone)
+
+		return time.astimezone(tz)
+
+	def createAustralianTime(self, year, month, day, hours, mins, seconds):
+		tz = pytz.timezone('Australia/Melbourne')
+		return tz.localize(datetime.datetime(
+					year = year,
+					month = month,
+					day = day,
+					hour = hours,
+					minute = mins,
+					second = seconds
+				))
+
 	def createLondonTime(self, year, month, day, hours, mins, seconds):
 		tz = pytz.timezone('Europe/London')
+		return tz.localize(datetime.datetime(
+					year = year,
+					month = month,
+					day = day,
+					hour = hours,
+					minute = mins,
+					second = seconds
+				))
+
+	def createNewYorkTime(self, year, month, day, hours, mins, seconds):
+		tz = pytz.timezone('America/New_York')
 		return tz.localize(datetime.datetime(
 					year = year,
 					month = month,
@@ -889,9 +921,14 @@ class Utilities:
 
 
 	def setTradeTimes(self, currentTime = None):
-		if ('START_TIME' in self.plan.VARIABLES.keys() and 'END_TIME' in self.plan.VARIABLES.keys()):
-			if (currentTime == None):
-				currentTime = self.getLondonTime()
+		if 'START_TIME' in self.plan.VARIABLES.keys() and 'END_TIME' in self.plan.VARIABLES.keys():
+
+			if not currentTime:
+				if 'TIMEZONE' in self.plan.VARIABLES.keys():
+					time = self.getTime(self.plan.VARIABLES['TIMEZONE'])
+					currentTime = self.convertTimezone(time, 'Europe/London')
+				else:
+					currentTime = self.getLondonTime()
 
 			startTimeParts = self.plan.VARIABLES['START_TIME'].split(':')
 			endTimeParts = self.plan.VARIABLES['END_TIME'].split(':')
@@ -1096,133 +1133,48 @@ class Utilities:
 	def reinitAUDUSDTicket(self):
 		self.tAUDUSD = self.createTicket(Constants.AUDUSD)
 
-	# @Backtester.redirect_backtest
-	# def refreshAll(self):
-	# 	for pair in self.tickets:
-	# 		self.refreshChart(pair)
+	# def formatForRecover(self, chart, timestamps):
+	# 	if (type(timestamps) == list):
+	# 		earliest_timestamp = self.getEarliestTimestamp(timestamps)
+	# 	else:
+	# 		earliest_timestamp = timestamps
 
-	# 		# timestamp = self.latestTimestamp[pair]
-	# 		# changed_timestamps = self.checkTimestampValues(pair, timestamp)
+	# 	if not earliest_timestamp % chart.timestamp_offset == 0:
+	# 		earliest_timestamp -= earliest_timestamp % chart.timestamp_offset
 
-	# 		# if (len(changed_timestamps) > 0):
-	# 		# 	self.refreshValues(pair, changed_timestamps)
+	# 	offset = chart.getRelativeOffset(earliest_timestamp)
 
-	# @Backtester.redirect_backtest
-	# def refreshChart(self, pair):
-	# 	chart = self.barReader.getChart(pair)
+	# 	timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0:offset+1]
 
-	# 	self.barReader.moveToChart(pair)
+	# 	print(timestamps)
 
-	# 	chart_id = self.driver.execute_script(
-	# 					'return arguments[0].getAttribute("id");',
-	# 					chart
-	# 				)
+	# 	values = {}
 
-	# 	chart_select = self.driver.execute_script(
-	# 					'var chart_select = arguments[0].querySelector(\'button[class="feature-window-saved-states-toggle"]\');'
-	# 					'chart_select.click();'
-	# 					'return chart_select;',
-	# 					chart
-	# 				)
+	# 	values[chart.pair+"-"+str(chart.period)]['ohlc'] = {}
+	# 	values[chart.pair+"-"+str(chart.period)]['overlays'] = []
+	# 	values[chart.pair+"-"+str(chart.period)]['studies'] = []
 
-	# 	chart_title = self.driver.execute_script(
-	# 					'return arguments[0].getAttribute("title");',
-	# 					chart_select
-	# 				)
+	# 	for timestamp in timestamps:
+	# 		values[chart.pair+"-"+str(chart.period)]['ohlc'][timestamp] = chart.ohlc[timestamp]
 
-	# 	wait = ui.WebDriverWait(self.driver, 10)
-	# 	wait.until(EC.presence_of_element_located(
-	# 		(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'feature-window-saved-states')]//li[contains(@title, '"+str(chart_title)+"')]")
-	# 	))
+	# 	count = 0
+	# 	for overlay in chart.overlays:
+	# 		values[chart.pair+"-"+str(chart.period)]['overlays'].append({})
+	# 		for timestamp in timestamps:
+	# 			print(values[chart.pair+"-"+str(chart.period)]['overlays'])
+	# 			values[chart.pair+"-"+str(chart.period)]['overlays'][count][timestamp] = overlay.history[timestamp]
+	# 		count += 1
 
-	# 	refresh_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'feature-window-saved-states')]//li[contains(@title, '"+str(chart_title)+"')]")
+	# 	count = 0
+	# 	for study in chart.studies:
+	# 		values[chart.pair+"-"+str(chart.period)]['studies'].append({})
+	# 		for timestamp in timestamps:
+	# 			values[chart.pair+"-"+str(chart.period)]['studies'][count][timestamp] = study.history[timestamp]
+	# 		count += 1
 
-	# 	refresh_btn.click()
+	# 	print(values)
+	# 	return values
 
-
-	# 	wait = ui.WebDriverWait(self.driver, 60)
-	# 	wait.until(lambda driver : not self.chartTimestampCheck(pair))
-		
-	# 	self.barReader.setCanvases(self.barReader.chartDict)
-
-	# 	wait = ui.WebDriverWait(self.driver, 60)
-	# 	wait.until(lambda driver : self.chartTimestampCheck(pair))
-		
-	# 	time.sleep(0.5)
-
-	# 	self.barReader.setCanvases(self.barReader.chartDict)
-
-	# 	self.barReader.dragCanvases()
-
-	# def refreshValues(self, pair, changed_timestamps):
-	# 	# timestamp = self.latestTimestamp[pair]
-
-	# 	# changed_timestamps = self.checkTimestampValues(pair, timestamp)
-
-	# 	# if (len(changed_timestamps) > 0):
-
-	# 	print(changed_timestamps)
-
-	# 	# self.save_state.load()
-
-	# 	print("Backtesting changed timestamps")
-		
-	# 	values = self.formatForRecover(pair, changed_timestamps)
-	# 	self.backtester.recover(values['ohlc'], values['indicators'])
-
-	# def refreshAllValues(self, pair):
-
-	# 	self.plan.initVariables()
-	# 	# self.save_state.load()
-
-	# 	first_timestamp = [i[0] for i in sorted(self.ohlc[pair].items(), key=lambda kv: kv[0], reverse=False)][0]
-
-	# 	print("Backtesting changed timestamps")
-		
-	# 	values = self.formatForRecover(pair, first_timestamp)
-	# 	self.backtester.recover(values['ohlc'], values['indicators'])
-
-	def formatForRecover(self, chart, missing_timestamps):
-		if (type(missing_timestamps) == list):
-			earliest_timestamp = self.getEarliestTimestamp(missing_timestamps)
-		else:
-			earliest_timestamp = missing_timestamps
-
-		if not earliest_timestamp % chart.timestamp_offset == 0:
-			earliest_timestamp -= earliest_timestamp % chart.timestamp_offset
-
-		offset = chart.getRelativeOffset(earliest_timestamp)
-
-		missing_timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0:offset+1]
-
-		print(missing_timestamps)
-
-		values = {}
-
-		values['ohlc'] = {}
-		values['overlays'] = []
-		values['studies'] = []
-
-		for timestamp in missing_timestamps:
-			values['ohlc'][timestamp] = chart.ohlc[timestamp]
-
-		count = 0
-		for overlay in chart.overlays:
-			values['overlays'].append({})
-			for timestamp in missing_timestamps:
-				print(values['overlays'])
-				values['overlays'][count][timestamp] = overlay.history[timestamp]
-			count += 1
-
-		count = 0
-		for study in chart.studies:
-			values['studies'].append({})
-			for timestamp in missing_timestamps:
-				values['studies'][count][timestamp] = study.history[timestamp]
-			count += 1
-
-		print(values)
-		return values
 
 	def isChartAvailable(self, chart_id):
 		availability_checker = self.driver.find_element(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'popup-container')]")
@@ -1260,67 +1212,202 @@ class Utilities:
 		except:
 			return False
 
+	def formatForBacktest(self, chart, start_timestamp, timestamps, ohlc):
+		if not start_timestamp % chart.timestamp_offset == 0:
+			start_timestamp -= start_timestamp % chart.timestamp_offset
+
+		offset = timestamps.index(start_timestamp)
+		timestamps = timestamps[offset:]
+
+		values = {'ohlc': {}, 'overlays': [], 'studies': []}
+
+		for timestamp in timestamps:
+			values['ohlc'][timestamp] = ohlc[timestamp]
+
+		ohlc = [i[1] for i in sorted(ohlc.items(), key=lambda kv: kv[0])]
+
+		count = 0
+		for overlay in chart.overlays:
+			values['overlays'].append({})
+
+			for timestamp in timestamps:
+				temp_ohlc = [
+					[i[0] for i in ohlc][:timestamps.index(timestamp) + offset + 1],
+					[i[1] for i in ohlc][:timestamps.index(timestamp) + offset + 1],
+					[i[2] for i in ohlc][:timestamps.index(timestamp) + offset + 1],
+					[i[3] for i in ohlc][:timestamps.index(timestamp) + offset + 1]
+				]
+
+				values['overlays'][count][timestamp] = overlay.getValue(temp_ohlc)
+
+			count += 1
+
+		count = 0
+		for study in chart.studies:
+			values['studies'].append({})
+			for timestamp in timestamps:
+				temp_ohlc = [
+					[i[0] for i in ohlc][:timestamps.index(timestamp) + offset + 1],
+					[i[1] for i in ohlc][:timestamps.index(timestamp) + offset + 1],
+					[i[2] for i in ohlc][:timestamps.index(timestamp) + offset + 1],
+					[i[3] for i in ohlc][:timestamps.index(timestamp) + offset + 1]
+				]
+
+				values['studies'][count][timestamp] = study.getValue(temp_ohlc)
+			count += 1
+
+		# print(values)
+		return values
+
 	def updateRecovery(self):
+		print("UPDATE RECOVERY")
+
 		values = {}
 
-		name = self.plan.__name__
+		dt = self.getAustralianTime()
+		dt = self.createAustralianTime(dt.year, dt.month, dt.day, 0, 0, 0)
+		print(dt)
 
 		for chart in self.charts:
-			values[chart.pair+"-"+str(chart.period)] = {
-				'timestamp': chart.getCurrentTimestamp(),
-				'ohlc': chart.ohlc,
-				'overlays': [],
-				'studies': []
-			}
 
-			for i in range(len(chart.overlays)):
-				values[chart.pair+"-"+str(chart.period)]['overlays'].append(chart.overlays[i].history.copy()) 
-			for j in range(len(chart.studies)):
-				values[chart.pair+"-"+str(chart.period)]['studies'].append(chart.studies[j].history.copy())
+			timestamp = self.utils.convertDateTimeToTimestamp(dt)
+			latest_timestamp = self.chart.getCurrentTimestamp()
 
-		with open('recover_'+name+'.json', 'w') as f:
+			while timestamp < latest_timestamp:
+				latest_timestamp -= self.chart.timestamp_offset
+
+			offset = timestamp % latest_timestamp
+			timestamp -= offset
+
+			barReader.getMissingBarDataByTimestamp(chart, timestamp)
+
+			cpy = chart.ohlc.copy()
+
+			for i in cpy:
+				if (int(i) < timestamp):
+					del cpy[i]
+
+			values = ohlc
+
+		with open('recovery/'+chart.pair+'-'+chart.period+'_'+dt.day+'-'+dt.month+'-'+dt.year+'.json', 'w') as f:
 			json.dump(values, f)
 
+
 	def getRecovery(self):
-		name = self.plan_name
+		print("GET RECOVERY")
+		
+		values = {}
+		new_values = {}
 
-		if (os.path.exists('recover_'+name+'.json')):
-			with open('recover_'+name+'.json', 'r') as f:
-				values = json.load(f)
+		dt = self.getAustralianTime()
+		dt = self.createAustralianTime(dt.year, dt.month, dt.day, 0, 0, 0)
 
-			print(values)
+		for chart in self.charts:
 
-			# if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 45):#! figure out better way
-			new_values = {}
-			for key in values:
+			req_timestamp = utils.startTime - (self.chart.timestamp_offset * 200)
+			req_dt = self.convertTimestampToTime(req_timestamp)
 
-				values[key]['ohlc'] = {int(k):v for k,v in values[key]['ohlc'].items()}
+			print("REQ DT: " + str(req_dt))
 
-				for i in range(len(values[key]['overlays'])):
-					values[key]['overlays'][i] = {int(k):v for k,v in values[key]['overlays'][i].items()}
+			all_timestamps = []
 
-				for j in range(len(values[key]['studies'])):
-					values[key]['studies'][j] = {int(k):v for k,v in values[key]['studies'][j].items()}
+			while req_dt.day <= dt.day:
 
-				pair = key.split('-')[0]
-				period = int(key.split('-')[1])
-				chart = self.getChart(pair, period)
-				# print(str(key), values[key]['ohlc'])
-				latest_timestamp = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=True)][0]
+				if (os.path.exists('recovery/'+chart.pair+'-'+chart.period+'_'+req_dt.day+'-'+req_dt.month+'-'+req_dt.year+'.json')):
+					with open('recovery/'+chart.pair+'-'+chart.period+'_'+req_dt.day+'-'+req_dt.month+'-'+req_dt.year+'.json', 'r') as f:
+						values = json.load(f)
+				else:
+					req_dt += datetime.deltatime(days=1)
+					continue
 
-				missing_timestamps = self.barReader.getMissingBarDataByTimestamp(chart, latest_timestamp)
-				chart_values = self.formatForRecover(chart, missing_timestamps)
-				values[key]['ohlc'] = {**values[key]['ohlc'], **chart_values['ohlc']}
+				values = {int(k):v for k,v in values[chart.pair+"-"+str(chart.period)].items()}
 
-				for i in range(len(values[key]['overlays'])):
-					values[key]['overlays'][i]  = {**values[key]['overlays'][i], **chart_values['overlays'][i]}
+				sorted_timestamps = [i[0] for i in sorted(values.items(), key=lambda kv: kv[0], reverse=True)]
 
-				for j in range(len(values[key]['studies'])):
-					values[key]['studies'][j] = {**values[key]['studies'][j], **chart_values['studies'][j]}
+				all_timestamps += sorted_timestamps
 
-				# print(values[key])
+				index = 0
+				for i in sorted_timestamps:
 
-			self.backtester.recover(values)
+					for overlay in chart.overlays:
+						overlay.insertValues(i, ohlc[:index])
+					for study in chart.studies:
+						study.insertValues(i, ohlc[:index])
+
+				index += 1
+				req_dt += datetime.deltatime(days=1)
+
+			latest_timestamp = sorted_timestamps[0]
+
+			missing_timestamps = self.barReader.getMissingBarDataByTimestamp(chart, latest_timestamp)
+			chart_values = self.formatForRecover(chart, all_timestamps + missing_timestamps)
+			new_values = {**new_values, **chart_values}
+
+		print(new_values)
+		# self.backtester.recover(new_values)
+
+
+	# def updateRecovery(self):
+	# 	values = {}
+
+	# 	name = self.plan.__name__
+
+	# 	for chart in self.charts:
+	# 		values[chart.pair+"-"+str(chart.period)] = {
+	# 			'timestamp': chart.getCurrentTimestamp(),
+	# 			'ohlc': chart.ohlc,
+	# 			'overlays': [],
+	# 			'studies': []
+	# 		}
+
+	# 		for i in range(len(chart.overlays)):
+	# 			values[chart.pair+"-"+str(chart.period)]['overlays'].append(chart.overlays[i].history.copy()) 
+	# 		for j in range(len(chart.studies)):
+	# 			values[chart.pair+"-"+str(chart.period)]['studies'].append(chart.studies[j].history.copy())
+
+	# 	with open('recover_'+name+'.json', 'w') as f:
+	# 		json.dump(values, f)
+
+	# def getRecovery(self):
+	# 	name = self.plan_name
+
+	# 	if (os.path.exists('recover_'+name+'.json')):
+	# 		with open('recover_'+name+'.json', 'r') as f:
+	# 			values = json.load(f)
+
+	# 		print(values)
+
+	# 		# if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 45):#! figure out better way
+	# 		new_values = {}
+	# 		for key in values:
+
+	# 			values[key]['ohlc'] = {int(k):v for k,v in values[key]['ohlc'].items()}
+
+	# 			for i in range(len(values[key]['overlays'])):
+	# 				values[key]['overlays'][i] = {int(k):v for k,v in values[key]['overlays'][i].items()}
+
+	# 			for j in range(len(values[key]['studies'])):
+	# 				values[key]['studies'][j] = {int(k):v for k,v in values[key]['studies'][j].items()}
+
+	# 			pair = key.split('-')[0]
+	# 			period = int(key.split('-')[1])
+	# 			chart = self.getChart(pair, period)
+	# 			# print(str(key), values[key]['ohlc'])
+	# 			latest_timestamp = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=True)][0]
+
+	# 			missing_timestamps = self.barReader.getMissingBarDataByTimestamp(chart, latest_timestamp)
+	# 			chart_values = self.formatForRecover(chart, missing_timestamps)
+	# 			values[key]['ohlc'] = {**values[key]['ohlc'], **chart_values['ohlc']}
+
+	# 			for i in range(len(values[key]['overlays'])):
+	# 				values[key]['overlays'][i]  = {**values[key]['overlays'][i], **chart_values['overlays'][i]}
+
+	# 			for j in range(len(values[key]['studies'])):
+	# 				values[key]['studies'][j] = {**values[key]['studies'][j], **chart_values['studies'][j]}
+
+	# 			# print(values[key])
+
+	# 		self.backtester.recover(values)
 
 			# else:
 			# 	os.remove('recover.json')

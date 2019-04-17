@@ -248,7 +248,7 @@ class Start(object):
 
 		self.isDowntime = True
 		
-		self.utils.getRecovery()
+		# self.utils.getRecovery()
 
 		self.utils.getAllOpenPositions()
 

@@ -127,14 +127,18 @@ class BarReader(object):
 		for chart in self.utils.charts:
 			latest_timestamp = chart.getCurrentTimestamp(debug=True)
 			req_timestamps = []
-			current_timestamp = start
+
+			if len(chart.overlays) > 0 or len(chart.studies) >  0:
+				current_timestamp = start - 120 * chart.timestamp_offset
+			else:
+				current_timestamp = start
 
 			comp_timestamp = latest_timestamp
 			while current_timestamp < comp_timestamp:
 				comp_timestamp -= chart.timestamp_offset
 
 			offset = current_timestamp % comp_timestamp
-			print("offset:", str(offset))
+			
 			current_timestamp -= offset
 
 			while current_timestamp <= end:

@@ -25,6 +25,12 @@ ONE_DAY = 20
 ONE_WEEK = 21
 ONE_MONTH = 22
 
+# Period stored data sizes
+STORAGE_DAY = lambda period: period <= ONE_HOUR
+STORAGE_WEEK = lambda period: ONE_HOUR < period <= FOUR_HOURS
+STORAGE_MONTH = lambda period: FOUR_HOURS < period <= ONE_DAY
+STORAGE_YEAR = lambda period: period >= ONE_WEEK
+
 # Order type constants
 ORDER_TYPE = 'ORDER_TYPE'
 MARKET = 'MARKET'
