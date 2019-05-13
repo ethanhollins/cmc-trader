@@ -170,6 +170,24 @@ class Backtester(object):
 				return func(*args, **kwargs)
 		return wrapper
 
+	def time_redirect_backtest(func):
+		def wrapper(*args, **kwargs):
+			self = args[0]
+			if (not state == State.NONE):
+				return self.backtester.getTime(current_timestamp, args[1])
+			else:
+				return func(*args, **kwargs)
+		return wrapper
+
+	def new_york_time_redirect_backtest(func):
+		def wrapper(*args, **kwargs):
+			self = args[0]
+			if (not state == State.NONE):
+				return self.backtester.getNewYorkTime(current_timestamp)
+			else:
+				return func(*args, **kwargs)
+		return wrapper
+
 	def london_time_redirect_backtest(func):
 		def wrapper(*args, **kwargs):
 			self = args[0]
@@ -274,7 +292,7 @@ class Backtester(object):
 
 		runBacktest(filename)
 
-
+ 
 	def backtest(self, values):
 		global state, pair, current_timestamp, sorted_timestamps
 		state = State.BACKTEST
@@ -300,7 +318,8 @@ class Backtester(object):
 
 			time = self.getLondonTime(timestamp)
 
-			self.utils.setTradeTimes(currentTime = time)
+			if self.down_time:
+				self.utils.setTradeTimes(currentTime = time)
 
 			self.checkStopLoss()
 			self.checkTakeProfit()
@@ -342,16 +361,15 @@ class Backtester(object):
 
 		real_time = self.utils.getLondonTime()
 
-		# self.utils.setTradeTimes(currentTime = real_time)
-		print(str(self.utils.startTime), str(self.utils.endTime))
-
+		# if self.down_time:
+		# 	self.utils.setTradeTimes(currentTime = real_time)
+			
 		for timestamp in sorted_timestamps:
 			print(timestamp)
 
 			if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
 				
 				current_timestamp = timestamp
-				
 
 				self.insertValuesByTimestamp(timestamp, chart, values[key]['ohlc'], values[key]['overlays'], values[key]['studies'])
 				
@@ -396,6 +414,18 @@ class Backtester(object):
 		
 		return time.astimezone(tz)
 
+	def getNewYorkTime(self, timestamp):
+		time = self.getAustralianTime(timestamp)
+		tz = pytz.timezone('America/New_York')
+		
+		return time.astimezone(tz)
+
+	def getTime(self, timestamp, timezone):
+		time = self.getAustralianTime(timestamp)
+		tz = pytz.timezone(timezone)
+		
+		return time.astimezone(tz)
+
 	def runMainLoop(self, time):
 
 		if (self.utils.isTradeTime(currentTime = time) or len(self.utils.positions) > 0):
@@ -426,7 +456,7 @@ class Backtester(object):
 			try:
 				self.plan.onNewBar()
 			except AttributeError as e:
-				# print(str(e), "continuing...")
+				print(str(e), "continuing...")
 				print(traceback.format_exc())
 				pass
 			except Exception as e:

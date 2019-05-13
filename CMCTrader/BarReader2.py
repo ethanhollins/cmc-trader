@@ -129,7 +129,7 @@ class BarReader(object):
 			req_timestamps = []
 
 			if len(chart.overlays) > 0 or len(chart.studies) >  0:
-				current_timestamp = start - 120 * chart.timestamp_offset
+				current_timestamp = start - 80 * chart.timestamp_offset
 			else:
 				current_timestamp = start
 

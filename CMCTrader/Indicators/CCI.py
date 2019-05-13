@@ -47,3 +47,17 @@ class CCI(object):
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]
+
+	def getSignalLine(self, period, shift, amount):
+		vals = self.get(shift, amount + period)
+		result = []
+		for i in range(amount):
+			offset = i
+			avg_sum = 0
+			for j in range(period):
+				avg_sum += vals[offset + j][0]
+			result.append(avg_sum/period)
+			offset += 1
+
+		return result
+

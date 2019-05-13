@@ -851,11 +851,12 @@ class Utilities:
 		tz = pytz.timezone('Europe/London')
 		return datetime.datetime.now(tz = tz)
 
-	@Backtester.london_time_redirect_backtest
+	@Backtester.new_york_time_redirect_backtest
 	def getNewYorkTime(self):
 		tz = pytz.timezone('America/New_York')
 		return datetime.datetime.now(tz = tz)
 
+	@Backtester.time_redirect_backtest
 	def getTime(self, timezone):
 		tz = pytz.timezone(timezone)
 		return datetime.datetime.now(tz = tz)
@@ -898,6 +899,17 @@ class Utilities:
 					second = seconds
 				))
 
+	def createTime(self, year, month, day, hours, mins, seconds, timezone):
+		tz = pytz.timezone(timezone)
+		return tz.localize(datetime.datetime(
+					year = year,
+					month = month,
+					day = day,
+					hour = hours,
+					minute = mins,
+					second = seconds
+				))
+
 	def convertDateTimeToTimestamp(self, now):
 		tz = pytz.timezone('Australia/Melbourne')
 
@@ -923,37 +935,61 @@ class Utilities:
 	def setTradeTimes(self, currentTime = None):
 		if 'START_TIME' in self.plan.VARIABLES.keys() and 'END_TIME' in self.plan.VARIABLES.keys():
 
-			if not currentTime:
-				if 'TIMEZONE' in self.plan.VARIABLES.keys():
-					time = self.getTime(self.plan.VARIABLES['TIMEZONE'])
-					currentTime = self.convertTimezone(time, 'Europe/London')
-				else:
-					currentTime = self.getLondonTime()
-
 			startTimeParts = self.plan.VARIABLES['START_TIME'].split(':')
 			endTimeParts = self.plan.VARIABLES['END_TIME'].split(':')
 
-			self.startTime = self.createLondonTime(
-					currentTime.year,
-					currentTime.month,
-					currentTime.day,
-					int(startTimeParts[0]),
-					int(startTimeParts[1]),
-					0
-				)
+			if 'TIMEZONE' in self.plan.VARIABLES.keys():
+				if not currentTime:
+					time = self.getTime(self.plan.VARIABLES['TIMEZONE'])
+					currentTime = self.convertTimezone(time, 'Europe/London')
+				
+				self.startTime = self.createTime(
+						currentTime.year,
+						currentTime.month,
+						currentTime.day,
+						int(startTimeParts[0]),
+						int(startTimeParts[1]),
+						0,
+						self.plan.VARIABLES['TIMEZONE']
+					)
+				self.startTime = self.convertTimezone(self.startTime, 'Europe/London')
 
-			self.endTime = self.createLondonTime(
-					currentTime.year,
-					currentTime.month,
-					currentTime.day,
-					int(endTimeParts[0]),
-					int(endTimeParts[1]),
-					0
-				)
+				self.endTime = self.createTime(
+						currentTime.year,
+						currentTime.month,
+						currentTime.day,
+						int(endTimeParts[0]),
+						int(endTimeParts[1]),
+						0,
+						self.plan.VARIABLES['TIMEZONE']
+					)
+				self.endTime = self.convertTimezone(self.endTime, 'Europe/London')
+			
+			else:
+				if not currentTime:
+					currentTime = self.getLondonTime()
+
+				self.startTime = self.createLondonTime(
+						currentTime.year,
+						currentTime.month,
+						currentTime.day,
+						int(startTimeParts[0]),
+						int(startTimeParts[1]),
+						0
+					)
+
+				self.endTime = self.createLondonTime(
+						currentTime.year,
+						currentTime.month,
+						currentTime.day,
+						int(endTimeParts[0]),
+						int(endTimeParts[1]),
+						0
+					)
 
 			if (self.startTime > self.endTime):
 
-				if (self.startTime - datetime.timedelta(days=1) < currentTime < self.endTime):
+				if (self.startTime - datetime.timedelta(days=1) <= currentTime < self.endTime):
 					self.startTime -= datetime.timedelta(days=1)
 				else:
 					self.endTime += datetime.timedelta(days=1)
@@ -1340,11 +1376,11 @@ class Utilities:
 			latest_timestamp = sorted_timestamps[0]
 
 			missing_timestamps = self.barReader.getMissingBarDataByTimestamp(chart, latest_timestamp)
-			chart_values = self.formatForRecover(chart, all_timestamps + missing_timestamps)
+			chart_values = self.formatForRecover(chart, self.getEarliestTimestamp(all_timestamps + missing_timestamps), all_timestamps + missing_timestamps, values[chart.pair+"-"+str(chart.period)])
 			new_values = {**new_values, **chart_values}
 
 		print(new_values)
-		# self.backtester.recover(new_values)
+		self.backtester.recover(new_values)
 
 
 	# def updateRecovery(self):
