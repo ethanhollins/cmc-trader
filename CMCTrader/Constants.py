@@ -31,6 +31,24 @@ STORAGE_WEEK = lambda period: ONE_HOUR < period <= FOUR_HOURS
 STORAGE_MONTH = lambda period: FOUR_HOURS < period <= ONE_DAY
 STORAGE_YEAR = lambda period: period >= ONE_WEEK
 
+def getMonthSeconds():
+	now = datetime.datetime.now()
+	dt = datetime.datetime(year=now.year, month=now.month, day=now.day)
+	if now.day == 1:
+		return (dt - (dt - datetime.timedelta(days=1))).total_seconds()
+	else:
+		return (dt - datetime.datetime(year=now.year, month=now.month-1, day=now.day)).total_seconds()
+
+def getYearSeconds():
+	now = datetime.datetime.now()
+	dt = datetime.datetime(year=now.year, month=now.month, day=now.day)
+	return (dt - datetime.datetime(year=now.year-1, month=now.month, day=now.day)).total_seconds()
+
+STORAGE_DAY_SECONDS = datetime.timedelta(days=1).total_seconds()
+STORAGE_WEEK_SECONDS = datetime.timedelta(weeks=1).total_seconds()
+STORAGE_MONTH_SECONDS = getMonthSeconds()
+STORAGE_YEAR_SECONDS = getYearSeconds()
+
 # Order type constants
 ORDER_TYPE = 'ORDER_TYPE'
 MARKET = 'MARKET'

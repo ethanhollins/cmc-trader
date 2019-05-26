@@ -16,7 +16,7 @@ def init(utilities):
 
 	utils = utilities
 
-	utils.getChart(Constants.GBPUSD, Constants.ONE_MINUTE)
+	rsi = utils.RSI(Constants.GBPUSD, Constants.ONE_MINUTE, 10)
 
 def onLoop():
 	return
@@ -24,18 +24,18 @@ def onLoop():
 def onNewBar():
 	print("onNewBar\n")
 
-	utils.buy(400)
-	pos_one = utils.sell(400)
-	print(utils.positions)
-	pos_two = utils.buy(400)
-	print(utils.positions)
+	# utils.buy(400)
+	# pos_one = utils.sell(400)
+	# print(utils.positions)
+	# pos_two = utils.buy(400)
+	# print(utils.positions)
 
-	pos_two.close()
-	print(utils.positions)
+	# pos_two.close()
+	# print(utils.positions)
 
-	pos_one.modifyTP(100)
+	# pos_one.modifyTP(100)
 
-	pos_one.apply()
+	# pos_one.apply()
 	# 	pos.modifyTP(20)
 	# 	pos.modifySL(20)
 	# 	pos.apply()

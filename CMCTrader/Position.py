@@ -34,9 +34,20 @@ def close_redirect(func):
 
 			self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.CLOSE, bt.current_timestamp, args = args, kwargs = kwargs))
 
+			self.closeprice = self.utils.getBid(self.pair)
+			self.closeTime = self.utils.getAustralianTime()
+
 			self.utils.closedPositions.append(self)
 			del self.utils.positions[self.utils.positions.index(self)]
-				
+		
+		elif self.isDummy:
+
+			self.closeprice = self.utils.getBid(self.pair)
+			self.closeTime = self.utils.getAustralianTime()
+
+			self.utils.closedPositions.append(self)
+			del self.utils.positions[self.utils.positions.index(self)]
+
 		else:
 			print("IS NONE")
 			return func(*args, **kwargs)
@@ -74,7 +85,20 @@ def stopandreverse_redirect(func):
 				pos = self.utils.buy(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
 
 			return pos
-			
+		
+		elif self.isDummy:
+
+			self.closeprice = self.utils.getBid(self.pair)
+			self.closeTime = self.utils.getAustralianTime()
+
+			self.utils.closedPositions.append(self)
+			del self.utils.positions[self.utils.positions.index(self)]
+
+			if self.direction == 'buy':
+				pos = self.utils.sell(int(args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
+			else:
+				pos = self.utils.buy(int(args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
+
 		else:
 			return func(*args, **kwargs)
 	return wrapper
@@ -108,6 +132,10 @@ def function_redirect(func):
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
 
 			self.utils.backtester.actions.append(bt.Action(self, action, bt.current_timestamp, args = args, kwargs = kwargs))
+		
+		elif self.isDummy:
+			return
+
 		else:
 			return func(*args, **kwargs)
 	return wrapper
@@ -120,6 +148,8 @@ def apply_redirect(func):
 		elif self.utils.backtester.isRecover():
 			self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.APPLY, bt.current_timestamp, args = args, kwargs = kwargs))
 			return True
+		elif self.isDummy:
+			return
 		else:
 			return func(*args, **kwargs)
 	return wrapper
@@ -140,10 +170,26 @@ def breakeven_redirect_backtest(func):
 					self.sl = self.entryprice
 				elif (self.utils.getAsk(self.pair) > self.entryprice):
 					self.tp = self.entryprice
+
 		elif self.utils.backtester.isRecover():
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
 			if bt.current_timestamp > latest_history_timestamp:
 				self.utils.backtester.actions.append(bt.Action(self, bt.ActionType.BREAKEVEN, bt.current_timestamp, args = args, kwargs = kwargs))
+		
+		elif self.isDummy:
+			
+			if (self.direction == 'buy'):
+				if (self.utils.getBid(self.pair) > self.entryprice):
+					self.sl = self.entryprice
+				elif (self.utils.getBid(self.pair) < self.entryprice):
+					self.tp = self.entryprice
+
+			elif (self.direction == 'sell'):
+				if (self.utils.getAsk(self.pair) < self.entryprice):
+					self.sl = self.entryprice
+				elif (self.utils.getAsk(self.pair) > self.entryprice):
+					self.tp = self.entryprice
+
 		else:
 			return func(*args, **kwargs)
 	return wrapper
@@ -218,6 +264,7 @@ class Position(object):
 		self.modifyTicketElements = None
 
 		self.isTemp = False
+		self.isDummy = False
 
 		global this_pos
 		this_pos = self

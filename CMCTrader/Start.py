@@ -245,10 +245,9 @@ class Start(object):
 			self.plan.init(self.utils)
 		except AttributeError as e:
 			pass
-
-		self.isDowntime = True
-		
-		# self.utils.getRecovery()
+		self.utils.updateRecovery()
+		# if not self.utils.is_backtest and not self.utils.manualChartReading:
+		# 	self.utils.getRecovery()
 
 		self.utils.getAllOpenPositions()
 
@@ -284,9 +283,12 @@ class Start(object):
 
 	def functionCalls(self):
 		while (True):
-			if (not self.utils.isStopped):
+			if not self.utils.isStopped:
 				self.utils.isLive = True
 				try:
+					if self.utils.isWeekendTime(self.utils.getAustralianTime()):
+						continue
+
 					# self.timedRestart()
 					self.checkIfInApp()
 					# try:
@@ -316,20 +318,20 @@ class Start(object):
 								chart = self.utils.getChart(pair, period)
 
 								if len(missing_timestamps[key]) > 1:
-									chart_values = self.utils.formatForRecover(chart, missing_timestamps[key])
-									values[key] = chart_values
+									chart_values = self.utils.formatForBacktest(chart, self.utils.getEarliestTimestamp(missing_timestamps[key]), missing_timestamps[key])
+									values = chart_values
 
 							if len(values) > 0:
 								print("recover")
 								self.utils.backtester.recover(values)
 							else:
 								if (self.utils.isTradeTime() or len(self.utils.positions) > 0):
-									if (self.isDowntime):
+									if (self.utils.is_downtime):
 										try:
 											self.plan.onStartTrading()
 										except AttributeError as e:
 											pass
-										self.isDowntime = False
+										self.utils.is_downtime = False
 
 									# try:
 									self.plan.onNewBar()
@@ -348,7 +350,7 @@ class Start(object):
 									except AttributeError as e:
 										pass
 										
-									if (not self.isDowntime):
+									if (not self.utils.is_downtime):
 										try:
 											self.plan.onFinishTrading()
 										except AttributeError as e:
@@ -356,7 +358,7 @@ class Start(object):
 										if (len(self.utils.closedPositions) > 0):
 											# for pos in closedPositions:
 											self.utils.closedPositions = []
-										self.isDowntime = True
+										self.utils.is_downtime = True
 
 							
 							self.utils.updateRecovery()
@@ -378,6 +380,9 @@ class Start(object):
 				if (self.utils.manualChartReading):
 					self.utils.isLive = False
 					self.utils.backtester.manual()
+				elif (self.utils.is_backtest):
+					self.utils.isLive = False
+					self.utils.backtester.runBacktest()
 
 	def needsUpdate(self):
 

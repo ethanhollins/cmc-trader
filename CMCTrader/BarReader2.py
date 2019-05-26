@@ -77,7 +77,9 @@ class BarReader(object):
 		missing_timestamps = []
 
 		while (current_timestamp <= latest_timestamp):
-			if not current_timestamp in ohlc_timestamps:
+			dt = self.utils.setTimezone(self.utils.convertTimestampToTime(current_timestamp), 'Australia/Melbourne')
+			self.utils.setWeekendTime(dt)
+			if not current_timestamp in ohlc_timestamps and not self.utils.isWeekendTime(dt):
 				missing_timestamps.append(current_timestamp)
 
 			current_timestamp += chart.timestamp_offset
@@ -88,6 +90,7 @@ class BarReader(object):
 		if latest_timestamp > chart.latest_timestamp:
 			chart.latest_timestamp = latest_timestamp
 		
+		self.utils.setWeekendTime(self.utils.getAustralianTime())
 		return missing_timestamps
 
 	@Backtester.skip_on_backtest
@@ -108,7 +111,9 @@ class BarReader(object):
 		current_timestamp -= offset
 
 		while current_timestamp <= latest_timestamp:
-			if not current_timestamp in ohlc_timestamps:
+			dt = self.utils.setTimezone(self.utils.convertTimestampToTime(current_timestamp), 'Australia/Melbourne')
+			self.utils.setWeekendTime(dt)
+			if not current_timestamp in ohlc_timestamps and not self.utils.isWeekendTime(dt):
 				missing_timestamps.append(current_timestamp)
 
 			current_timestamp += chart.timestamp_offset
@@ -119,6 +124,7 @@ class BarReader(object):
 		if latest_timestamp > chart.latest_timestamp:
 			chart.latest_timestamp = latest_timestamp
 
+		self.utils.setWeekendTime(self.utils.getAustralianTime())
 		return missing_timestamps
 
 	def getBarDataByStartEndTimestamp(self, start, end):
@@ -145,8 +151,8 @@ class BarReader(object):
 				req_timestamps.append(current_timestamp)
 				current_timestamp += chart.timestamp_offset
 
-			self.getBarDataByTimestamp(chart, req_timestamps)
-			missing_timestamps[chart.pair+"-"+str(chart.period)] = req_timestamps
+			found_timestamps = self.getBarDataByTimestamp(chart, req_timestamps)
+			missing_timestamps[chart.pair+"-"+str(chart.period)] = found_timestamps
 
 		return missing_timestamps
 
@@ -154,14 +160,25 @@ class BarReader(object):
 		chart.reloadData()
 		chart.resetZoom()
 
+		found_timestamps = []
+
 		for timestamp in sorted(timestamps):
-			self.performBarRead(chart, timestamp)
+			if self.performBarRead(chart, timestamp):
+				found_timestamps.append(timestamp)
+
+		return found_timestamps
 
 	def performBarRead(self, chart, timestamp):
 			
-		index = chart.getDataPointsLength()-2 - chart.getRealBarOffset(timestamp)
+		index = chart.getDataPointsLength()-1 - chart.getRealBarOffset(timestamp)
 		if index < 0:
-			index = 0
+			index = chart.getOppositeRealBarOffset(timestamp)
+			
+			if index < 0:
+				index = 0
+			elif index > chart.getDataPointsLength()-1:
+				index = chart.getDataPointsLength()-1
+
 		elif index > chart.getDataPointsLength()-1:
 			index = chart.getDataPointsLength()-1
 
@@ -171,11 +188,19 @@ class BarReader(object):
 		passed_back = False
 
 		while not dp_timestamp == timestamp:
-			dp_timestamp = chart.getTimestampFromDataPoint(index)
+			try:
+				dp_timestamp = chart.getTimestampFromDataPoint(index)
+			except:
+				if index < 0:
+					index = 0
+				elif index > chart.getDataPointsLength()-1:
+					index = chart.getDataPointsLength()-1
+
+				break
 
 			if passed_fwd and passed_back:
 				print("Bar doesn't exist,", str(timestamp))
-				break
+				return False
 
 			if dp_timestamp > timestamp:
 				passed_fwd = True
@@ -208,6 +233,8 @@ class BarReader(object):
 		
 		if len(chart.studies) > 0:
 			img = self._getStudyData(chart, img, timestamp, index, data_points, offset)
+
+		return True
 
 	def _getOverlayData(self, chart, img, timestamp, bar_index, data_points, offset):
 

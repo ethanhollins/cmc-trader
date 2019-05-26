@@ -101,7 +101,7 @@ class SAR_M(object):
 		ohlcVals = [i[1] for i in sorted(self.chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)]
 		boolList = []
 		for i in range(amount):
-			if (sarVals[i + shift] <= ohlcVals[i + shift][2]):
+			if (sarVals[i + shift] < ohlcVals[i + shift][1]):
 				boolList.append(True)
 			else:
 				boolList.append(False)
@@ -115,7 +115,7 @@ class SAR_M(object):
 		ohlcVals = [i[1] for i in sorted(self.chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)]
 		boolList = []
 		for i in range(amount):
-			if (sarVals[i + shift] >= ohlcVals[i + shift][1]):
+			if (sarVals[i + shift] > ohlcVals[i + shift][2]):
 				boolList.append(True)
 			else:
 				boolList.append(False)

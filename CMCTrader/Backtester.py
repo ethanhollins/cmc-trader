@@ -6,6 +6,8 @@ import traceback
 import datetime
 import time as t
 
+from CMCTrader import Constants
+
 class State(Enum):
 	NONE = 1
 	RECOVER = 2
@@ -222,6 +224,90 @@ class Backtester(object):
 				return func(*args, **kwargs)
 		return wrapper
 
+	def runBacktest(self):
+
+		''' Get Times '''
+		conf = ""
+		while not conf.lower() == "y":
+			startDate = input("Start Date: ")
+			startTime = input("Start Time: ")
+			conf = input("(Y/n): ")
+
+		conf = ""
+		while not conf.lower() == "y":
+			endDate = input("End Date: ")
+			endTime = input("End Time: ")
+			conf = input("(Y/n): ")
+
+		parts = startDate.split('/')
+		day = parts[0]
+		month = parts[1]
+		parts = startTime.split(':')
+		startTime = self.utils.convertTimeToTimestamp(int(day), int(month), int(parts[0]), int(parts[1]))
+
+		parts = endDate.split('/')
+		day = parts[0]
+		month = parts[1]
+		parts = endTime.split(':')
+		endTime = self.utils.convertTimeToTimestamp(int(day), int(month), int(parts[0]), int(parts[1]))
+
+		start_time = self.utils.convertTimestampToTime(startTime)
+		end_time = self.utils.convertTimestampToTime(endTime)
+
+		''' Perform data collection '''
+		values = {}
+		backtest_values = {}
+		for chart in self.utils.charts:
+			dt = start_time
+			while dt < end_time:
+				if (os.path.exists('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json')):
+					with open('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json', 'r') as f:
+						values = json.load(f)
+						chart.ohlc = {**chart.ohlc, **values}
+				else:
+					print("WARNING:", str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year), +"file was not found.")
+
+				if Constants.STORAGE_DAY(chart.period):
+					dt += datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
+
+				elif Constants.STORAGE_WEEK(chart.period):
+					dt += datetime.timedelta(seconds=Constants.STORAGE_WEEK_SECONDS)
+
+				elif Constants.STORAGE_MONTH(chart.period):
+					dt += datetime.timedelta(seconds=Constants.STORAGE_MONTH_SECONDS)
+
+				elif Constants.STORAGE_YEAR(chart.period):
+					dt += datetime.timedelta(seconds=Constants.STORAGE_YEAR_SECONDS)
+
+			chart.ohlc = {int(k):v for k,v in chart.ohlc.items()}
+
+			chart_timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0])]
+
+			sorted_ohlc = [[],[],[],[]]
+			for i in [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0])]:
+				sorted_ohlc[0].append(i[0])
+				sorted_ohlc[1].append(i[1])
+				sorted_ohlc[2].append(i[2])
+				sorted_ohlc[3].append(i[3])
+
+			index = 0
+			for i in chart_timestamps:
+
+				if index > 80:
+					for overlay in chart.overlays:
+						overlay.insertValues(i, sorted_ohlc[:index])
+					for study in chart.studies:
+						study.insertValues(i, sorted_ohlc[:index])
+
+				index += 1
+
+			key = chart.pair + '-' + str(chart.period)
+			backtest_values[key] = self.utils.formatForBacktest(chart, self.utils.convertDateTimeToTimestamp(start_time), chart_timestamps)
+
+		name = self.utils.plan_name
+		print(backtest_values)
+		self.backtest(backtest_values)
+
 	def manual(self):
 
 		def runBacktest(filename):
@@ -230,8 +316,6 @@ class Backtester(object):
 			if (os.path.exists(filename + '.json')):
 				with open(filename + '.json', 'r') as f:
 					values = json.load(f)
-
-				# if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 45):#! figure out better way
 
 				for key in values:
 
@@ -355,8 +439,8 @@ class Backtester(object):
 		period = chart.period
 		key = '-'.join([pair, str(period)])
 
-		sorted_timestamps = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=False)]
-		print(sorted_timestamps)
+		sorted_timestamps = [i[0] for i in sorted(values['ohlc'].items(), key=lambda kv: kv[0], reverse=False)]
+
 		self.removeTimestampsUntil(chart, sorted_timestamps[0])
 
 		real_time = self.utils.getLondonTime()
@@ -365,42 +449,71 @@ class Backtester(object):
 		# 	self.utils.setTradeTimes(currentTime = real_time)
 			
 		for timestamp in sorted_timestamps:
-			print(timestamp)
 
-			if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
+			# if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
 				
-				current_timestamp = timestamp
+			current_timestamp = timestamp
 
-				self.insertValuesByTimestamp(timestamp, chart, values[key]['ohlc'], values[key]['overlays'], values[key]['studies'])
-				
-				time = self.getLondonTime(timestamp)
+			self.insertValuesByTimestamp(timestamp, chart, values['ohlc'], values['overlays'], values['studies'])
+			
+			time = self.getLondonTime(timestamp)
 
-				self.checkStopLoss()
-				self.checkTakeProfit()
-				
-				self.runMainLoop(time)
+			self.checkStopLoss()
+			self.checkTakeProfit()
+			
+			self.runMainLoop(time)
 
 		state = State.NONE
 
-		self.resetTempPositions()
-
-		position_logs = self.getPositionLogs()
-
-		for log in position_logs:
-			print("LOG:", str(log)) 
-			self.history.append(log)
-			self.utils.updateEvent(log, run_callback_funcs = False)
-
-			print("posees")
-			print(self.utils.positions)
-			print(self.utils.closedPositions)
-
-		print("posees")
-		print(self.utils.positions)
-		print(self.utils.closedPositions)
+		print("POSITIONS:", str(self.utils.positions))
+		print("CLOSED POSITIONS:", str(self.utils.closedPositions))
 
 		if self.utils.isLive:
+			self.resetTempPositions()
+
+			position_logs = self.getPositionLogs()
+
+			for log in position_logs:
+				print("LOG:", str(log)) 
+				self.history.append(log)
+				self.utils.updateEvent(log, run_callback_funcs = False)
+
+				print("posees")
+				print(self.utils.positions)
+				print(self.utils.closedPositions)
+
 			self.updatePositions()
+		else:
+			for order_id in self.utils.positionLog.getCurrentPositions():
+				history = self.utils.historyLog.getHistoryByOrderId(order_id)
+
+				for event in history:
+					self.utils.updateEvent(event, run_callback_funcs=False)
+				
+				new_pos = None
+				for pos in self.utils.positions:
+					if pos.orderID == order_id:
+						new_pos = pos
+
+				pos_found = False
+				if new_pos and new_pos.openTime >= self.utils.convertDateTimeToTimestamp(self.utils.startTime):
+					for pos in self.utils.positions:
+						if pos.direction == new_pos.direction and pos.isTemp:
+							print("pos found")
+							pos_found = True
+							del self.utils.positions[self.utils.positions.index(pos)]
+					
+					if not pos_found:
+						print("pos not found")
+						new_pos.close()
+
+			for pos in self.utils.positions + self.utils.closedPositions:
+				if pos.isTemp:
+					pos.isTemp = False
+					pos.isDummy = True
+
+		print("POSITIONS:", str(self.utils.positions))
+		print("CLOSED POSITIONS:", str(self.utils.closedPositions))
 
 	def getAustralianTime(self, timestamp):
 		time = self.utils.convertTimestampToTime(timestamp)
@@ -432,6 +545,7 @@ class Backtester(object):
 			
 			if (self.down_time):
 				try:
+					self.utils.is_downtime = False
 					self.plan.onStartTrading()
 				except AttributeError as e:
 					print(str(e), "continuing...")
@@ -538,18 +652,22 @@ class Backtester(object):
 		for timestamp in reverse_sorted_timestamps:
 
 			if timestamp >= until:
-				del chart.ohlc[timestamp]
+				if timestamp in chart.ohlc:
+					del chart.ohlc[timestamp]
 				
 				for overlay in chart.overlays:
-					del overlay.history[timestamp]
+					if timestamp in overlay.history:
+						del overlay.history[timestamp]
 				for study in chart.studies:
-					del study.history[timestamp]
+					if timestamp in study.history:
+						del study.history[timestamp]
 			else:
 				break
 
 	def insertValuesByTimestamp(self, timestamp, chart, ohlc, overlays, studies):
 		chart.ohlc[timestamp] = ohlc[timestamp]
 
+		print(len(overlays))
 		for i in range(len(overlays)):
 
 			history = chart.overlays[i].history
@@ -559,7 +677,6 @@ class Backtester(object):
 				history[timestamp] = indicator[timestamp]
 			else:
 				earliest_timestamp = [i[0] for i in sorted(indicator.items(), key=lambda kv:kv[0])][0]
-				print(earliest_timestamp)
 				current_timestamp = timestamp - chart.timestamp_offset
 				while current_timestamp >= earliest_timestamp:
 					if current_timestamp in indicator:
@@ -568,7 +685,7 @@ class Backtester(object):
 					current_timestamp -= chart.timestamp_offset
 
 				if current_timestamp < earliest_timestamp:
-					raise Exception("Could not find suitable replacement overlay value for", str(timestamp))
+					continue
 
 		for j in range(len(studies)):
 
@@ -579,7 +696,6 @@ class Backtester(object):
 				history[timestamp] = indicator[timestamp]
 			else:
 				earliest_timestamp = [i[0] for i in sorted(indicator.items(), key=lambda kv:kv[0])][0]
-				print(earliest_timestamp)
 				current_timestamp = timestamp - chart.timestamp_offset
 				while current_timestamp >= earliest_timestamp:
 					if current_timestamp in indicator:
@@ -588,7 +704,7 @@ class Backtester(object):
 					current_timestamp -= chart.timestamp_offset
 
 				if current_timestamp < earliest_timestamp:
-					raise Exception("Could not find suitable replacement study value for", str(timestamp))
+					continue
 
 	def getPositionLogs(self):
 		print("getPositionLogs")

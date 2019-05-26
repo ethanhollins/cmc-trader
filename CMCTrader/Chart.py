@@ -240,23 +240,29 @@ class Chart(object):
 		)
 
 	def getCurrentTimestamp(self, debug=False):
-		date = self.driver.execute_script(
-			self.getObj() +
-			'var x = arguments[0];'
-			'var y = arguments[1];'
-			'return String(obj.getDateAt(x, y));',
-			self.getWidth() - Constants.READ_X, self.getRegionByIndex(0)[1]['start']
-		)
-		date = ' '.join(date.split(' ')[:5])
-		if debug:
-			print(date)
-		dt = self.convertRawDateToDatetime(date)
-		return self.convertDatetimeToTimestamp(dt)
+		# date = self.driver.execute_script(
+		# 	self.getObj() +
+		# 	'var x = arguments[0];'
+		# 	'var y = arguments[1];'
+		# 	'return String(obj.getDateAt(x, y));',
+		# 	self.getWidth() - Constants.READ_X, self.getRegionByIndex(0)[1]['start']
+		# )
+		# date = ' '.join(date.split(' ')[:5])
+		# if debug:
+		# 	print(date)
+		# dt = self.convertRawDateToDatetime(date)
+		# return self.convertDatetimeToTimestamp(dt)
+		return self.getTimestampFromDataPoint(self.getDataPointsLength() - 1)
 
 	def getRealBarOffset(self, timestamp):
 		current_timestamp = self.getCurrentTimestamp()
 
 		return int((current_timestamp - timestamp) / self.timestamp_offset)
+
+	def getOppositeRealBarOffset(self, timestamp):
+		current_timestamp = self.getCurrentTimestamp()
+
+		return int((timestamp - self.getTimestampFromDataPoint(0)) / self.timestamp_offset)
 
 	def getRelativeOffset(self, timestamp):
 		if self.latest_timestamp == 0:

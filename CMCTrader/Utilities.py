@@ -81,11 +81,16 @@ class Utilities:
 		self.isLive = False
 		self.manualEntry = False
 		self.manualChartReading = False
+		self.is_backtest = False
 
 		self.latestTimestamp = {}
 
 		self.startTime = None
 		self.endTime = None
+		self.open_time = self.setTimezone(Constants.DT_START_DATE, 'Pacific/Auckland')
+		self.close_time = self.setTimezone(Constants.DT_START_DATE, 'America/New_York')
+
+		self.is_downtime = True
 
 		self.setTradeTimes()
 
@@ -863,8 +868,11 @@ class Utilities:
 
 	def convertTimezone(self, time, timezone):
 		tz = pytz.timezone(timezone)
-
 		return time.astimezone(tz)
+
+	def setTimezone(self, time, timezone):
+		tz = pytz.timezone(timezone)
+		return tz.localize(time)
 
 	def createAustralianTime(self, year, month, day, hours, mins, seconds):
 		tz = pytz.timezone('Australia/Melbourne')
@@ -916,7 +924,6 @@ class Utilities:
 		then = Constants.DT_START_DATE
 		now = now.astimezone(tz)
 		now = now.replace(tzinfo=None)
-		print(now)
 		return int((now - then).total_seconds())
 
 	def convertTimeToTimestamp(self, day, month, hour, minute):
@@ -931,6 +938,9 @@ class Utilities:
 	def convertTimestampToTime(self, timestamp):
 		return Constants.DT_START_DATE + datetime.timedelta(seconds = timestamp)
 
+	def convertTimestampToAustralianTime(self, timestamp):
+		tz = pytz.timezone('Australia/Melbourne')
+		return tz.localize(Constants.DT_START_DATE + datetime.timedelta(seconds = timestamp))
 
 	def setTradeTimes(self, currentTime = None):
 		if 'START_TIME' in self.plan.VARIABLES.keys() and 'END_TIME' in self.plan.VARIABLES.keys():
@@ -1010,13 +1020,59 @@ class Utilities:
 			currentTime = self.getLondonTime()
 
 		if (not self.startTime == None and not self.endTime == None):
-			if (self.startTime < currentTime < self.endTime):
+			if (self.startTime <= currentTime <= self.endTime):
 				return True
 			else:
 				return False
 
 		else:
 			return True
+
+	def setWeekendTime(self, time):
+
+		self.open_time = self.convertTimezone(time, 'Pacific/Auckland')
+		self.open_time = datetime.datetime(
+					year = self.open_time.year,
+					month = self.open_time.month,
+					day = self.open_time.day,
+					hour = 8,
+					minute = 0,
+					second = 0
+				)
+		self.open_time = self.setTimezone(self.open_time, 'Pacific/Auckland')
+
+		while True:
+			if self.open_time > time and self.open_time.weekday() == 0:
+				break
+
+			self.open_time += datetime.timedelta(days=1)
+
+		self.close_time = self.convertTimezone(time, 'America/New_York')
+		self.close_time = datetime.datetime(
+					year = self.close_time.year,
+					month = self.close_time.month,
+					day = self.close_time.day,
+					hour = 17,
+					minute = 0,
+					second = 0
+				)
+		self.close_time = self.setTimezone(self.close_time, 'America/New_York')
+
+		while self.close_time.weekday() != 4:
+			if self.close_time.weekday() > 4 and self.close_time.day > self.open_time.day - 3:
+				self.close_time -= datetime.timedelta(days=1)
+			else:
+				self.close_time += datetime.timedelta(days=1)
+
+	def isWeekendTime(self, time):
+		if self.close_time < time < self.open_time:
+			return True
+		else:
+			if time > self.open_time:
+				self.setWeekendTime(time)
+				return self.isWeekendTime(time)
+			else:
+				return False
 
 	def printTime(self, time):
 		print("Time:",str(time.hour)+":"+str(time.minute)+":"+str(time.second))
@@ -1032,6 +1088,8 @@ class Utilities:
 			self.setStarted()
 		elif x == 'manual':
 			self.setManualChartReading()
+		elif x == 'backtest':
+			self.backtest()
 		elif x == 'vars':
 			self.printVars()
 		elif x.startswith('change'):
@@ -1248,7 +1306,13 @@ class Utilities:
 		except:
 			return False
 
-	def formatForBacktest(self, chart, start_timestamp, timestamps, ohlc):
+	def backtest(self):
+		self.is_backtest = True
+		self.setStopped()
+		print("Starting Backtest")
+		sys.exit()
+
+	def formatForBacktest(self, chart, start_timestamp, timestamps):
 		if not start_timestamp % chart.timestamp_offset == 0:
 			start_timestamp -= start_timestamp % chart.timestamp_offset
 
@@ -1258,41 +1322,52 @@ class Utilities:
 		values = {'ohlc': {}, 'overlays': [], 'studies': []}
 
 		for timestamp in timestamps:
-			values['ohlc'][timestamp] = ohlc[timestamp]
+			values['ohlc'][timestamp] = chart.ohlc[timestamp]
+			'''if timestamp in ohlc:
+				values['ohlc'][timestamp] = ohlc[timestamp]
+			else:
+				for i in range(timestamps.index(timestamp), -1, -1):
+					if timestamps[i] in ohlc:
+						print(timestamps[i])
+						values['ohlc'][timestamps[i]] = ohlc[timestamps[i]]'''
 
-		ohlc = [i[1] for i in sorted(ohlc.items(), key=lambda kv: kv[0])]
+		ohlc = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0])]
+		ohlc_timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0])]
 
 		count = 0
 		for overlay in chart.overlays:
 			values['overlays'].append({})
 
 			for timestamp in timestamps:
-				temp_ohlc = [
-					[i[0] for i in ohlc][:timestamps.index(timestamp) + offset + 1],
-					[i[1] for i in ohlc][:timestamps.index(timestamp) + offset + 1],
-					[i[2] for i in ohlc][:timestamps.index(timestamp) + offset + 1],
-					[i[3] for i in ohlc][:timestamps.index(timestamp) + offset + 1]
-				]
+				if ohlc_timestamps.index(timestamp) + 1 > 80:
+					temp_ohlc = [
+						[i[0] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
+						[i[1] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
+						[i[2] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
+						[i[3] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1]
+					]
 
-				values['overlays'][count][timestamp] = overlay.getValue(temp_ohlc)
+					values['overlays'][count][timestamp] = overlay.getValue(temp_ohlc)
 
 			count += 1
 
 		count = 0
 		for study in chart.studies:
 			values['studies'].append({})
+			
 			for timestamp in timestamps:
-				temp_ohlc = [
-					[i[0] for i in ohlc][:timestamps.index(timestamp) + offset + 1],
-					[i[1] for i in ohlc][:timestamps.index(timestamp) + offset + 1],
-					[i[2] for i in ohlc][:timestamps.index(timestamp) + offset + 1],
-					[i[3] for i in ohlc][:timestamps.index(timestamp) + offset + 1]
-				]
+				if ohlc_timestamps.index(timestamp) + 1 > 80:
+					temp_ohlc = [
+						[i[0] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
+						[i[1] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
+						[i[2] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
+						[i[3] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1]
+					]
 
-				values['studies'][count][timestamp] = study.getValue(temp_ohlc)
+					values['studies'][count][timestamp] = study.getValue(temp_ohlc)
+
 			count += 1
 
-		# print(values)
 		return values
 
 	def updateRecovery(self):
@@ -1300,34 +1375,128 @@ class Utilities:
 
 		values = {}
 
-		dt = self.getAustralianTime()
-		dt = self.createAustralianTime(dt.year, dt.month, dt.day, 0, 0, 0)
-		print(dt)
-
 		for chart in self.charts:
 
-			timestamp = self.utils.convertDateTimeToTimestamp(dt)
-			latest_timestamp = self.chart.getCurrentTimestamp()
+			dt = self.getAustralianTime()
+			period_offset = 0
 
-			while timestamp < latest_timestamp:
-				latest_timestamp -= self.chart.timestamp_offset
+			last_timestamp, last_data = self.getLastSavedTimestamp(chart)
+			
+			if Constants.STORAGE_DAY(chart.period):
+				period_offset = Constants.STORAGE_DAY_SECONDS
 
-			offset = timestamp % latest_timestamp
-			timestamp -= offset
+				dt -= datetime.timedelta(seconds=period_offset)
+				self.setWeekendTime(dt)
+				while self.isWeekendTime(dt):
+					dt -= datetime.timedelta(seconds=period_offset)
+				dt = self.createAustralianTime(dt.year, dt.month, dt.day, 0, 0, 0)
 
-			barReader.getMissingBarDataByTimestamp(chart, timestamp)
+				self.setWeekendTime(self.getAustralianTime())
+				
+				timestamp = self.convertDateTimeToTimestamp(dt)
+				earliest_timestamp = chart.getTimestampFromDataPoint(80)
+				timestamp = self.adjustTimestamp(chart, earliest_timestamp, timestamp)
+				if last_timestamp != 0 and last_timestamp > timestamp and last_timestamp > earliest_timestamp:
+					timestamp = last_timestamp + chart.timestamp_offset
+				elif earliest_timestamp > timestamp:
+					timestamp = earliest_timestamp
+				
+			elif Constants.STORAGE_WEEK(chart.period):
+				period_offset = Constants.STORAGE_WEEK_SECONDS
+				dt -= datetime.timedelta(seconds=period_offset)
+				dt = self.createAustralianTime(dt.year, dt.month, dt.day, 0, 0, 0)
+				
+				timestamp = self.convertDateTimeToTimestamp(dt)
+				earliest_timestamp = chart.getTimestampFromDataPoint(80)
+				timestamp = self.adjustTimestamp(chart, earliest_timestamp, timestamp)
+				
+				if last_timestamp != 0 and last_timestamp > timestamp and last_timestamp > earliest_timestamp:
+					timestamp = last_timestamp + chart.timestamp_offset
+				elif earliest_timestamp > timestamp:
+					timestamp = earliest_timestamp
+				
+			elif Constants.STORAGE_MONTH(chart.period):
+				period_offset = Constants.STORAGE_MONTH_SECONDS
+				dt -= datetime.timedelta(seconds=period_offset)
+				dt = self.createAustralianTime(dt.year, dt.month, dt.day, 0, 0, 0)
+				
+				timestamp = self.convertDateTimeToTimestamp(dt)
+				earliest_timestamp = chart.getTimestampFromDataPoint(80)
+				timestamp = self.adjustTimestamp(chart, earliest_timestamp, timestamp)
+				
+				if last_timestamp != 0 and last_timestamp > timestamp and last_timestamp > earliest_timestamp:
+					timestamp = last_timestamp + chart.timestamp_offset
+				elif earliest_timestamp > timestamp:
+					timestamp = earliest_timestamp
+				
+			elif Constants.STORAGE_YEAR(chart.period):
+				period_offset = Constants.STORAGE_YEAR_SECONDS
+				dt -= datetime.timedelta(seconds=period_offset)
+				dt = self.createAustralianTime(dt.year, dt.month, dt.day, 0, 0, 0)
+				
+				timestamp = self.convertDateTimeToTimestamp(dt)
+				earliest_timestamp = chart.getTimestampFromDataPoint(80)
+				timestamp = self.adjustTimestamp(chart, earliest_timestamp, timestamp)
+				
+				if last_timestamp != 0 and last_timestamp > timestamp and last_timestamp > earliest_timestamp:
+					timestamp = last_timestamp + chart.timestamp_offset
+				elif earliest_timestamp > timestamp:
+					timestamp = earliest_timestamp
 
-			cpy = chart.ohlc.copy()
+			dt = self.convertTimestampToTime(timestamp)
+			dt = self.createAustralianTime(dt.year, dt.month, dt.day, 0, 0, 0)
+			self.barReader.getMissingBarDataByTimestamp(chart, timestamp)
+			sorted_timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0]) if i[0] >= timestamp]
 
-			for i in cpy:
-				if (int(i) < timestamp):
-					del cpy[i]
+			write_vals = {}
+			to_delete = []
+			
+			for i in sorted_timestamps:
 
-			values = ohlc
+				comp_dt = self.setTimezone(self.convertTimestampToTime(i), 'Australia/Melbourne')
+				self.setWeekendTime(comp_dt)
 
-		with open('recovery/'+chart.pair+'-'+chart.period+'_'+dt.day+'-'+dt.month+'-'+dt.year+'.json', 'w') as f:
-			json.dump(values, f)
+				if int(i) > self.convertDateTimeToTimestamp(dt + datetime.timedelta(seconds=period_offset)) or self.isWeekendTime(comp_dt):
+					with open('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json', 'w') as f:
+						if last_data and last_timestamp < self.convertDateTimeToTimestamp(dt + datetime.timedelta(seconds=period_offset)):
+							json.dump({**last_data, **write_vals}, f)
+							last_data = None
+						else:
+							if len(write_vals) == 0:
+								to_delete.append('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json')
+							else:
+								json.dump(write_vals, f)
 
+					if period_offset == Constants.STORAGE_DAY_SECONDS:
+						dt += datetime.timedelta(seconds=period_offset)
+
+						while dt.day != comp_dt.day:
+							dt += datetime.timedelta(seconds=period_offset)
+
+						self.setWeekendTime(self.getAustralianTime())
+					else:
+						dt += datetime.timedelta(seconds=period_offset)
+
+					write_vals = {}
+					write_vals[i] = chart.ohlc[i]
+				else:
+					write_vals[i] = chart.ohlc[i]
+
+					if sorted_timestamps.index(i) + 1 == len(sorted_timestamps):
+						with open('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json', 'w') as f:
+							if last_data and last_timestamp < self.convertDateTimeToTimestamp(dt + datetime.timedelta(seconds=period_offset)):
+								json.dump({**last_data, **write_vals}, f)
+								last_data = None
+							else:
+								if len(write_vals) == 0:
+									to_delete.append('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json')
+								else:
+									json.dump(write_vals, f)
+
+			for i in to_delete:
+				os.remove(i)
+
+		self.updated = True
 
 	def getRecovery(self):
 		print("GET RECOVERY")
@@ -1335,118 +1504,157 @@ class Utilities:
 		values = {}
 		new_values = {}
 
-		dt = self.getAustralianTime()
-		dt = self.createAustralianTime(dt.year, dt.month, dt.day, 0, 0, 0)
+
+		current_time = self.getAustralianTime()
 
 		for chart in self.charts:
 
-			req_timestamp = utils.startTime - (self.chart.timestamp_offset * 200)
-			req_dt = self.convertTimestampToTime(req_timestamp)
+			dt = current_time
 
-			print("REQ DT: " + str(req_dt))
+			if Constants.STORAGE_DAY(chart.period):
+				dt -= datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
+				self.setWeekendTime(dt)
+				while self.isWeekendTime(dt):
+					dt -= datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
+
+				self.setWeekendTime(self.getAustralianTime())
+
+			elif Constants.STORAGE_WEEK(chart.period):
+				dt -= datetime.timedelta(seconds=Constants.STORAGE_WEEK_SECONDS)
+
+			elif Constants.STORAGE_MONTH(chart.period):
+				dt -= datetime.timedelta(seconds=Constants.STORAGE_MONTH_SECONDS)
+
+			elif Constants.STORAGE_YEAR(chart.period):
+				dt -= datetime.timedelta(seconds=Constants.STORAGE_YEAR_SECONDS)
+
+			print("REQ DT: " + str(dt))
 
 			all_timestamps = []
 
-			while req_dt.day <= dt.day:
+			while dt.day <= current_time.day:
 
-				if (os.path.exists('recovery/'+chart.pair+'-'+chart.period+'_'+req_dt.day+'-'+req_dt.month+'-'+req_dt.year+'.json')):
-					with open('recovery/'+chart.pair+'-'+chart.period+'_'+req_dt.day+'-'+req_dt.month+'-'+req_dt.year+'.json', 'r') as f:
+				if os.path.exists('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json'):
+					with open('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json', 'r') as f:
 						values = json.load(f)
 				else:
-					req_dt += datetime.deltatime(days=1)
+					
+					if Constants.STORAGE_DAY(chart.period):
+						dt += datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
+						self.setWeekendTime(dt)
+						while self.isWeekendTime(dt):
+							dt += datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
+						
+						self.setWeekendTime(self.getAustralianTime())
+
+					elif Constants.STORAGE_WEEK(chart.period):
+						dt += datetime.timedelta(seconds=Constants.STORAGE_WEEK_SECONDS)
+
+					elif Constants.STORAGE_MONTH(chart.period):
+						dt += datetime.timedelta(seconds=Constants.STORAGE_MONTH_SECONDS)
+
+					elif Constants.STORAGE_YEAR(chart.period):
+						dt += datetime.timedelta(seconds=Constants.STORAGE_YEAR_SECONDS)
+
 					continue
 
-				values = {int(k):v for k,v in values[chart.pair+"-"+str(chart.period)].items()}
 
-				sorted_timestamps = [i[0] for i in sorted(values.items(), key=lambda kv: kv[0], reverse=True)]
+				values = {int(k):v for k,v in values.items()}
+
+				sorted_timestamps = [i[0] for i in sorted(values.items(), key=lambda kv: kv[0])]
+				# print(str(sorted_timestamps[0]), ",", str(sorted_timestamps[-1]))
+				
+				sorted_ohlc = [[],[],[],[]]
+				for i in [i[1] for i in sorted(values.items(), key=lambda kv: kv[0])]:
+					sorted_ohlc[0].append(i[0])
+					sorted_ohlc[1].append(i[1])
+					sorted_ohlc[2].append(i[2])
+					sorted_ohlc[3].append(i[3])
 
 				all_timestamps += sorted_timestamps
+				print("all_timestamps:", str(all_timestamps[-1]))
+
+				chart.ohlc = {**chart.ohlc, **values}
 
 				index = 0
 				for i in sorted_timestamps:
 
-					for overlay in chart.overlays:
-						overlay.insertValues(i, ohlc[:index])
-					for study in chart.studies:
-						study.insertValues(i, ohlc[:index])
+					if index > 80:
+						for overlay in chart.overlays:
+							overlay.insertValues(i, sorted_ohlc[:index])
+						for study in chart.studies:
+							study.insertValues(i, sorted_ohlc[:index])
 
-				index += 1
-				req_dt += datetime.deltatime(days=1)
+					index += 1
+				
+				if Constants.STORAGE_DAY(chart.period):
+					dt += datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
+					self.setWeekendTime(dt)
+					while self.isWeekendTime(dt):
+						dt += datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
+					
+					self.setWeekendTime(self.getAustralianTime())
 
-			latest_timestamp = sorted_timestamps[0]
+				elif Constants.STORAGE_WEEK(chart.period):
+					dt += datetime.timedelta(seconds=Constants.STORAGE_WEEK_SECONDS)
 
-			missing_timestamps = self.barReader.getMissingBarDataByTimestamp(chart, latest_timestamp)
-			chart_values = self.formatForRecover(chart, self.getEarliestTimestamp(all_timestamps + missing_timestamps), all_timestamps + missing_timestamps, values[chart.pair+"-"+str(chart.period)])
+				elif Constants.STORAGE_MONTH(chart.period):
+					dt += datetime.timedelta(seconds=Constants.STORAGE_MONTH_SECONDS)
+
+				elif Constants.STORAGE_YEAR(chart.period):
+					dt += datetime.timedelta(seconds=Constants.STORAGE_YEAR_SECONDS)
+
+			print("get missing:", str(self.getEarliestTimestamp(all_timestamps)))
+			missing_timestamps = self.barReader.getMissingBarDataByTimestamp(chart, self.getEarliestTimestamp(all_timestamps))
+			all_timestamps += missing_timestamps
+			all_timestamps.sort()
+			chart_values = self.formatForBacktest(chart, self.getEarliestTimestamp(all_timestamps), all_timestamps)
 			new_values = {**new_values, **chart_values}
 
 		print(new_values)
 		self.backtester.recover(new_values)
 
+	def adjustTimestamp(self, chart, x, y):
+		p = chart.getTimestampOffset()
+		multi = math.ceil(x/p) - math.floor(y/p)
+		diff = y + (p * multi) - x
 
-	# def updateRecovery(self):
-	# 	values = {}
+		return y - diff
 
-	# 	name = self.plan.__name__
+	def getLastSavedTimestamp(self, chart):
+		dt = self.getAustralianTime()
+		
+		if Constants.STORAGE_DAY(chart.period):
+			while self.isWeekendTime(dt):
+				dt -= datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
 
-	# 	for chart in self.charts:
-	# 		values[chart.pair+"-"+str(chart.period)] = {
-	# 			'timestamp': chart.getCurrentTimestamp(),
-	# 			'ohlc': chart.ohlc,
-	# 			'overlays': [],
-	# 			'studies': []
-	# 		}
+		for i in range(2):
+			
+			print("getting...", str(dt))
 
-	# 		for i in range(len(chart.overlays)):
-	# 			values[chart.pair+"-"+str(chart.period)]['overlays'].append(chart.overlays[i].history.copy()) 
-	# 		for j in range(len(chart.studies)):
-	# 			values[chart.pair+"-"+str(chart.period)]['studies'].append(chart.studies[j].history.copy())
+			if os.path.exists('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json'):
+				with open('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json', 'r') as f:
+					data = json.load(f)
+					return int([i[0] for i in sorted(data.items(), key=lambda kv: kv[0], reverse=True)][0]), data
 
-	# 	with open('recover_'+name+'.json', 'w') as f:
-	# 		json.dump(values, f)
+			if Constants.STORAGE_DAY(chart.period):
+				dt -= datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
+				self.setWeekendTime(dt)
+				while self.isWeekendTime(dt):
+					dt -= datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
+				
+				self.setWeekendTime(self.getAustralianTime())
 
-	# def getRecovery(self):
-	# 	name = self.plan_name
+			elif Constants.STORAGE_WEEK(chart.period):
+				dt -= datetime.timedelta(seconds=Constants.STORAGE_WEEK_SECONDS)
 
-	# 	if (os.path.exists('recover_'+name+'.json')):
-	# 		with open('recover_'+name+'.json', 'r') as f:
-	# 			values = json.load(f)
+			elif Constants.STORAGE_MONTH(chart.period):
+				dt -= datetime.timedelta(seconds=Constants.STORAGE_MONTH_SECONDS)
 
-	# 		print(values)
+			elif Constants.STORAGE_YEAR(chart.period):
+				dt -= datetime.timedelta(seconds=Constants.STORAGE_YEAR_SECONDS)
 
-	# 		# if (self.getCurrentTimestamp() - int(values['timestamp']) <= 60 * 45):#! figure out better way
-	# 		new_values = {}
-	# 		for key in values:
-
-	# 			values[key]['ohlc'] = {int(k):v for k,v in values[key]['ohlc'].items()}
-
-	# 			for i in range(len(values[key]['overlays'])):
-	# 				values[key]['overlays'][i] = {int(k):v for k,v in values[key]['overlays'][i].items()}
-
-	# 			for j in range(len(values[key]['studies'])):
-	# 				values[key]['studies'][j] = {int(k):v for k,v in values[key]['studies'][j].items()}
-
-	# 			pair = key.split('-')[0]
-	# 			period = int(key.split('-')[1])
-	# 			chart = self.getChart(pair, period)
-	# 			# print(str(key), values[key]['ohlc'])
-	# 			latest_timestamp = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=True)][0]
-
-	# 			missing_timestamps = self.barReader.getMissingBarDataByTimestamp(chart, latest_timestamp)
-	# 			chart_values = self.formatForRecover(chart, missing_timestamps)
-	# 			values[key]['ohlc'] = {**values[key]['ohlc'], **chart_values['ohlc']}
-
-	# 			for i in range(len(values[key]['overlays'])):
-	# 				values[key]['overlays'][i]  = {**values[key]['overlays'][i], **chart_values['overlays'][i]}
-
-	# 			for j in range(len(values[key]['studies'])):
-	# 				values[key]['studies'][j] = {**values[key]['studies'][j], **chart_values['studies'][j]}
-
-	# 			# print(values[key])
-
-	# 		self.backtester.recover(values)
-
-			# else:
-			# 	os.remove('recover.json')
+		return 0, None
 
 	def createPosition(self, utils, ticket, orderID, pair, ordertype, direction):
 		return Position(utils, ticket, orderID, pair, ordertype, direction)
