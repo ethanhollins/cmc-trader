@@ -246,8 +246,10 @@ class Start(object):
 		except AttributeError as e:
 			pass
 		self.utils.updateRecovery()
-		# if not self.utils.is_backtest and not self.utils.manualChartReading:
-		# 	self.utils.getRecovery()
+		if (not self.utils.is_backtest and not self.utils.manualChartReading and 
+			not self.utils.isWeekendTime(self.utils.getAustralianTime()) and
+			(self.utils.isTradeTime() or len(self.utils.positions) > 0)):
+			self.utils.getRecovery()
 
 		self.utils.getAllOpenPositions()
 
