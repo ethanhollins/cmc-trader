@@ -1,6 +1,8 @@
 import talib
 import numpy as np
+import math
 from CMCTrader import Constants
+from CMCTrader import Backtester
 
 class MACDZ(object):
 
@@ -25,6 +27,7 @@ class MACDZ(object):
 		for arr in arrays:
 			val = arr[arr.size-1]
 			values.append(round(float(val), 5))
+			# values.append(math.floor(float(val) * 100000)/100000.0)
 
 		self.history[int(timestamp)] = values
 
@@ -35,6 +38,7 @@ class MACDZ(object):
 		for arr in arrays:
 			val = arr[arr.size-1]
 			values.append(round(float(val), 5))
+			# values.append(math.floor(float(val) * 100000)/100000.0)
 
 		return values
 
@@ -57,13 +61,21 @@ class MACDZ(object):
 		return [macd, signal, hist]
 
 	def getCurrent(self):
-		timestamp = self.chart.getRelativeTimestamp(0)
+		if Backtester.state == Backtester.State.NONE:
+			timestamp = self.chart.getRelativeTimestamp(0)
+		else:
+			timestamp = self.chart.getLatestTimestamp(0)
+
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[0][1]
 
 	def get(self, shift, amount):
-		timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		if Backtester.state == Backtester.State.NONE:
+			timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		else:
+			timestamp = self.chart.getLatestTimestamp(shift + amount-1)
+			
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]

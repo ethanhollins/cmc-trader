@@ -20,6 +20,7 @@ import traceback
 import pickle
 import json
 import base64
+import os
 
 from CMCTrader.Ticket import Ticket
 from CMCTrader.HistoryLog import HistoryLog
@@ -245,6 +246,12 @@ class Start(object):
 			self.plan.init(self.utils)
 		except AttributeError as e:
 			pass
+
+		directory = "./recovery"
+		for filename in os.listdir(directory):
+			filepath = os.path.join(directory, filename)
+			os.remove(filepath)
+
 		self.utils.updateRecovery()
 		if (not self.utils.is_backtest and not self.utils.manualChartReading and 
 			not self.utils.isWeekendTime(self.utils.getAustralianTime()) and

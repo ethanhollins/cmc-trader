@@ -7,20 +7,20 @@ import copy
 
 VARIABLES = {
 	'TIMEZONE' : 'America/New_York',
-	'START_TIME' : '18:00',
+	'START_TIME' : '19:00',
 	'END_TIME' : '14:00',
 	'PAIRS': [Constants.GBPUSD],
 	'INDIVIDUAL' : None,
 	'risk' : 1.0,
-	'maximum_risk' : 2.8,
-	'profit_limit' : 200,
+	'profit_risk': 2.0,
+	'maximum_risk' : 2.5,
 	'maximum_bank' : 500,
 	'PLAN' : None,
 	'stoprange' : 25,
 	'full_profit' : 200,
 	'breakeven_min_pips' : 3,
 	'CLOSING SEQUENCE' : None,
-	'close_exit_only' : '13:30',
+	'close_exit_only' : '13:30'
 }
 
 class Direction(Enum):
@@ -30,6 +30,21 @@ class Direction(Enum):
 class EntryState(Enum):
 	ONE = 1
 	TWO = 2
+	THREE = 3
+	COMPLETE = 4
+
+class TrendState(Enum):
+	ONE = 1
+	TWO = 2
+	THREE = 3
+	COMPLETE = 4
+
+class RetState(Enum):
+	ONE = 1
+	COMPLETE = 3
+
+class MomState(Enum):
+	ONE = 1
 	COMPLETE = 3
 
 class TimeState(Enum):
@@ -57,8 +72,6 @@ class Trigger(dict):
 
 	def __init__(self, direction):
 		self.direction = direction
-		self.end = 0
-		self.cross_strand = None
 		
 		self.entry_state = EntryState.ONE
 
@@ -78,6 +91,7 @@ class Strand(dict):
 		self.direction = direction
 		self.start = start
 		self.end = 0
+		self.length = 1
 
 		self.count = Strand.static_count
 		Strand.static_count += 1
@@ -92,15 +106,16 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global fast_sar, slow_sar, rsi, macd, macdz, cci
+	global orange_sar, purple_sar, black_sar, macd, macdz, rsi, cci
 
 	utils = utilities
-	fast_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.2, 0.2)
-	slow_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.015, 0.04)
-	rsi = utils.RSI(Constants.GBPUSD, Constants.ONE_MINUTE, 10)
-	cci = utils.CCI(Constants.GBPUSD, Constants.ONE_MINUTE, 5)
+	orange_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.2, 0.2)
+	purple_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.08, 0.2)
+	black_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.017, 0.04)
 	macd = utils.MACD(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
 	macdz = utils.MACDZ(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
+	rsi = utils.RSI(Constants.GBPUSD, Constants.ONE_MINUTE, 10)
+	cci = utils.CCI(Constants.GBPUSD, Constants.ONE_MINUTE, 5)
 
 	setGlobalVars()
 
@@ -111,12 +126,15 @@ def onStartTrading():
 
 	setGlobalVars()
 
+	firstStrand(0)
+
 	print("Starting Bank:", str(bank))
 
 	
 def setGlobalVars():
 	global bank, stop_trading, no_new_trades
-	global long_trigger, short_trigger, fast_strands, slow_strands
+	global long_trigger, short_trigger, orange_strands, black_strands
+	global current_strand
 	global pending_entries, pending_breakevens, pending_exits
 	global current_news, news_trade_block
 	global time_state, stop_state
@@ -131,8 +149,10 @@ def setGlobalVars():
 
 	long_trigger = Trigger(Direction.LONG)
 	short_trigger = Trigger(Direction.SHORT)
-	fast_strands = SortedList()
-	slow_strands = SortedList()
+	orange_strands = SortedList()
+	black_strands = SortedList()
+
+	current_strand = None
 
 	pending_entries = []
 	pending_breakevens = []
@@ -250,9 +270,10 @@ def handleStopAndReverse(pos, entry):
 		current_profit = utils.getTotalProfit() + pos.getProfit(price_type = 'l')
 
 	loss_limit = -VARIABLES['stoprange'] * VARIABLES['maximum_risk']
+	profit_limit = VARIABLES['stoprange'] * VARIABLES['profit_risk']
 	
-	if current_profit < loss_limit or current_profit > VARIABLES['profit_limit']:
-		print("Tradable conditions not met:", str(current_profit))
+	if current_profit < loss_limit or current_profit > profit_limit:
+		print("Trading stopped:", str(current_profit))
 		pos.quickExit()
 		stop_trading = True
 	else:
@@ -269,9 +290,10 @@ def handleRegularEntry(entry):
 	current_profit = utils.getTotalProfit()
 
 	loss_limit = -VARIABLES['stoprange'] * VARIABLES['maximum_risk']
+	profit_limit = VARIABLES['stoprange'] * VARIABLES['profit_risk']
 
-	if current_profit < loss_limit or current_profit > VARIABLES['profit_limit']:
-		print("Tradable conditions not met:", str(current_profit))
+	if current_profit < loss_limit or current_profit > profit_limit:
+		print("Trading stopped:", str(current_profit))
 		stop_trading = True
 	else:
 		print("Entered")
@@ -315,7 +337,7 @@ def handleExits(shift):
 
 	for direction in pending_exits:
 
-		if isFastParaConfirmation(shift, direction, reverse = True):
+		if isPurpleParaConfirmation(shift, direction, reverse=True):
 			print("Attempting exit")
 			is_exit = True
 			for pos in utils.positions:
@@ -329,25 +351,18 @@ def onTrade(pos, event):
 
 	# listened_types = ['Take Profit', 'Stop Loss', 'Close Trade']
 
-	# if event in listened_types:
-	# 	if pos.direction == 'buy':
-	# 	else:
-
-	return
-
 def onEntry(pos):
 	print("onEntry")
-
-	long_strand = getLastDirectionFastStrand(Direction.LONG)
-	long_trigger.entry_state = EntryState.ONE
-
-	short_strand = getLastDirectionFastStrand(Direction.SHORT)
-	short_trigger.entry_state = EntryState.ONE
 
 	stop_state = StopState.NONE
 
 def onStopLoss(pos):
 	print("onStopLoss")
+	return
+
+def onTakeProfit(pos):
+	print("onTakeProfit")
+	stop_trading = True
 	return
 
 def onNews(title, time):
@@ -396,162 +411,240 @@ def checkTime():
 		time_state = TimeState.NNT
 		no_new_trades = True
 
+def firstStrand(shift):
+	while not black_sar.isNewCycle(shift):
+		shift += 1
+
+	start = black_sar.get(shift, 1)[0]
+
+	if black_sar.isRising(shift, 1)[0]:
+		print("first rising black para")
+		last_strand = getLastDirectionBlackStrand(Direction.SHORT)
+
+		black_strands.append(Strand(Direction.SHORT, start))
+	else:
+		print("first falling black para")
+		last_strand = getLastDirectionBlackStrand(Direction.LONG)
+
+		black_strands.append(Strand(Direction.LONG, start))
+
 
 def runSequence(shift):
 	''' Main trade plan sequence '''
 
-	print(slow_sar.getCurrent())
+	print("O:", str(orange_sar.getCurrent()), "P:", str(purple_sar.getCurrent()), "B:", str(black_sar.getCurrent()))
 
-	onNewFastStrand(shift)
-	onNewSlowStrand(shift)
-
-	# updateTrigger(shift, Direction.LONG)
-	# updateTrigger(shift, Direction.SHORT)
+	onNewOrangeStrand(shift)
+	onNewBlackStrand(shift)
 
 	entrySetup(shift, long_trigger)
 	entrySetup(shift, short_trigger)
-		
 
-def onNewFastStrand(shift):
+def onNewOrangeStrand(shift):
+	global current_strand
 
-	if fast_sar.isNewCycle(shift):
-		start = fast_sar.getCurrent()
+	print(orange_sar.isNewCycle(shift))
+	if orange_sar.isNewCycle(shift):
+		print("new orange")
+		start = orange_sar.getCurrent()
 
-		if fast_sar.isRising(shift, 1)[0]:
-			print("new rising fast para")
-			last_strand = getLastDirectionFastStrand(Direction.SHORT)
+		if orange_sar.isRising(shift, 1)[0]:
+			last_strand = getLastDirectionOrangeStrand(Direction.SHORT)
 
 			new_strand = Strand(Direction.SHORT, start)
-			fast_strands.append(new_strand)
+			orange_strands.append(new_strand)
 
-			if short_trigger.cross_strand:
-				if new_strand.start < short_trigger.cross_strand.start:
-					short_trigger.cross_strand = new_strand
-			else:
-				short_trigger.cross_strand = new_strand
+			current_strand = new_strand
 		else:
-			print("new falling fast para")
-			last_strand = getLastDirectionFastStrand(Direction.LONG)
+			last_strand = getLastDirectionOrangeStrand(Direction.LONG)
 
 			new_strand = Strand(Direction.LONG, start)
-			fast_strands.append(new_strand)
-
-			if long_trigger.cross_strand:
-				if new_strand.start < long_trigger.cross_strand.start:
-					long_trigger.cross_strand = new_strand
-			else:
-				long_trigger.cross_strand = new_strand
+			orange_strands.append(new_strand)
+			
+			current_strand = new_strand
 	
 		if last_strand:
-			last_strand.end = fast_sar.get(shift + 1, 1)[0]
+			last_strand.end = orange_sar.get(shift + 1, 1)[0]
+	elif current_strand:
+		current_strand.length += 1
 
-def onNewSlowStrand(shift):
+def onNewBlackStrand(shift):
 
-	print("slow")
-	if slow_sar.isNewCycle(shift):
-		start = slow_sar.getCurrent()
+	if black_sar.isNewCycle(shift):
+		start = black_sar.getCurrent()
 
-		if slow_sar.isRising(shift, 1)[0]:
-			print("new rising slow para")
-			last_strand = getLastDirectionSlowStrand(Direction.SHORT)
+		if black_sar.isRising(shift, 1)[0]:
+			print("new rising black para")
+			last_strand = getLastDirectionBlackStrand(Direction.LONG)
 
-			slow_strands.append(Strand(Direction.SHORT, start))
+			black_strands.append(Strand(Direction.SHORT, start))
 		else:
-			print("new falling slow para")
-			last_strand = getLastDirectionSlowStrand(Direction.LONG)
+			print("new falling black para")
+			last_strand = getLastDirectionBlackStrand(Direction.SHORT)
 
-			slow_strands.append(Strand(Direction.LONG, start))
+			black_strands.append(Strand(Direction.LONG, start))
 	
 		if last_strand:
-			last_strand.end = slow_sar.get(shift + 1, 1)[0]
+			last_strand.end = black_sar.get(shift + 1, 1)[0]
 
-def getLastDirectionFastStrand(direction):
-	for i in range(len(fast_strands)):
-		if fast_strands[i].direction == direction:
-			return fast_strands[i]
 
-	return None
-
-def getLastDirectionSlowStrand(direction):
-	for i in range(len(slow_strands)):
-		if slow_strands[i].direction == direction:
-			return slow_strands[i]
+def getLastDirectionOrangeStrand(direction):
+	for i in range(len(orange_strands)):
+		if orange_strands[i].direction == direction:
+			return orange_strands[i]
 
 	return None
 
+def getLastDirectionBlackStrand(direction):
+	for i in range(len(black_strands)):
+		if black_strands[i].direction == direction:
+			return black_strands[i]
+
+	return None			
 
 def entrySetup(shift, trigger):
 
 	if trigger and not trigger.entry_state == EntryState.COMPLETE:
 
 		if trigger.entry_state == EntryState.ONE:
-			if trigger.cross_strand and isParaCrossedConfirmation(shift, trigger):
-				if trigger.direction == Direction.LONG:
-					short_trigger.entry_state = EntryState.ONE
-				else:
-					long_trigger.entry_state = EntryState.ONE
-
+			if isAllParaConfirmation(shift, trigger.direction):
 				trigger.entry_state = EntryState.TWO
 				return entrySetup(shift, trigger)
 
-		if trigger.entry_state == EntryState.TWO:
-			if isEntryConfirmation(shift, trigger):
+		elif trigger.entry_state == EntryState.TWO:
+			if isPurpleParaConfirmation(shift, trigger.direction, reverse=True):
+				trigger.entry_state = EntryState.THREE
+				return entrySetup(shift, trigger)
+
+		elif trigger.entry_state == EntryState.THREE:
+			if entryOneConfirmation(shift, trigger):
+				trigger.entry_state = EntryState.COMPLETE
+				return confirmation(trigger)
+			elif entryTwoConfirmation(shift, trigger.direction):
 				trigger.entry_state = EntryState.COMPLETE
 				return confirmation(trigger)
 
-def isEntryConfirmation(shift, trigger):
-	print("CONFIRMATION:", 
-			str(isFastParaConfirmation(shift, trigger.direction)),
-			str(isSlowParaConfirmation(shift, trigger.direction)),
+		if isBlackParaConfirmation(shift, trigger.direction, reverse=True):
+			trigger.entry_state = EntryState.ONE
+			return
+
+def entryOneConfirmation(shift, trigger):
+	print("Para Conf ("+str(trigger.direction)+"):", 
+			str(isAllParaConfirmation(shift, trigger.direction)),
 			str(isMacdConfirmation(trigger.direction)),
 			str(isCciConfirmation(shift, trigger.direction)),
 			str(isRsiConfirmation(shift, trigger.direction)),
-			str(isParaCrossedConfirmation(shift, trigger))
+			str(isCloseABBlackPara(shift, trigger.direction))
 		)
 	return (
-			isFastParaConfirmation(shift, trigger.direction) and
-			isSlowParaConfirmation(shift, trigger.direction) and
+			isAllParaConfirmation(shift, trigger.direction) and
 			isMacdConfirmation(trigger.direction) and
 			isCciConfirmation(shift, trigger.direction) and
 			isRsiConfirmation(shift, trigger.direction) and
-			isParaCrossedConfirmation(shift, trigger)
+			isCloseABBlackPara(shift, trigger.direction)
 		)
 
-def isParaCrossedConfirmation(shift, trigger):
-	sar = slow_sar.getCurrent()
+def entryTwoConfirmation(shift, direction):
+	print("Entry Two("+str(direction)+"):",
+			str(isAllParaConfirmation(shift, direction)),
+			str(isCandleOutside(shift, direction))
+		)
 
-	if trigger.direction == Direction.LONG:
-		return sar > trigger.cross_strand.start and slow_sar.isRising(shift, 1)[0]
+	return (
+			isAllParaConfirmation(shift, direction) and
+			isCandleOutside(shift, direction)
+		)
+
+def isAllParaConfirmation(shift, direction, reverse=False):
+	if reverse:
+		return (
+				isOrangeParaConfirmation(shift, direction, reverse=True) and
+				isPurpleParaConfirmation(shift, direction, reverse=True) and
+				isBlackParaConfirmation(shift, direction, reverse=True)
+			)
 	else:
-		return sar < trigger.cross_strand.start and slow_sar.isFalling(shift, 1)[0]
+		return (
+				isOrangeParaConfirmation(shift, direction) and
+				isPurpleParaConfirmation(shift, direction) and
+				isBlackParaConfirmation(shift, direction)
+			)
 
-def isFastParaConfirmation(shift, direction, reverse = False):
+def isCandleOutside(shift, direction):
+	chart = utils.getChart(Constants.GBPUSD, Constants.ONE_MINUTE)
+
+	last_strand = getLastDirectionBlackStrand(direction)
+	if last_strand:
+		cross_sar = last_strand.start
+	else:
+		return False
+
+	if direction == Direction.LONG:
+		low = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][shift][2]
+
+		return low > cross_sar
+
+	else:
+		high = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][shift][1]
+
+		return high < cross_sar
+
+def isCloseABBlackPara(shift, direction):
+	chart = utils.getChart(Constants.GBPUSD, Constants.ONE_MINUTE)
+	close = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][shift][3]
+
+	last_strand = getLastDirectionBlackStrand(direction)
+	if last_strand and last_strand.end != 0:
+		cross_sar = last_strand.end
+	else:
+		return False
+
+	if direction == Direction.LONG:
+		return close > cross_sar
+
+	else:
+		return close < cross_sar
+
+def isOrangeParaConfirmation(shift, direction, reverse = False):
 
 	if reverse:
 		if direction == Direction.LONG:
-			return fast_sar.isFalling(shift, 1)[0]
+			return orange_sar.isFalling(shift, 1)[0]
 		else:
-			return fast_sar.isRising(shift, 1)[0]
+			return orange_sar.isRising(shift, 1)[0]
 	
 	else:
 		if direction == Direction.LONG:
-			return fast_sar.isRising(shift, 1)[0]
+			return orange_sar.isRising(shift, 1)[0]
 		else:
-			return fast_sar.isFalling(shift, 1)[0]
+			return orange_sar.isFalling(shift, 1)[0]
 
-def isSlowParaConfirmation(shift, direction, reverse = False):
+def isPurpleParaConfirmation(shift, direction, reverse = False):
 
 	if reverse:
 		if direction == Direction.LONG:
-			return slow_sar.isFalling(shift, 1)[0]
+			return purple_sar.isFalling(shift, 1)[0]
 		else:
-			return slow_sar.isRising(shift, 1)[0]
+			return purple_sar.isRising(shift, 1)[0]
 	
 	else:
 		if direction == Direction.LONG:
-			return slow_sar.isRising(shift, 1)[0]
+			return purple_sar.isRising(shift, 1)[0]
 		else:
-			return slow_sar.isFalling(shift, 1)[0]
+			return purple_sar.isFalling(shift, 1)[0]
+
+def isBlackParaConfirmation(shift, direction, reverse = False):
+
+	if reverse:
+		if direction == Direction.LONG:
+			return black_sar.isFalling(shift, 1)[0]
+		else:
+			return black_sar.isRising(shift, 1)[0]
+	
+	else:
+		if direction == Direction.LONG:
+			return black_sar.isRising(shift, 1)[0]
+		else:
+			return black_sar.isFalling(shift, 1)[0]
 
 def isMacdConfirmation(direction, reverse = False):
 	hist = macd.getCurrent()[2]
@@ -560,19 +653,19 @@ def isMacdConfirmation(direction, reverse = False):
 
 	if reverse:
 		if direction == Direction.LONG:
-			return (hist < 0 and histz <= 0) or (hist <= 0 and histz < 0)
+			return hist < 0 and histz <= 0
 		else:
-			return (hist > 0 and histz >= 0) or (hist >= 0 and histz > 0)
+			return hist > 0 and histz >= 0
 
 	else:
 		if direction == Direction.LONG:
-			return (hist > 0 and histz >= 0) or (hist >= 0 and histz > 0)
+			return hist > 0 and histz >= 0
 		else:
-			return (hist < 0 and histz <= 0) or (hist <= 0 and histz < 0)
+			return hist < 0 and histz <= 0
 
 def isCciConfirmation(shift, direction, reverse = False):
 	chidx = cci.getCurrent()[0]
-	cci_signal = cci.getSignalLine(2, 0, 1)[0]
+	cci_signal = cci.getSignalLine(2, shift, 1)[0]
 
 	if reverse:
 		if direction == Direction.LONG:
@@ -585,19 +678,26 @@ def isCciConfirmation(shift, direction, reverse = False):
 		else:
 			return chidx < cci_signal
 
-def isRsiConfirmation(shift, direction):
+def isRsiConfirmation(shift, direction, reverse = False):
 	stridx = rsi.get(shift, 2)
 
-	if direction == Direction.LONG:
-		return stridx[0] > stridx[1]
+	if reverse:
+		if direction == Direction.LONG:
+			return stridx[0] < stridx[1]
+		else:
+			return stridx[0] > stridx[1]
 	else:
-		return stridx[0] < stridx[1]
+		if direction == Direction.LONG:
+			return stridx[0] > stridx[1]
+		else:
+			return stridx[0] < stridx[1]
 
 def confirmation(trigger):
 	''' confirm entry '''
 
 	print("confirmation:", str(trigger.direction), str(trigger.count))
 
+	trigger.entry_state = EntryState.ONE
 	pending_entries.append(trigger)
 
 def report():
@@ -605,11 +705,13 @@ def report():
 
 	print("\n")
 
-	print("FAST STRANDS:", str(len(fast_strands)))
-	print("SLOW STRANDS:", str(len(slow_strands))+"\n")
+	print("ORANGE STRANDS:", str(len(orange_strands)))
+	print("BLACK STRANDS:", str(len(black_strands)))
+	if current_strand:
+		print("Current strand:", str(current_strand.direction), str(current_strand.length)+"\n")
 
-	print("LONG T:", str(long_trigger.cross_strand), str(long_trigger.entry_state))
-	print("SHORT T:", str(short_trigger.cross_strand), str(short_trigger.entry_state)+"\n")
+	print("LONG T:", str(long_trigger.entry_state))
+	print("SHORT T:", str(short_trigger.entry_state)+"\n")
 
 	print("CLOSED POSITIONS:")
 	count = 0

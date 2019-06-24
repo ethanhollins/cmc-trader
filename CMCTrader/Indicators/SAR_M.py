@@ -1,7 +1,9 @@
 import talib
 import numpy as np
-from CMCTrader import Constants
 import time
+import math
+from CMCTrader import Constants
+from CMCTrader import Backtester
 
 class SAR_M(object):
 
@@ -19,13 +21,15 @@ class SAR_M(object):
 
 	def insertValues(self, timestamp, ohlc):
 		real = self._calculate(ohlc)
-		real = round(float(real), 5)
+		# real = math.floor(float(real) * 100000)/100000.0
+		# real = round(float(real), 5)
 		
 		self.history[int(timestamp)] = real
 
 	def getValue(self, ohlc):
 		real = self._calculate(ohlc)
-		real = round(float(real), 5)
+		# real = math.floor(float(real) * 100000)/100000.0
+		# real = round(float(real), 5)
 		
 		return real
 
@@ -44,13 +48,13 @@ class SAR_M(object):
 			if is_rising:
 				
 				if high > ep:
-					ep = high
+					ep = round(high, 5)
 					af = min(af + self.acceleration, self.maximum)
 				
 				if low < sars[i-1]:
 					is_rising = False
 					sars.append(ep)
-					ep = low
+					ep = round(low, 5)
 					af = self.acceleration
 					continue
 
@@ -60,15 +64,15 @@ class SAR_M(object):
 					sar = low
 
 			else:
-				
+				        
 				if low < ep:
-					ep = low
+					ep = round(low, 5)
 					af = min(af + self.acceleration, self.maximum)
 				
 				if high > sars[i-1]:
 					is_rising = True
 					sars.append(ep)
-					ep = high
+					ep = round(high, 5)
 					af = self.acceleration
 					continue
 
@@ -79,22 +83,39 @@ class SAR_M(object):
 
 			sars.append(sar)
 
-		return sars[-1]
+		# if is_rising:
+		# 	return math.floor(float("{0:.1f}".format(float(sars[-1]) * 100000)))/100000.0
+		# else:
+		# 	return math.ceil(float("{0:.1f}".format(float(sars[-1]) * 100000)))/100000.0
+
+		return round(sars[-1], 5)
 
 	def getCurrent(self):
-		timestamp = self.chart.getRelativeTimestamp(0)
+		if Backtester.state == Backtester.State.NONE:
+			timestamp = self.chart.getRelativeTimestamp(0)
+		else:
+			timestamp = self.chart.getLatestTimestamp(0)
+
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[0][1]
 
 	def get(self, shift, amount):
-		timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		if Backtester.state == Backtester.State.NONE:
+			timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		else:
+			timestamp = self.chart.getLatestTimestamp(shift + amount-1)
+
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]
 
 	def isRising(self, shift, amount):
-		timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		if Backtester.state == Backtester.State.NONE:
+			timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		else:
+			timestamp = self.chart.getLatestTimestamp(shift + amount-1)
+
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		sarVals = [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)]
@@ -108,7 +129,11 @@ class SAR_M(object):
 		return boolList
 
 	def isFalling(self, shift, amount):
-		timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		if Backtester.state == Backtester.State.NONE:
+			timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		else:
+			timestamp = self.chart.getLatestTimestamp(shift + amount-1)
+
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		sarVals = [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)]
@@ -132,7 +157,11 @@ class SAR_M(object):
 		direction = None
 		count = 0
 		while True:
-			timestamp = self.chart.getRelativeTimestamp(shift)
+			if Backtester.state == Backtester.State.NONE:
+				timestamp = self.chart.getRelativeTimestamp(shift)
+			else:
+				timestamp = self.chart.getLatestTimestamp(shift)
+			
 			self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 			if direction == None:

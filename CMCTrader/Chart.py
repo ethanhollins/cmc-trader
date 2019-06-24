@@ -297,6 +297,9 @@ class Chart(object):
 		dt = self.convertRawDateToDatetime(raw)
 		return self.convertDatetimeToTimestamp(dt)
 
+	def getLatestTimestamp(self, index):
+		return sorted(self.ohlc.items(), key=lambda kv: kv[0], reverse=True)[index][0]
+
 	def needsUpdate(self):
 		current_timestamp = self.getCurrentTimestamp()
 		return current_timestamp > self.latest_timestamp

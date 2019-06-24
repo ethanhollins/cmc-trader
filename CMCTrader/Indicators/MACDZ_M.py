@@ -28,44 +28,68 @@ class MACDZ_M(object):
 
 		self.history[int(timestamp)] = values
 
+	def getValue(self, ohlc):
+		arrays = self._calculate(ohlc)
+
+		values = []
+		for arr in arrays:
+			val = arr[arr.size-1]
+			values.append(round(float(val), 5))
+
+		return values
+
 	def _calculate(self, ohlc):
-		closes = np.array(ohlc[3])
+		# closes = np.array(ohlc[3])
 
-		fast_lag = (self.fastperiod - 1)/2
+		# fast_ema = self.calcEMA(ohlc[3], self.fastperiod)
 
-		sub = np.array(ohlc[3])
-		for i in range(int(fast_lag)):
-			sub[-i] = 0
+		zl_fast_ema = np.array(self.calcZLEMA(ohlc[3], self.fastperiod))[self.slowperiod - self.fastperiod:]
 
-		fast_ema_data = closes + (closes - sub)
-		zl_fast_ema = talib.EMA(fast_ema_data, timeperiod=self.fastperiod)
-
-		slow_lag = (self.slowperiod - 1)/2
-
-		sub = np.array(ohlc[3])
-		for i in range(int(slow_lag)):
-			sub[-i] = 0
-
-		slow_ema_data = closes + (closes - sub)
-		zl_slow_ema = talib.EMA(slow_ema_data, timeperiod=self.slowperiod)
+		zl_slow_ema = np.array(self.calcZLEMA(ohlc[3], self.slowperiod))
 
 		macd = zl_fast_ema - zl_slow_ema
 
 		# print(macd)
 
-		print("macd:", str(talib.MACDEXT(closes, fastperiod=self.fastperiod, fastmatype=2, slowperiod=self.slowperiod, slowmatype=2, signalperiod=self.signalperiod, signalmatype=2)))
-
-
 		return [macd]
 
+	def calcEMA(self, data, period):
+		ema = []
+		multi = float(2.0 / (period + 1.0))
+
+		for i in range(len(data)):
+			if i >= period and len(ema) == 0:
+				ema.append(float(sum(data[i-period:i])/period))
+			elif len(ema) > 0:
+				ema.append((data[i] - ema[len(ema)-1]) * multi + ema[len(ema)-1])
+
+		return ema
+
+	def calcZLEMA(self, data, period):
+		zlema = []
+		multi = float(2.0 / (period + 1.0))
+		lag = int((period - 1) / 2)
+
+		for i in range(len(data)):
+			if i >= period and len(zlema) == 0:
+				zlema.append(float(sum(data[i-period:i])/period))
+			elif len(zlema) > 0:
+				val = data[i] + (data[i] - data[i-lag])
+				zlema.append((val - zlema[len(zlema)-1]) * multi + zlema[len(zlema)-1])
+
+		print(len(data))
+		print(len(zlema))
+		return zlema
+
+
 	def getCurrent(self):
-		timestamp = self.chart.getRelativeTimestamp(0)
+		timestamp = self.chart.getLatestTimestamp(0)
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[0][1]
 
 	def get(self, shift, amount):
-		timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		timestamp = self.chart.getLatestTimestamp(shift + amount-1)
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]

@@ -1030,19 +1030,19 @@ class Utilities:
 
 	def setWeekendTime(self, time):
 
-		self.open_time = self.convertTimezone(time, 'Pacific/Auckland')
+		self.open_time = self.convertTimezone(time, 'America/New_York')
 		self.open_time = datetime.datetime(
 					year = self.open_time.year,
 					month = self.open_time.month,
 					day = self.open_time.day,
-					hour = 8,
+					hour = 17,
 					minute = 0,
 					second = 0
 				)
-		self.open_time = self.setTimezone(self.open_time, 'Pacific/Auckland')
+		self.open_time = self.setTimezone(self.open_time, 'America/New_York')
 
 		while True:
-			if self.open_time > time and self.open_time.weekday() == 0:
+			if self.open_time > time and self.open_time.weekday() == 6:
 				break
 
 			self.open_time += datetime.timedelta(days=1)
@@ -1058,8 +1058,10 @@ class Utilities:
 				)
 		self.close_time = self.setTimezone(self.close_time, 'America/New_York')
 
-		while self.close_time.weekday() != 4:
-			if self.close_time.weekday() > 4 and self.close_time.day > self.open_time.day - 3:
+		while True:
+			if self.close_time.weekday() == 4 and self.close_time > self.open_time - datetime.timedelta(days=4):
+				break
+			elif self.close_time.weekday() > 4 and self.close_time > self.open_time - datetime.timedelta(days=4):
 				self.close_time -= datetime.timedelta(days=1)
 			else:
 				self.close_time += datetime.timedelta(days=1)
@@ -1069,6 +1071,8 @@ class Utilities:
 			return True
 		else:
 			if time > self.open_time:
+				print(str(time), str(self.open_time))
+				print("set")
 				self.setWeekendTime(time)
 				return self.isWeekendTime(time)
 			else:
@@ -1322,7 +1326,10 @@ class Utilities:
 		values = {'ohlc': {}, 'overlays': [], 'studies': []}
 
 		for timestamp in timestamps:
-			values['ohlc'][timestamp] = chart.ohlc[timestamp]
+			if timestamp in chart.ohlc:
+				values['ohlc'][timestamp] = chart.ohlc[timestamp]
+			else:
+				del timestamps[timestamps.index(timestamp)]
 			'''if timestamp in ohlc:
 				values['ohlc'][timestamp] = ohlc[timestamp]
 			else:
@@ -1339,7 +1346,7 @@ class Utilities:
 			values['overlays'].append({})
 
 			for timestamp in timestamps:
-				if ohlc_timestamps.index(timestamp) + 1 > 80:
+				if timestamp in ohlc_timestamps and ohlc_timestamps.index(timestamp) + 1 > 80:
 					temp_ohlc = [
 						[i[0] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
 						[i[1] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
@@ -1356,7 +1363,7 @@ class Utilities:
 			values['studies'].append({})
 			
 			for timestamp in timestamps:
-				if ohlc_timestamps.index(timestamp) + 1 > 80:
+				if timestamp in ohlc_timestamps and ohlc_timestamps.index(timestamp) + 1 > 80:
 					temp_ohlc = [
 						[i[0] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
 						[i[1] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
@@ -1532,7 +1539,7 @@ class Utilities:
 
 			all_timestamps = []
 
-			while dt.day <= current_time.day:
+			while dt <= current_time:
 
 				if os.path.exists('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json'):
 					with open('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json', 'r') as f:
@@ -1604,11 +1611,15 @@ class Utilities:
 				elif Constants.STORAGE_YEAR(chart.period):
 					dt += datetime.timedelta(seconds=Constants.STORAGE_YEAR_SECONDS)
 
-			print("get missing:", str(self.getEarliestTimestamp(all_timestamps)))
-			missing_timestamps = self.barReader.getMissingBarDataByTimestamp(chart, self.getEarliestTimestamp(all_timestamps))
+			if chart.getTimestampFromDataPoint(0) > self.getEarliestTimestamp(all_timestamps):
+				earliest_timestamp = chart.getTimestampFromDataPoint(0)
+			else:
+				earliest_timestamp = self.getEarliestTimestamp(all_timestamps)
+			print("get missing:", earliest_timestamp)
+			missing_timestamps = self.barReader.getMissingBarDataByTimestamp(chart, earliest_timestamp)
 			all_timestamps += missing_timestamps
 			all_timestamps.sort()
-			chart_values = self.formatForBacktest(chart, self.getEarliestTimestamp(all_timestamps), all_timestamps)
+			chart_values = self.formatForBacktest(chart, earliest_timestamp, all_timestamps)
 			new_values = {**new_values, **chart_values}
 
 		print(new_values)

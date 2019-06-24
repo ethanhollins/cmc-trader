@@ -34,10 +34,8 @@ STORAGE_YEAR = lambda period: period >= ONE_WEEK
 def getMonthSeconds():
 	now = datetime.datetime.now()
 	dt = datetime.datetime(year=now.year, month=now.month, day=now.day)
-	if now.day == 1:
-		return (dt - (dt - datetime.timedelta(days=1))).total_seconds()
-	else:
-		return (dt - datetime.datetime(year=now.year, month=now.month-1, day=now.day)).total_seconds()
+
+	return (dt - (dt - datetime.timedelta(days=dt.day))).total_seconds()
 
 def getYearSeconds():
 	now = datetime.datetime.now()

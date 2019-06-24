@@ -265,7 +265,7 @@ class Backtester(object):
 						values = json.load(f)
 						chart.ohlc = {**chart.ohlc, **values}
 				else:
-					print("WARNING:", str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year), +"file was not found.")
+					print("WARNING:", str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year), "file was not found.")
 
 				if Constants.STORAGE_DAY(chart.period):
 					dt += datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
@@ -283,23 +283,23 @@ class Backtester(object):
 
 			chart_timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0])]
 
-			sorted_ohlc = [[],[],[],[]]
-			for i in [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0])]:
-				sorted_ohlc[0].append(i[0])
-				sorted_ohlc[1].append(i[1])
-				sorted_ohlc[2].append(i[2])
-				sorted_ohlc[3].append(i[3])
+			# sorted_ohlc = [[],[],[],[]]
+			# for i in [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0])]:
+			# 	sorted_ohlc[0].append(i[0])
+			# 	sorted_ohlc[1].append(i[1])
+			# 	sorted_ohlc[2].append(i[2])
+			# 	sorted_ohlc[3].append(i[3])
 
-			index = 0
-			for i in chart_timestamps:
+			# index = 0
+			# for i in chart_timestamps:
 
-				if index > 80:
-					for overlay in chart.overlays:
-						overlay.insertValues(i, sorted_ohlc[:index])
-					for study in chart.studies:
-						study.insertValues(i, sorted_ohlc[:index])
+			# 	if index > 80:
+			# 		for overlay in chart.overlays:
+			# 			overlay.insertValues(i, sorted_ohlc[:index+1])
+			# 		for study in chart.studies:
+			# 			study.insertValues(i, sorted_ohlc[:index+1])
 
-				index += 1
+			# 	index += 1
 
 			key = chart.pair + '-' + str(chart.period)
 			backtest_values[key] = self.utils.formatForBacktest(chart, self.utils.convertDateTimeToTimestamp(start_time), chart_timestamps)
@@ -441,7 +441,8 @@ class Backtester(object):
 
 		sorted_timestamps = [i[0] for i in sorted(values['ohlc'].items(), key=lambda kv: kv[0], reverse=False)]
 
-		self.removeTimestampsUntil(chart, sorted_timestamps[0])
+		if len(sorted_timestamps) > 0:
+			self.removeTimestampsUntil(chart, sorted_timestamps[0])
 
 		real_time = self.utils.getLondonTime()
 

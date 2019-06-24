@@ -199,7 +199,7 @@ class BarReader(object):
 				break
 
 			if passed_fwd and passed_back:
-				print("Bar doesn't exist,", str(timestamp))
+				print("Bar doesn't exist,", str(self.utils.convertTimestampToTime(timestamp)))
 				return False
 
 			if dp_timestamp > timestamp:
@@ -222,7 +222,9 @@ class BarReader(object):
 			data_points[index]['close']
 		]
 
-		print(ohlc)
+		print("INDEX:", str(index))
+		print("time:", str(self.utils.convertTimestampToTime(timestamp)))
+		print("ohlc:", str(ohlc))
 
 		chart.ohlc[timestamp] = ohlc
 

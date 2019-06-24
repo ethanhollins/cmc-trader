@@ -1,6 +1,7 @@
 import talib
 import numpy as np
 from CMCTrader import Constants
+from CMCTrader import Backtester
 
 class RSI(object):
 	
@@ -37,13 +38,21 @@ class RSI(object):
 		return list(talib.RSI(np.array(ohlc[3]), timeperiod=self.timeperiod))
 
 	def getCurrent(self):
-		timestamp = self.chart.getRelativeTimestamp(0)
+		if Backtester.state == Backtester.State.NONE:
+			timestamp = self.chart.getRelativeTimestamp(0)
+		else:
+			timestamp = self.chart.getLatestTimestamp(0)
+			
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[0][1]
 
 	def get(self, shift, amount):
-		timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		if Backtester.state == Backtester.State.NONE:
+			timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		else:
+			timestamp = self.chart.getLatestTimestamp(shift + amount-1)
+
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]

@@ -28,19 +28,19 @@ class SAR(object):
 		self.history[int(timestamp)] = value
 			
 	def getCurrent(self):
-		timestamp = self.chart.getRelativeTimestamp(0)
+		timestamp = self.chart.getLatestTimestamp(0)
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[0][1]
 
 	def get(self, shift, amount):
-		timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		timestamp = self.chart.getLatestTimestamp(shift + amount-1)
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]
 
 	def isRising(self, shift, amount):
-		timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		timestamp = self.chart.getLatestTimestamp(shift + amount-1)
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		sarVals = [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)]
@@ -56,7 +56,7 @@ class SAR(object):
 		return boolList
 
 	def isFalling(self, shift, amount):
-		timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+		timestamp = self.chart.getLatestTimestamp(shift + amount-1)
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		sarVals = [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)]
@@ -80,7 +80,7 @@ class SAR(object):
 		direction = None
 		count = 0
 		while True:
-			timestamp = self.chart.getRelativeTimestamp(shift)
+			timestamp = self.chart.getLatestTimestamp(shift)
 			self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 			if direction == None:
