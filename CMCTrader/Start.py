@@ -266,7 +266,7 @@ class Start(object):
 		# 	filepath = os.path.join(directory, filename)
 		# 	os.remove(filepath)
 
-		# self.utils.updateRecovery()
+		self.utils.updateRecovery()
 		if (not self.utils.is_backtest and not self.utils.manualChartReading and 
 			not self.utils.isWeekendTime(self.utils.getAustralianTime()) and
 			(self.utils.isTradeTime() or len(self.utils.positions) > 0)):
