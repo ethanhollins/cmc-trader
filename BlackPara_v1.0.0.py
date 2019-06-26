@@ -206,7 +206,6 @@ def onDownTime():
 def onLoop():
 	''' Function called on every program iteration '''
 
-	print("no_new_trades:", str(no_new_trades))
 	if no_new_trades and len(utils.positions) <= 0:
 		global stop_trading
 		stop_trading = True
