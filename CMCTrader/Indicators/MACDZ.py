@@ -62,7 +62,7 @@ class MACDZ(object):
 
 	def getCurrent(self):
 		if Backtester.state == Backtester.State.NONE:
-			timestamp = self.chart.getRelativeTimestamp(0)
+			timestamp = self.chart.getRealTimestamp(0)
 		else:
 			timestamp = self.chart.getLatestTimestamp(0)
 
@@ -72,7 +72,7 @@ class MACDZ(object):
 
 	def get(self, shift, amount):
 		if Backtester.state == Backtester.State.NONE:
-			timestamp = self.chart.getRelativeTimestamp(shift + amount-1)
+			timestamp = self.chart.getRealTimestamp(shift + amount-1)
 		else:
 			timestamp = self.chart.getLatestTimestamp(shift + amount-1)
 			

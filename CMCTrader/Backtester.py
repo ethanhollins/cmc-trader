@@ -258,11 +258,11 @@ class Backtester(object):
 		values = {}
 		backtest_values = {}
 		for chart in self.utils.charts:
-			dt = start_time
+			dt = datetime.datetime(year = start_time.year, month = start_time.month, day = start_time.day, hour = 0, minute = 0, second = 0)
 			while dt < end_time:
 				if (os.path.exists('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json')):
 					with open('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json', 'r') as f:
-						values = json.load(f)
+						values = {int(k):v for k,v in json.load(f).items() if int(k) <= endTime}
 						chart.ohlc = {**chart.ohlc, **values}
 				else:
 					print("WARNING:", str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year), "file was not found.")
@@ -282,6 +282,7 @@ class Backtester(object):
 			chart.ohlc = {int(k):v for k,v in chart.ohlc.items()}
 
 			chart_timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0])]
+			print("start:", str(self.utils.convertTimestampToTime(chart_timestamps[0])), "end:", str(self.utils.convertTimestampToTime(chart_timestamps[-1])))
 
 			# sorted_ohlc = [[],[],[],[]]
 			# for i in [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0])]:
@@ -305,7 +306,8 @@ class Backtester(object):
 			backtest_values[key] = self.utils.formatForBacktest(chart, self.utils.convertDateTimeToTimestamp(start_time), chart_timestamps)
 
 		name = self.utils.plan_name
-		print(backtest_values)
+		# print(backtest_values)
+
 		self.backtest(backtest_values)
 
 	def manual(self):

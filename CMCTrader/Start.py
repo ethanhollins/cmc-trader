@@ -138,6 +138,11 @@ class Start(object):
 
 		self.progressBar(0, 'Logging in')
 
+		wait = ui.WebDriverWait(self.driver, 10)
+		wait.until(EC.presence_of_element_located(
+			(By.XPATH, "//input[@name='username']")
+		))
+
 		elem_username = self.driver.find_element_by_css_selector("input[name='username']")
 		elem_password = self.driver.find_element_by_css_selector("input[type='password']")
 
@@ -153,6 +158,7 @@ class Start(object):
 			elapsedTime = time.time() - startTime
 			if (elapsedTime > 4.0):
 				print("Incorrect username or password, please try again")
+				self.driver.get(CMC_WEBSITE);
 				self.login()
 				return
 			pass
@@ -161,33 +167,41 @@ class Start(object):
 		accountSelected = False
 		while 'loader' not in self.driver.current_url:
 			if 'accountOptionsSelection' in self.driver.current_url and not accountSelected:
-				account_type_btn = self.driver.find_element(By.XPATH, "//button[text() = '"+str(self.account_name)+"']")
-				
+
 				try:
-					account_type_btn.click()
-				except WebDriverException as e:
-					pass
+					wait = ui.WebDriverWait(self.driver, 10)
+					wait.until(EC.presence_of_element_located(
+						(By.XPATH, "//button[text() = '"+str(self.account_name)+"']")
+					))
+					account_type_btn = self.driver.find_element(By.XPATH, "//button[text() = '"+str(self.account_name)+"']")
+					
+					try:
+						account_type_btn.click()
+					except WebDriverException as e:
+						pass
 
-				wait = ui.WebDriverWait(self.driver, 10)
-				wait.until(EC.presence_of_element_located(
-					(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
-				))
+					wait = ui.WebDriverWait(self.driver, 10)
+					wait.until(EC.presence_of_element_located(
+						(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
+					))
 
-				wait = ui.WebDriverWait(self.driver, 10)
-				wait.until(EC.element_to_be_clickable(
-					(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
-				))
+					wait = ui.WebDriverWait(self.driver, 10)
+					wait.until(EC.element_to_be_clickable(
+						(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
+					))
 
-				self.driver.implicitly_wait(2)
+					self.driver.implicitly_wait(2)
 
-				account_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
-				account_btn.click()
-				accountSelected = True
-			elif 'login' in self.driver.current_url:
+					account_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
+					account_btn.click()
+					accountSelected = True
+				except:
+					self.driver.get(CMC_WEBSITE);
+					self.login()
+					return
+
+			elif not accountSelected:
 				print("Unable to login, trying again.")
-				self.login()
-				return
-			elif 'error' in self.driver.current_url:
 				self.driver.get(CMC_WEBSITE);
 				self.login()
 				return
@@ -247,12 +261,12 @@ class Start(object):
 		except AttributeError as e:
 			pass
 
-		directory = "./recovery"
-		for filename in os.listdir(directory):
-			filepath = os.path.join(directory, filename)
-			os.remove(filepath)
+		# directory = "./recovery"
+		# for filename in os.listdir(directory):
+		# 	filepath = os.path.join(directory, filename)
+		# 	os.remove(filepath)
 
-		self.utils.updateRecovery()
+		# self.utils.updateRecovery()
 		if (not self.utils.is_backtest and not self.utils.manualChartReading and 
 			not self.utils.isWeekendTime(self.utils.getAustralianTime()) and
 			(self.utils.isTradeTime() or len(self.utils.positions) > 0)):
@@ -431,7 +445,8 @@ class Start(object):
 		self.reinitMainProgram()
 
 	def handleError(self, e, tb, firstInit = False):
-		print("Error occured:\n")
+		# if not 'HTTPConnectionPool' in e:
+		print("\nError occured:")
 		print(e)
 		with open("errorlog.txt", "a") as errlog:
 			errmsg = "Error at " + str(self.getAustralianTime()) + ":\n" + str(tb) + "\n"
@@ -439,6 +454,7 @@ class Start(object):
 			errlog.close()
 
 		print("Error saved to errorlog...")
+
 		self.restartCMC(firstInit = firstInit)
 
 	def checkIfInApp(self):

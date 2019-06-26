@@ -6,21 +6,25 @@ import types
 import copy
 
 VARIABLES = {
-	'TIMEZONE' : 'America/New_York',
-	'START_TIME' : '19:00',
-	'END_TIME' : '14:00',
+	'TIMEZONE': 'America/New_York',
+	'START_TIME': '19:00',
+	'END_TIME': '14:00',
 	'PAIRS': [Constants.GBPUSD],
-	'INDIVIDUAL' : None,
-	'risk' : 1.0,
-	'profit_risk': 2.0,
-	'maximum_risk' : 2.5,
-	'maximum_bank' : 500,
-	'PLAN' : None,
-	'stoprange' : 25,
-	'full_profit' : 200,
-	'breakeven_min_pips' : 3,
-	'CLOSING SEQUENCE' : None,
-	'close_exit_only' : '13:30'
+	'INDIVIDUAL': None,
+	'risk': 1.0,
+	'profit_risk': 50,
+	'maximum_risk': 63,
+	'maximum_bank': 500,
+	'PLAN': None,
+	'stoprange': 25,
+	'full_profit': 200,
+	'breakeven_min_pips': 3,
+	'CLOSING SEQUENCE': None,
+	'close_exit_only': '13:30',
+	'MACD': None,
+	'macd_threshold': 2,
+	'SAR': None,
+	'sar_min_diff': 0.5
 }
 
 class Direction(Enum):
@@ -31,6 +35,11 @@ class EntryState(Enum):
 	ONE = 1
 	TWO = 2
 	THREE = 3
+	COMPLETE = 4
+
+class EntryThreeState(Enum):
+	ONE = 1
+	TWO = 2
 	COMPLETE = 4
 
 class TrendState(Enum):
@@ -74,6 +83,7 @@ class Trigger(dict):
 		self.direction = direction
 		
 		self.entry_state = EntryState.ONE
+		self.entry_three_state = EntryThreeState.ONE 
 
 		self.count = Trigger.static_count
 		Trigger.static_count += 1
@@ -106,11 +116,12 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global orange_sar, purple_sar, black_sar, macd, macdz, rsi, cci
+	global orange_sar, purple_sar, black_sar, yellow_sar, macd, macdz, rsi, cci
 
 	utils = utilities
 	orange_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.2, 0.2)
 	purple_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.08, 0.2)
+	yellow_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.05, 0.2)
 	black_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.017, 0.04)
 	macd = utils.MACD(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
 	macdz = utils.MACDZ(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
@@ -126,14 +137,15 @@ def onStartTrading():
 
 	setGlobalVars()
 
-	firstStrand(0)
+	# firstStrand(0)
 
 	print("Starting Bank:", str(bank))
 
 	
 def setGlobalVars():
 	global bank, stop_trading, no_new_trades
-	global long_trigger, short_trigger, orange_strands, black_strands
+	global long_trigger, short_trigger
+	global orange_strands, purple_strands, black_strands, yellow_strands
 	global current_strand
 	global pending_entries, pending_breakevens, pending_exits
 	global current_news, news_trade_block
@@ -150,6 +162,8 @@ def setGlobalVars():
 	long_trigger = Trigger(Direction.LONG)
 	short_trigger = Trigger(Direction.SHORT)
 	orange_strands = SortedList()
+	purple_strands = SortedList()
+	yellow_strands = SortedList()
 	black_strands = SortedList()
 
 	current_strand = None
@@ -268,11 +282,8 @@ def handleStopAndReverse(pos, entry):
 		current_profit = utils.getTotalProfit() + pos.getProfit(price_type = 'h')
 	else:
 		current_profit = utils.getTotalProfit() + pos.getProfit(price_type = 'l')
-
-	loss_limit = -VARIABLES['stoprange'] * VARIABLES['maximum_risk']
-	profit_limit = VARIABLES['stoprange'] * VARIABLES['profit_risk']
 	
-	if current_profit < loss_limit or current_profit > profit_limit:
+	if current_profit <= -VARIABLES['maximum_risk'] or current_profit >= VARIABLES['profit_risk']:
 		print("Trading stopped:", str(current_profit))
 		pos.quickExit()
 		stop_trading = True
@@ -289,10 +300,7 @@ def handleRegularEntry(entry):
 	'''
 	current_profit = utils.getTotalProfit()
 
-	loss_limit = -VARIABLES['stoprange'] * VARIABLES['maximum_risk']
-	profit_limit = VARIABLES['stoprange'] * VARIABLES['profit_risk']
-
-	if current_profit < loss_limit or current_profit > profit_limit:
+	if current_profit <= -VARIABLES['maximum_risk'] or current_profit >= VARIABLES['profit_risk']:
 		print("Trading stopped:", str(current_profit))
 		stop_trading = True
 	else:
@@ -393,9 +401,6 @@ def checkTime():
 	parts = VARIABLES['close_exit_only'].split(':')
 	nnt_time = utils.createNewYorkTime(time.year, time.month, time.day, int(parts[0]), int(parts[1]), 0)
 
-	if not (time < nnt_time and nnt_time + datetime.timedelta(days=1) < utils.endTime):
-		nnt_time += datetime.timedelta(days=1)
-
 	if time > utils.endTime and time_state.value < TimeState.CLOSE.value:
 		time_state = TimeState.CLOSE
 
@@ -435,6 +440,8 @@ def runSequence(shift):
 	print("O:", str(orange_sar.getCurrent()), "P:", str(purple_sar.getCurrent()), "B:", str(black_sar.getCurrent()))
 
 	onNewOrangeStrand(shift)
+	onNewPurpleStrand(shift)
+	onNewYellowStrand(shift)
 	onNewBlackStrand(shift)
 
 	entrySetup(shift, long_trigger)
@@ -449,14 +456,14 @@ def onNewOrangeStrand(shift):
 		start = orange_sar.getCurrent()
 
 		if orange_sar.isRising(shift, 1)[0]:
-			last_strand = getLastDirectionOrangeStrand(Direction.SHORT)
+			last_strand = getLastDirectionOrangeStrand(Direction.LONG)
 
 			new_strand = Strand(Direction.SHORT, start)
 			orange_strands.append(new_strand)
 
 			current_strand = new_strand
 		else:
-			last_strand = getLastDirectionOrangeStrand(Direction.LONG)
+			last_strand = getLastDirectionOrangeStrand(Direction.SHORT)
 
 			new_strand = Strand(Direction.LONG, start)
 			orange_strands.append(new_strand)
@@ -467,6 +474,44 @@ def onNewOrangeStrand(shift):
 			last_strand.end = orange_sar.get(shift + 1, 1)[0]
 	elif current_strand:
 		current_strand.length += 1
+
+def onNewPurpleStrand(shift):
+
+	if purple_sar.isNewCycle(shift):
+		start = purple_sar.getCurrent()
+
+		if purple_sar.isRising(shift, 1)[0]:
+			print("new rising purple para")
+			last_strand = getNumberDirectionPurpleStrand(Direction.LONG, 0)
+
+			purple_strands.append(Strand(Direction.SHORT, start))
+		else:
+			print("new falling purple para")
+			last_strand = getNumberDirectionPurpleStrand(Direction.SHORT, 0)
+
+			purple_strands.append(Strand(Direction.LONG, start))
+	
+		if last_strand:
+			last_strand.end = purple_sar.get(shift + 1, 1)[0]
+
+def onNewYellowStrand(shift):
+
+	if yellow_sar.isNewCycle(shift):
+		start = yellow_sar.getCurrent()
+
+		if yellow_sar.isRising(shift, 1)[0]:
+			print("new rising yellow para")
+			last_strand = getNumberDirectionYellowStrand(Direction.LONG, 0)
+
+			yellow_strands.append(Strand(Direction.SHORT, start))
+		else:
+			print("new falling yellow para")
+			last_strand = getNumberDirectionYellowStrand(Direction.SHORT, 0)
+
+			yellow_strands.append(Strand(Direction.LONG, start))
+	
+		if last_strand:
+			last_strand.end = yellow_sar.get(shift + 1, 1)[0]
 
 def onNewBlackStrand(shift):
 
@@ -495,12 +540,32 @@ def getLastDirectionOrangeStrand(direction):
 
 	return None
 
+def getNumberDirectionPurpleStrand(direction, num):
+	count = 0
+	for i in range(len(purple_strands)):
+		if purple_strands[i].direction == direction:
+			if count == num:
+				return purple_strands[i]
+			count += 1
+
+	return None
+
+def getNumberDirectionYellowStrand(direction, num):
+	count = 0
+	for i in range(len(yellow_strands)):
+		if yellow_strands[i].direction == direction:
+			if count == num:
+				return yellow_strands[i]
+			count += 1
+
+	return None
+
 def getLastDirectionBlackStrand(direction):
 	for i in range(len(black_strands)):
 		if black_strands[i].direction == direction:
 			return black_strands[i]
 
-	return None			
+	return None
 
 def entrySetup(shift, trigger):
 
@@ -509,6 +574,7 @@ def entrySetup(shift, trigger):
 		if trigger.entry_state == EntryState.ONE:
 			if isAllParaConfirmation(shift, trigger.direction):
 				trigger.entry_state = EntryState.TWO
+				trigger.entry_three_state = EntryThreeState.TWO
 				return entrySetup(shift, trigger)
 
 		elif trigger.entry_state == EntryState.TWO:
@@ -524,12 +590,20 @@ def entrySetup(shift, trigger):
 				trigger.entry_state = EntryState.COMPLETE
 				return confirmation(trigger)
 
+		# Entry Three
+		if trigger.entry_three_state == EntryThreeState.TWO:
+			if entryThreeConfirmation(shift, trigger.direction):
+				trigger.entry_three_state = EntryThreeState.COMPLETE
+				return confirmation(trigger)
+			else:
+				trigger.entry_three_state = EntryThreeState.ONE
+
 		if isBlackParaConfirmation(shift, trigger.direction, reverse=True):
 			trigger.entry_state = EntryState.ONE
 			return
 
 def entryOneConfirmation(shift, trigger):
-	print("Para Conf ("+str(trigger.direction)+"):", 
+	print("Entry ONE ("+str(trigger.direction)+"):", 
 			str(isAllParaConfirmation(shift, trigger.direction)),
 			str(isMacdConfirmation(trigger.direction)),
 			str(isCciConfirmation(shift, trigger.direction)),
@@ -545,7 +619,7 @@ def entryOneConfirmation(shift, trigger):
 		)
 
 def entryTwoConfirmation(shift, direction):
-	print("Entry Two("+str(direction)+"):",
+	print("Entry TWO ("+str(direction)+"):",
 			str(isAllParaConfirmation(shift, direction)),
 			str(isCandleOutside(shift, direction))
 		)
@@ -554,6 +628,14 @@ def entryTwoConfirmation(shift, direction):
 			isAllParaConfirmation(shift, direction) and
 			isCandleOutside(shift, direction)
 		)
+
+def entryThreeConfirmation(shift, direction):
+	print("Entry THREE ("+str(direction)+"):",
+			str(isYellowABLast(shift, direction)),
+			str(isPurpleABLast(shift, direction))
+		)
+
+	return isYellowABLast(shift, direction) and isPurpleABLast(shift, direction)
 
 def isAllParaConfirmation(shift, direction, reverse=False):
 	if reverse:
@@ -604,6 +686,42 @@ def isCloseABBlackPara(shift, direction):
 	else:
 		return close < cross_sar
 
+def isYellowABLast(shift, direction):
+	
+	if direction == Direction.LONG:
+		current = getNumberDirectionYellowStrand(Direction.SHORT, 0)
+		last = getNumberDirectionYellowStrand(Direction.SHORT, 1)
+
+		if current and last:
+			return current.start > last.start + VARIABLES['sar_min_diff'] * 0.0001
+
+	else:
+		current = getNumberDirectionYellowStrand(Direction.LONG, 0)
+		last = getNumberDirectionYellowStrand(Direction.LONG, 1)
+
+		if current and last:
+			return current.start < last.start - VARIABLES['sar_min_diff'] * 0.0001
+
+	return False
+
+def isPurpleABLast(shift, direction):
+	
+	if direction == Direction.LONG:
+		current = getNumberDirectionPurpleStrand(Direction.SHORT, 0)
+		last = getNumberDirectionPurpleStrand(Direction.SHORT, 1)
+
+		if current and last:
+			return current.start > last.start + VARIABLES['sar_min_diff'] * 0.0001
+
+	else:
+		current = getNumberDirectionPurpleStrand(Direction.LONG, 0)
+		last = getNumberDirectionPurpleStrand(Direction.LONG, 1)
+
+		if current and last:
+			return current.start < last.start - VARIABLES['sar_min_diff'] * 0.0001
+
+	return False
+
 def isOrangeParaConfirmation(shift, direction, reverse = False):
 
 	if reverse:
@@ -653,15 +771,15 @@ def isMacdConfirmation(direction, reverse = False):
 
 	if reverse:
 		if direction == Direction.LONG:
-			return hist < 0 and histz <= 0
+			return hist <= -VARIABLES['macd_threshold'] * 0.00001 and histz <= 0
 		else:
-			return hist > 0 and histz >= 0
+			return hist >= VARIABLES['macd_threshold'] * 0.00001 and histz >= 0
 
 	else:
 		if direction == Direction.LONG:
-			return hist > 0 and histz >= 0
+			return hist >= VARIABLES['macd_threshold'] * 0.00001 and histz >= 0
 		else:
-			return hist < 0 and histz <= 0
+			return hist <= -VARIABLES['macd_threshold'] * 0.00001 and histz <= 0
 
 def isCciConfirmation(shift, direction, reverse = False):
 	chidx = cci.getCurrent()[0]
@@ -698,6 +816,7 @@ def confirmation(trigger):
 	print("confirmation:", str(trigger.direction), str(trigger.count))
 
 	trigger.entry_state = EntryState.ONE
+	trigger.entry_three_state = EntryThreeState.ONE
 	pending_entries.append(trigger)
 
 def report():
