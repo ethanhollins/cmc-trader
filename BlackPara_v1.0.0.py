@@ -14,7 +14,7 @@ VARIABLES = {
 	'risk': 1.0,
 	'profit_risk': 50,
 	'maximum_risk': 63,
-	'maximum_bank': 500,
+	'maximum_bank': 400,
 	'PLAN': None,
 	'stoprange': 25,
 	'full_profit': 200,
