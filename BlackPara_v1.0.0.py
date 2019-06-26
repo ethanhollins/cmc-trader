@@ -206,6 +206,7 @@ def onDownTime():
 def onLoop():
 	''' Function called on every program iteration '''
 
+	print("no_new_trades:", str(no_new_trades))
 	if no_new_trades and len(utils.positions) <= 0:
 		global stop_trading
 		stop_trading = True
@@ -399,7 +400,8 @@ def checkTime():
 
 	time = utils.getTime(VARIABLES['TIMEZONE'])
 	parts = VARIABLES['close_exit_only'].split(':')
-	nnt_time = utils.createNewYorkTime(time.year, time.month, time.day, int(parts[0]), int(parts[1]), 0)
+	nnt_time = utils.createNewYorkTime(utils.startTime.year, utils.startTime.month, utils.startTime.day, int(parts[0]), int(parts[1]), 0)
+	nnt_time += datetime.timedelta(days=1)
 
 	if time > utils.endTime and time_state.value < TimeState.CLOSE.value:
 		time_state = TimeState.CLOSE
