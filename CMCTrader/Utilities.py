@@ -85,6 +85,7 @@ class Utilities:
 
 		self.latestTimestamp = {}
 
+		self.setTime()
 		self.startTime = None
 		self.endTime = None
 		self.open_time = self.setTimezone(Constants.DT_START_DATE, 'Pacific/Auckland')
@@ -159,6 +160,22 @@ class Utilities:
 		task = self._prompt
 		t = threading.Thread(target = task)
 		t.start()
+
+	def _setSecondsElem(self):
+		return 
+
+	def setTime(self):
+		self.secs_elem = self.driver.execute_script(
+			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="s"]\');'
+		)
+
+		self.mins_elem = self.driver.execute_script(
+			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="m"]\');'
+		)
+
+		self.hours_elem  = self.driver.execute_script(
+			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="h"]\');'
+		)
 
 	def SMA(self, pair, chart_period):
 		chart = self.getChart(pair, chart_period)

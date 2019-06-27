@@ -1,4 +1,5 @@
 import time
+import datetime
 import selenium.webdriver.support.ui as ui
 
 from selenium import webdriver
@@ -20,6 +21,7 @@ class Chart(object):
 
 		self.zoom = 1.025
 		self.latest_timestamp = 0
+		self.last_reload = 0		
 
 		self.regions = {}
 
@@ -252,7 +254,7 @@ class Chart(object):
 		# 	print(date)
 		# dt = self.convertRawDateToDatetime(date)
 		# return self.convertDatetimeToTimestamp(dt)
-		return self.getTimestampFromDataPoint(self.getDataPointsLength() - 1)
+		return self.getTimestampFromDataPoint(self.getDataPointsLength() - 2)
 
 	def getRealBarOffset(self, timestamp):
 		current_timestamp = self.getCurrentTimestamp()
@@ -303,6 +305,19 @@ class Chart(object):
 	def needsUpdate(self):
 		current_timestamp = self.getCurrentTimestamp()
 		return current_timestamp > self.latest_timestamp
+
+	def needsReload(self, utils):
+		current_time = utils.getAustralianTime()
+		current_hour = int(utils.hours_elem.text)
+		current_min = int(utils.mins_elem.text)
+		current_time = datetime.datetime(year = current_time.year, month = current_time.month, day = current_time.day, hour = current_hour, minute = current_min, second = 0)
+		current_timestamp = utils.convertDateTimeToTimestamp(current_time)
+
+		if current_timestamp >= self.last_reload + self.timestamp_offset:
+			self.last_reload = current_timestamp
+			return True
+		else:
+			return False
 
 	def convertRawDateToDatetime(self, date):
 		return parse(date)

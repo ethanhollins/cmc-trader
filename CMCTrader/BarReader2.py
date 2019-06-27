@@ -53,13 +53,14 @@ class BarReader(object):
 
 		missing_timestamps_dict = {}
 		for chart in charts:
-			if chart.needsUpdate():
-				if self._isBarCurrent(chart):
-					missing_timestamps = self.getMissingBarData(chart)
-					missing_timestamps_dict[chart.pair+"-"+str(chart.period)] = missing_timestamps
-				else:
-					print("Missed timestamp on chart", str(chart.pair), str(chart.period) + "!")
-					return False, {}
+			if self._isBarCurrent(chart):
+				chart.reloadData()
+				chart.resetZoom()
+
+				missing_timestamps = self.getMissingBarData(chart)
+				missing_timestamps_dict[chart.pair+"-"+str(chart.period)] = missing_timestamps
+			else:
+				return False, {}
 
 		return True, missing_timestamps_dict
 	
@@ -69,14 +70,16 @@ class BarReader(object):
 		print("getMissingBarData:")
 		latest_timestamp = chart.getCurrentTimestamp(debug=True)
 		ohlc_timestamps = chart.getTimestamps()
-		current_timestamp = chart.latest_timestamp
+		current_timestamp = chart.latest_timestamp + chart.timestamp_offset
 
 		if current_timestamp == 0:
 			current_timestamp = latest_timestamp
 
 		missing_timestamps = []
 
+		print("latest:", str(self.utils.convertTimestampToTime(latest_timestamp)))
 		while (current_timestamp <= latest_timestamp):
+			print("initial:", str(self.utils.convertTimestampToTime(current_timestamp)))
 			dt = self.utils.setTimezone(self.utils.convertTimestampToTime(current_timestamp), 'Australia/Melbourne')
 			self.utils.setWeekendTime(dt)
 			if not current_timestamp in ohlc_timestamps and not self.utils.isWeekendTime(dt):
@@ -157,8 +160,6 @@ class BarReader(object):
 		return missing_timestamps
 
 	def getBarDataByTimestamp(self, chart, timestamps):
-		chart.reloadData()
-		chart.resetZoom()
 
 		found_timestamps = []
 
@@ -169,7 +170,7 @@ class BarReader(object):
 		return found_timestamps
 
 	def performBarRead(self, chart, timestamp):
-			
+		
 		index = chart.getDataPointsLength()-1 - chart.getRealBarOffset(timestamp)
 		if index < 0:
 			index = chart.getOppositeRealBarOffset(timestamp)
@@ -228,142 +229,36 @@ class BarReader(object):
 
 		chart.ohlc[timestamp] = ohlc
 
-		img = None
-
 		if len(chart.overlays) > 0:
-			img = self._getOverlayData(chart, img, timestamp, index, data_points, offset)
+			self._getOverlayData(chart, timestamp, index, data_points, offset)
 		
 		if len(chart.studies) > 0:
-			img = self._getStudyData(chart, img, timestamp, index, data_points, offset)
+			self._getStudyData(chart, timestamp, index, data_points, offset)
 
 		return True
 
-	def _getOverlayData(self, chart, img, timestamp, bar_index, data_points, offset):
-
-		listened_colours = []
-		do_pixel_collection = False
+	def _getOverlayData(self, chart, timestamp, bar_index, data_points, offset):
 
 		for overlay in chart.overlays:
-			if overlay.collection_type == Constants.PIXEL_COLLECT:
-				listened_colours.append(overlay.colour)
-				do_pixel_collection = True
-			else:
-				ohlc = [
-					[i['open'] for i in data_points[:bar_index+1]],
-					[i['high'] for i in data_points[:bar_index+1]],
-					[i['low'] for i in data_points[:bar_index+1]],
-					[i['close'] for i in data_points[:bar_index+1]]
-				]
-				overlay.insertValues(timestamp, ohlc)
-
-				listened_colours.append([-1])
-
-		if do_pixel_collection:
-			collection_completed = False
-			read_value_x = chart.getWidth() - Constants.READ_X
-
-			while not collection_completed:
-
-				if not img:
-					img = self._getImage(chart)
-
-				region = chart.getRegionByIndex(0)
-				arr = self._getImageArray(img)[region[1]['start']:int(region[1]['end']), read_value_x:read_value_x+1]
-
-				for i in range(arr.shape[0]):
-					colour = arr[i].tolist()[0]
-
-					if colour in listened_colours:
-
-						value = chart.getValueAt(read_value_x, i + region[1]['start'] - 0.5)
-
-						chart.overlays[listened_colours.index(colour)].insertValues(timestamp, value)
-						
-						listened_colours[listened_colours.index(colour)] = [-1]
-
-					not_done = False
-					for colour in listened_colours:
-						if not colour == [-1]:
-							not_done = True
-							
-					if not_done:
-						continue
-					else:
-						break
-
-				if not_done:
-					print("DID NOT FIND OVERLAY, TRYING AGAIN!")
-					read_value_x = chart.getWidth() - Constants.READ_X_2
-					chart.resetZoom(zoom=1.05)
-					chart.panLeft(offset-2)
-					img = self._getImage(chart)
-					continue
-
-				collection_completed = True
-
-		return img
+			ohlc = [
+				[i['open'] for i in data_points[:bar_index+1]],
+				[i['high'] for i in data_points[:bar_index+1]],
+				[i['low'] for i in data_points[:bar_index+1]],
+				[i['close'] for i in data_points[:bar_index+1]]
+			]
+			print(overlay.type, str(ohlc[0][-1]), str(ohlc[1][-1]), str(ohlc[2][-1]), str(ohlc[3][-1])+"\n"+str(self.utils.convertTimestampToTime(timestamp)))
+			overlay.insertValues(timestamp, ohlc)
 	
-	def _getStudyData(self, chart, img, timestamp, bar_index, data_points, offset):
-		index = 0
+	def _getStudyData(self, chart, timestamp, bar_index, data_points, offset):
 		for study in chart.studies:
-			
-			if study.collection_type == Constants.DATA_POINT_COLLECT:
-				ohlc = [
-					[i['open'] for i in data_points[:bar_index+1]],
-					[i['high'] for i in data_points[:bar_index+1]],
-					[i['low'] for i in data_points[:bar_index+1]],
-					[i['close'] for i in data_points[:bar_index+1]]
-				]
-
-				study.insertValues(timestamp, ohlc)
-
-			elif study.collection_type == Constants.PIXEL_COLLECT:
-				index += 1
-				read_value_x = chart.getWidth() - Constants.READ_X
-
-				while True:
-
-					if not img:
-						img = self._getImage(chart)
-
-					region = chart.getRegionByIndex(index)
-					arr = self._getImageArray(img)[region[1]['start']:region[1]['end'], read_value_x:read_value_x+1]
-
-					listened_colours = []
-					for study in chart.studies:
-						listened_colours = study.colours
-
-					values = {}
-
-					for i in range(arr.shape[0]):
-						colour = arr[i].tolist()[0]
-						if colour in listened_colours:
-							value = chart.getValueAt(read_value_x, i + region[1]['start'])
-							
-							values[listened_colours.index(colour)] = value
-
-							listened_colours[listened_colours.index(colour)] = [-1]
-
-					retry = False
-					for colour in listened_colours:
-						if not colour == [-1]:
-							print("DID NOT FIND STUDY, TRYING AGAIN!")
-							read_value_x = chart.getWidth() - Constants.READ_X_2
-							chart.resetZoom(1.05)
-							chart.panLeft(offset-2)
-							img = self._getImage(chart)
-							retry = True
-
-					if retry:
-						continue
-
-					break
-
-				values = [i[1] for i in sorted(values.items(), key=lambda kv: kv[0])]
-
-				study.insertValues(timestamp, values)
-
-		return img
+			ohlc = [
+				[i['open'] for i in data_points[:bar_index+1]],
+				[i['high'] for i in data_points[:bar_index+1]],
+				[i['low'] for i in data_points[:bar_index+1]],
+				[i['close'] for i in data_points[:bar_index+1]]
+			]
+			print(study.type, str(ohlc[0][-1]), str(ohlc[1][-1]), str(ohlc[2][-1]), str(ohlc[3][-1])+"\n"+str(self.utils.convertTimestampToTime(timestamp)))
+			study.insertValues(timestamp, ohlc)
 
 	def _isBarCurrent(self, chart):
 		chart.resetZoom()
