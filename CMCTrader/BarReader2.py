@@ -77,9 +77,7 @@ class BarReader(object):
 
 		missing_timestamps = []
 
-		print("latest:", str(self.utils.convertTimestampToTime(latest_timestamp)))
 		while (current_timestamp <= latest_timestamp):
-			print("initial:", str(self.utils.convertTimestampToTime(current_timestamp)))
 			dt = self.utils.setTimezone(self.utils.convertTimestampToTime(current_timestamp), 'Australia/Melbourne')
 			self.utils.setWeekendTime(dt)
 			if not current_timestamp in ohlc_timestamps and not self.utils.isWeekendTime(dt):
@@ -246,7 +244,6 @@ class BarReader(object):
 				[i['low'] for i in data_points[:bar_index+1]],
 				[i['close'] for i in data_points[:bar_index+1]]
 			]
-			print(overlay.type, str(ohlc[0][-1]), str(ohlc[1][-1]), str(ohlc[2][-1]), str(ohlc[3][-1])+"\n"+str(self.utils.convertTimestampToTime(timestamp)))
 			overlay.insertValues(timestamp, ohlc)
 	
 	def _getStudyData(self, chart, timestamp, bar_index, data_points, offset):
@@ -257,7 +254,6 @@ class BarReader(object):
 				[i['low'] for i in data_points[:bar_index+1]],
 				[i['close'] for i in data_points[:bar_index+1]]
 			]
-			print(study.type, str(ohlc[0][-1]), str(ohlc[1][-1]), str(ohlc[2][-1]), str(ohlc[3][-1])+"\n"+str(self.utils.convertTimestampToTime(timestamp)))
 			study.insertValues(timestamp, ohlc)
 
 	def _isBarCurrent(self, chart):
