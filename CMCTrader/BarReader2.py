@@ -70,10 +70,10 @@ class BarReader(object):
 		print("getMissingBarData:")
 		latest_timestamp = chart.getCurrentTimestamp(debug=True)
 		ohlc_timestamps = chart.getTimestamps()
-		current_timestamp = chart.latest_timestamp + chart.timestamp_offset
+		current_timestamp = chart.latest_timestamp
 
 		if current_timestamp == 0:
-			current_timestamp = latest_timestamp
+			current_timestamp = chart.getLatestTimestamp(0)
 
 		missing_timestamps = []
 
