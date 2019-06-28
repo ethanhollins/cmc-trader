@@ -58,7 +58,10 @@ class BarReader(object):
 				chart.resetZoom()
 
 				missing_timestamps = self.getMissingBarData(chart)
-				missing_timestamps_dict[chart.pair+"-"+str(chart.period)] = missing_timestamps
+				if len(missing_timestamps) > 0:
+					missing_timestamps_dict[chart.pair+"-"+str(chart.period)] = missing_timestamps
+				else:
+					return False, {}
 			else:
 				return False, {}
 
