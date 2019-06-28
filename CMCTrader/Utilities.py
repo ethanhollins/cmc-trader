@@ -116,6 +116,7 @@ class Utilities:
 		self.reinitCharts()
 		self.reinitTickets()
 		self.reinitAUDUSDTicket()
+		self.setTime()
 
 		if get_chart_regions:
 			for chart in self.charts:

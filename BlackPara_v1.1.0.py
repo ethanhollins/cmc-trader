@@ -120,8 +120,8 @@ def init(utilities):
 
 	utils = utilities
 	orange_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.2, 0.2)
-	purple_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.08, 0.2) # 0.06
-	yellow_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.05, 0.2) # 0.04
+	purple_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.06, 0.2) # 0.06
+	yellow_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.04, 0.2) # 0.04
 	black_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.017, 0.04)
 	macd = utils.MACD(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
 	macdz = utils.MACDZ(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)

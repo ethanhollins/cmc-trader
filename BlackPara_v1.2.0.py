@@ -23,6 +23,7 @@ VARIABLES = {
 	'close_exit_only': '13:30',
 	'MACD': None,
 	'macd_threshold': 2,
+	'macd_z_threshold': 3,
 	'SAR': None,
 	'sar_min_diff': 0.5
 }
@@ -40,7 +41,8 @@ class EntryState(Enum):
 class EntryThreeState(Enum):
 	ONE = 1
 	TWO = 2
-	COMPLETE = 4
+	THREE = 3
+	COMPLETE = 3
 
 class TrendState(Enum):
 	ONE = 1
@@ -120,8 +122,8 @@ def init(utilities):
 
 	utils = utilities
 	orange_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.2, 0.2)
-	purple_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.08, 0.2) # 0.06
-	yellow_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.05, 0.2) # 0.04
+	purple_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.06, 0.2) # 0.06
+	yellow_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.04, 0.2) # 0.04
 	black_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.017, 0.04)
 	macd = utils.MACD(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
 	macdz = utils.MACDZ(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
@@ -137,7 +139,7 @@ def onStartTrading():
 
 	setGlobalVars()
 
-	# firstStrand(0)
+	firstStrand(0)
 
 	print("Starting Bank:", str(bank))
 
@@ -399,7 +401,8 @@ def checkTime():
 
 	time = utils.getTime(VARIABLES['TIMEZONE'])
 	parts = VARIABLES['close_exit_only'].split(':')
-	nnt_time = utils.createNewYorkTime(utils.startTime.year, utils.startTime.month, utils.startTime.day, int(parts[0]), int(parts[1]), 0)
+	tz_start_time = utils.convertTimezone(utils.startTime, VARIABLES['TIMEZONE'])
+	nnt_time = utils.createNewYorkTime(tz_start_time.year, tz_start_time.month, tz_start_time.day, int(parts[0]), int(parts[1]), 0)
 	nnt_time += datetime.timedelta(days=1)
 
 	if time > utils.endTime and time_state.value < TimeState.CLOSE.value:
@@ -446,8 +449,10 @@ def runSequence(shift):
 	onNewYellowStrand(shift)
 	onNewBlackStrand(shift)
 
-	entrySetup(shift, long_trigger)
-	entrySetup(shift, short_trigger)
+	# entrySetup(shift, long_trigger)
+	# entrySetup(shift, short_trigger)
+	entryThreeSetup(shift, long_trigger)
+	entryThreeSetup(shift, short_trigger)
 
 def onNewOrangeStrand(shift):
 	global current_strand
@@ -575,7 +580,6 @@ def entrySetup(shift, trigger):
 		if trigger.entry_state == EntryState.ONE:
 			if isAllParaConfirmation(shift, trigger.direction):
 				trigger.entry_state = EntryState.TWO
-				trigger.entry_three_state = EntryThreeState.TWO
 				return entrySetup(shift, trigger)
 
 		elif trigger.entry_state == EntryState.TWO:
@@ -584,24 +588,41 @@ def entrySetup(shift, trigger):
 				return entrySetup(shift, trigger)
 
 		elif trigger.entry_state == EntryState.THREE:
-			if entryOneConfirmation(shift, trigger):
-				trigger.entry_state = EntryState.COMPLETE
-				return confirmation(trigger)
+			# if entryOneConfirmation(shift, trigger):
+			# 	trigger.entry_state = EntryState.COMPLETE
+			# 	return confirmation(trigger)
 			if entryTwoConfirmation(shift, trigger.direction):
 				trigger.entry_state = EntryState.COMPLETE
 				return confirmation(trigger)
 
-		# Entry Three
-		if trigger.entry_three_state == EntryThreeState.TWO:
+		if isBlackParaConfirmation(shift, trigger.direction, reverse=True):
+			trigger.entry_state = EntryState.ONE
+			return
+
+def entryThreeSetup(shift, trigger):
+	if trigger:
+
+		if trigger.entry_three_state == EntryThreeState.ONE:
+			if entryThreeParaConf(shift, trigger.direction):
+				trigger.entry_three_state = EntryThreeState.TWO
+				return entryThreeSetup(shift, trigger)
+
+		elif trigger.entry_three_state == EntryThreeState.TWO:
 			if entryThreeConfirmation(shift, trigger.direction):
 				trigger.entry_three_state = EntryThreeState.COMPLETE
 				return confirmation(trigger)
 			else:
-				trigger.entry_three_state = EntryThreeState.ONE
+				trigger.entry_three_state = EntryThreeState.THREE
+				return entryThreeSetup(shift, trigger)
 
-		if isBlackParaConfirmation(shift, trigger.direction, reverse=True):
-			trigger.entry_state = EntryState.ONE
-			return
+		elif trigger.entry_three_state == EntryThreeState.THREE:
+			if entryThreeParaConf(shift, trigger.direction, reverse=True):
+				trigger.entry_three_state = EntryThreeState.ONE
+				return entryThreeSetup(shift, trigger)
+
+			elif entryThreeConfirmation(shift, trigger.direction):
+				trigger.entry_three_state = EntryThreeState.COMPLETE
+				return confirmation(trigger)
 
 def entryOneConfirmation(shift, trigger):
 	print("Entry ONE ("+str(trigger.direction)+"):", 
@@ -633,24 +654,33 @@ def entryTwoConfirmation(shift, direction):
 def entryThreeConfirmation(shift, direction):
 	print("Entry THREE ("+str(direction)+"):",
 			str(isYellowABLast(shift, direction)),
-			str(isPurpleABLast(shift, direction))
+			str(isPurpleABLast(shift, direction)),
+			str(entryThreeParaConf(shift, direction)),
+			str(isMacdEntryThreeConfirmation(direction))
 		)
 
-	return isYellowABLast(shift, direction) and isPurpleABLast(shift, direction)
+	return (
+			isYellowABLast(shift, direction) and 
+			isPurpleABLast(shift, direction) and
+			entryThreeParaConf(shift, direction) and
+			isMacdEntryThreeConfirmation(direction)
+		)
 
 def isAllParaConfirmation(shift, direction, reverse=False):
-	if reverse:
-		return (
-				isOrangeParaConfirmation(shift, direction, reverse=True) and
-				isPurpleParaConfirmation(shift, direction, reverse=True) and
-				isBlackParaConfirmation(shift, direction, reverse=True)
-			)
-	else:
-		return (
-				isOrangeParaConfirmation(shift, direction) and
-				isPurpleParaConfirmation(shift, direction) and
-				isBlackParaConfirmation(shift, direction)
-			)
+
+	return (
+			isOrangeParaConfirmation(shift, direction, reverse=reverse) and
+			isPurpleParaConfirmation(shift, direction, reverse=reverse) and
+			isYellowParaConfirmation(shift, direction, reverse=reverse) and
+			isBlackParaConfirmation(shift, direction, reverse=reverse)
+		)
+
+
+def entryThreeParaConf(shift, direction, reverse=False):
+	return (
+			isPurpleParaConfirmation(shift, direction, reverse=reverse) and
+			isYellowParaConfirmation(shift, direction, reverse=reverse)
+		)
 
 def isCandleOutside(shift, direction):
 	chart = utils.getChart(Constants.GBPUSD, Constants.ONE_MINUTE)
@@ -694,14 +724,14 @@ def isYellowABLast(shift, direction):
 		last = getNumberDirectionYellowStrand(Direction.SHORT, 1)
 
 		if current and last:
-			return current.start > last.start + VARIABLES['sar_min_diff'] * 0.0001
+			return current.start >= last.start + VARIABLES['sar_min_diff'] * 0.0001
 
 	else:
 		current = getNumberDirectionYellowStrand(Direction.LONG, 0)
 		last = getNumberDirectionYellowStrand(Direction.LONG, 1)
 
 		if current and last:
-			return current.start < last.start - VARIABLES['sar_min_diff'] * 0.0001
+			return current.start <= last.start - VARIABLES['sar_min_diff'] * 0.0001
 
 	return False
 
@@ -712,14 +742,14 @@ def isPurpleABLast(shift, direction):
 		last = getNumberDirectionPurpleStrand(Direction.SHORT, 1)
 
 		if current and last:
-			return current.start > last.start + VARIABLES['sar_min_diff'] * 0.0001
+			return current.start >= last.start + VARIABLES['sar_min_diff'] * 0.0001
 
 	else:
 		current = getNumberDirectionPurpleStrand(Direction.LONG, 0)
 		last = getNumberDirectionPurpleStrand(Direction.LONG, 1)
 
 		if current and last:
-			return current.start < last.start - VARIABLES['sar_min_diff'] * 0.0001
+			return current.start <= last.start - VARIABLES['sar_min_diff'] * 0.0001
 
 	return False
 
@@ -751,6 +781,20 @@ def isPurpleParaConfirmation(shift, direction, reverse = False):
 		else:
 			return purple_sar.isFalling(shift, 1)[0]
 
+def isYellowParaConfirmation(shift, direction, reverse = False):
+
+	if reverse:
+		if direction == Direction.LONG:
+			return yellow_sar.isFalling(shift, 1)[0]
+		else:
+			return yellow_sar.isRising(shift, 1)[0]
+	
+	else:
+		if direction == Direction.LONG:
+			return yellow_sar.isRising(shift, 1)[0]
+		else:
+			return yellow_sar.isFalling(shift, 1)[0]
+
 def isBlackParaConfirmation(shift, direction, reverse = False):
 
 	if reverse:
@@ -781,6 +825,23 @@ def isMacdConfirmation(direction, reverse = False):
 			return hist >= VARIABLES['macd_threshold'] * 0.00001 and histz >= 0
 		else:
 			return hist <= -VARIABLES['macd_threshold'] * 0.00001 and histz <= 0
+
+def isMacdEntryThreeConfirmation(direction, reverse = False):
+	hist = macd.getCurrent()[2]
+	histz = macdz.getCurrent()[2]
+	print("hist:", str(hist), "histz:", str(histz))
+
+	if reverse:
+		if direction == Direction.LONG:
+			return hist <= -VARIABLES['macd_threshold'] * 0.00001 or histz <= -VARIABLES['macd_z_threshold'] * 0.00001
+		else:
+			return hist >= VARIABLES['macd_threshold'] * 0.00001 or histz >= VARIABLES['macd_z_threshold'] * 0.00001
+
+	else:
+		if direction == Direction.LONG:
+			return hist >= VARIABLES['macd_threshold'] * 0.00001 or histz >= VARIABLES['macd_z_threshold'] * 0.00001
+		else:
+			return hist <= -VARIABLES['macd_threshold'] * 0.00001 or histz <= -VARIABLES['macd_z_threshold'] * 0.00001
 
 def isCciConfirmation(shift, direction, reverse = False):
 	chidx = cci.getCurrent()[0]

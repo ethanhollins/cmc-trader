@@ -46,19 +46,19 @@ class SAR_M(object):
 			low = ohlc[2][i]
 
 			if is_rising:
-				
+
 				if high > ep:
 					ep = round(high, 5)
 					af = min(af + self.acceleration, self.maximum)
 				
-				if low < sars[i-1]:
+				if low < sars[-1]:
 					is_rising = False
 					sars.append(ep)
 					ep = round(low, 5)
 					af = self.acceleration
 					continue
 
-				sar = sars[i-1] + ( af * ( ep - sars[i-1] ) )
+				sar = sars[-1] + ( af * ( ep - sars[-1] ) )
 
 				if sar > low:
 					sar = low
@@ -69,17 +69,18 @@ class SAR_M(object):
 					ep = round(low, 5)
 					af = min(af + self.acceleration, self.maximum)
 				
-				if high > sars[i-1]:
+				if high > sars[-1]:
 					is_rising = True
 					sars.append(ep)
 					ep = round(high, 5)
 					af = self.acceleration
 					continue
 
-				sar = sars[i-1] - ( af * ( sars[i-1] - ep ) )
+				sar = sars[-1] - ( af * ( sars[-1] - ep ) )
 
 				if sar < high:
 					sar = high
+
 
 			sars.append(sar)
 
