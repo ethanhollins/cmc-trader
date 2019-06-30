@@ -658,6 +658,7 @@ def entryThreeConfirmation(shift, direction):
 			str(isYellowABLast(shift, direction)),
 			str(isPurpleABLast(shift, direction)),
 			str(entryThreeParaConf(shift, direction)),
+			str(isRsiConfirmation(shift, direction)),
 			str(isMacdEntryThreeConfirmation(direction))
 		)
 
@@ -665,6 +666,7 @@ def entryThreeConfirmation(shift, direction):
 			isYellowABLast(shift, direction) and 
 			isPurpleABLast(shift, direction) and
 			entryThreeParaConf(shift, direction) and
+			isRsiConfirmation(shift, direction) and
 			isMacdEntryThreeConfirmation(direction)
 		)
 
