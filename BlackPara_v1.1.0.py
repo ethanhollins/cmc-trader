@@ -128,6 +128,8 @@ def init(utilities):
 	rsi = utils.RSI(Constants.GBPUSD, Constants.ONE_MINUTE, 10)
 	cci = utils.CCI(Constants.GBPUSD, Constants.ONE_MINUTE, 5)
 
+	# rsi = utils.RSI(Constants.GBPUSD, Constants.FOUR_HOURS, 10)
+
 	setGlobalVars()
 
 def onStartTrading():
@@ -587,17 +589,17 @@ def entrySetup(shift, trigger):
 			if entryOneConfirmation(shift, trigger):
 				trigger.entry_state = EntryState.COMPLETE
 				return confirmation(trigger)
-			if entryTwoConfirmation(shift, trigger.direction):
-				trigger.entry_state = EntryState.COMPLETE
-				return confirmation(trigger)
+			# if entryTwoConfirmation(shift, trigger.direction):
+			# 	trigger.entry_state = EntryState.COMPLETE
+			# 	return confirmation(trigger)
 
 		# Entry Three
-		if trigger.entry_three_state == EntryThreeState.TWO:
-			if entryThreeConfirmation(shift, trigger.direction):
-				trigger.entry_three_state = EntryThreeState.COMPLETE
-				return confirmation(trigger)
-			else:
-				trigger.entry_three_state = EntryThreeState.ONE
+		# if trigger.entry_three_state == EntryThreeState.TWO:
+		# 	if entryThreeConfirmation(shift, trigger.direction):
+		# 		trigger.entry_three_state = EntryThreeState.COMPLETE
+		# 		return confirmation(trigger)
+		# 	else:
+		# 		trigger.entry_three_state = EntryThreeState.ONE
 
 		if isBlackParaConfirmation(shift, trigger.direction, reverse=True):
 			trigger.entry_state = EntryState.ONE

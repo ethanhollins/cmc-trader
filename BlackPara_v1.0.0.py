@@ -441,6 +441,7 @@ def runSequence(shift):
 	print("ohlc:", str([i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][shift]))
 	print("O:", str(orange_sar.getCurrent()), "Y:", str(yellow_sar.getCurrent()),  "P:", str(purple_sar.getCurrent()), "B:", str(black_sar.getCurrent()))
 
+
 	onNewOrangeStrand(shift)
 	onNewPurpleStrand(shift)
 	onNewYellowStrand(shift)
