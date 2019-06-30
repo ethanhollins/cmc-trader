@@ -36,12 +36,12 @@ class EntryState(Enum):
 	ONE = 1
 	TWO = 2
 	THREE = 3
-	COMPLETE = 4
+	FOUR = 4
+	COMPLETE = 5
 
 class EntryThreeState(Enum):
 	ONE = 1
 	TWO = 2
-	THREE = 3
 	COMPLETE = 3
 
 class TrendState(Enum):
@@ -449,8 +449,8 @@ def runSequence(shift):
 	onNewYellowStrand(shift)
 	onNewBlackStrand(shift)
 
-	# entrySetup(shift, long_trigger)
-	# entrySetup(shift, short_trigger)
+	entrySetup(shift, long_trigger)
+	entrySetup(shift, short_trigger)
 	entryThreeSetup(shift, long_trigger)
 	entryThreeSetup(shift, short_trigger)
 
@@ -575,7 +575,7 @@ def getLastDirectionBlackStrand(direction):
 
 def entrySetup(shift, trigger):
 
-	if trigger and not trigger.entry_state == EntryState.COMPLETE:
+	if trigger:
 
 		if trigger.entry_state == EntryState.ONE:
 			if isAllParaConfirmation(shift, trigger.direction):
@@ -588,12 +588,15 @@ def entrySetup(shift, trigger):
 				return entrySetup(shift, trigger)
 
 		elif trigger.entry_state == EntryState.THREE:
-			# if entryOneConfirmation(shift, trigger):
-			# 	trigger.entry_state = EntryState.COMPLETE
-			# 	return confirmation(trigger)
-			if entryTwoConfirmation(shift, trigger.direction):
+			if isPurpleParaConfirmation(shift, trigger.direction):
+				trigger.entry_state = EntryState.FOUR
+				return entrySetup(shift, trigger)
+
+		elif trigger.entry_state == EntryState.FOUR:
+			if entryOneConfirmation(shift, trigger):
 				trigger.entry_state = EntryState.COMPLETE
-				return confirmation(trigger)
+			# if entryTwoConfirmation(shift, trigger.direction):
+			# 	trigger.entry_state = EntryState.COMPLETE
 
 		if isBlackParaConfirmation(shift, trigger.direction, reverse=True):
 			trigger.entry_state = EntryState.ONE
@@ -608,28 +611,27 @@ def entryThreeSetup(shift, trigger):
 				return entryThreeSetup(shift, trigger)
 
 		elif trigger.entry_three_state == EntryThreeState.TWO:
-			if entryThreeConfirmation(shift, trigger.direction):
-				trigger.entry_three_state = EntryThreeState.COMPLETE
-				return confirmation(trigger)
-			else:
-				trigger.entry_three_state = EntryThreeState.THREE
-				return entryThreeSetup(shift, trigger)
-
-		elif trigger.entry_three_state == EntryThreeState.THREE:
 			if entryThreeParaConf(shift, trigger.direction, reverse=True):
 				trigger.entry_three_state = EntryThreeState.ONE
 				return entryThreeSetup(shift, trigger)
+
+			elif trigger.entry_state.value >= EntryState.FOUR.value:
+
+				if trigger.entry_state == EntryState.COMPLETE:
+					if entryThreeConfirmation(shift, trigger.direction):
+						trigger.entry_three_state = EntryThreeState.COMPLETE
+						return confirmation(trigger)
 
 			elif entryThreeConfirmation(shift, trigger.direction):
 				trigger.entry_three_state = EntryThreeState.COMPLETE
 				return confirmation(trigger)
 
 def entryOneConfirmation(shift, trigger):
-	print("Entry ONE ("+str(trigger.direction)+"):", 
+	print("Entry ONE ("+str(trigger.direction)+"):",
 			str(isAllParaConfirmation(shift, trigger.direction)),
 			str(isMacdConfirmation(trigger.direction)),
-			str(isCciConfirmation(shift, trigger.direction)),
 			str(isRsiConfirmation(shift, trigger.direction)),
+			str(isCciConfirmation(shift, trigger.direction)),
 			str(isCloseABBlackPara(shift, trigger.direction))
 		)
 	return (
