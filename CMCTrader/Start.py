@@ -410,7 +410,7 @@ class Start(object):
 	def needsUpdate(self):
 
 		for chart in self.utils.charts:
-			if chart.needsReload(self.utils):
+			if chart.needsUpdate():
 				return True
 
 		return False

@@ -304,7 +304,7 @@ class Chart(object):
 
 	def needsUpdate(self):
 		current_timestamp = self.getCurrentTimestamp()
-		return current_timestamp > self.latest_timestamp
+		return current_timestamp > self.getLatestTimestamp(0)
 
 	def needsReload(self, utils):
 		current_time = utils.getAustralianTime()

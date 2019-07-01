@@ -53,17 +53,17 @@ class BarReader(object):
 
 		missing_timestamps_dict = {}
 		for chart in charts:
-			if self._isBarCurrent(chart):
-				chart.reloadData()
-				chart.resetZoom()
+			# if self._isBarCurrent(chart):
+			chart.reloadData()
+			chart.resetZoom()
 
-				missing_timestamps = self.getMissingBarData(chart)
-				if len(missing_timestamps) > 0:
-					missing_timestamps_dict[chart.pair+"-"+str(chart.period)] = missing_timestamps
-				else:
-					return False, {}
+			missing_timestamps = self.getMissingBarData(chart)
+			if len(missing_timestamps) > 0:
+				missing_timestamps_dict[chart.pair+"-"+str(chart.period)] = missing_timestamps
 			else:
 				return False, {}
+			# else:
+			# 	return False, {}
 
 		return True, missing_timestamps_dict
 	
