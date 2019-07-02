@@ -728,14 +728,14 @@ def isYellowABLast(shift, direction):
 		last = getNumberDirectionYellowStrand(Direction.SHORT, 1)
 
 		if current and last:
-			return current.start >= last.start + VARIABLES['sar_min_diff'] * 0.0001
+			return current.start >= round(last.start + VARIABLES['sar_min_diff'] * 0.0001, 5)
 
 	else:
 		current = getNumberDirectionYellowStrand(Direction.LONG, 0)
 		last = getNumberDirectionYellowStrand(Direction.LONG, 1)
 
 		if current and last:
-			return current.start <= last.start - VARIABLES['sar_min_diff'] * 0.0001
+			return current.start <= round(last.start - VARIABLES['sar_min_diff'] * 0.0001, 5)
 
 	return False
 
@@ -746,14 +746,14 @@ def isPurpleABLast(shift, direction):
 		last = getNumberDirectionPurpleStrand(Direction.SHORT, 1)
 
 		if current and last:
-			return current.start >= last.start + VARIABLES['sar_min_diff'] * 0.0001
+			return current.start >= round(last.start + VARIABLES['sar_min_diff'] * 0.0001, 5)
 
 	else:
 		current = getNumberDirectionPurpleStrand(Direction.LONG, 0)
 		last = getNumberDirectionPurpleStrand(Direction.LONG, 1)
 
 		if current and last:
-			return current.start <= last.start - VARIABLES['sar_min_diff'] * 0.0001
+			return current.start <= round(last.start - VARIABLES['sar_min_diff'] * 0.0001, 5)
 
 	return False
 
@@ -820,15 +820,15 @@ def isMacdConfirmation(direction, reverse = False):
 
 	if reverse:
 		if direction == Direction.LONG:
-			return hist <= -VARIABLES['macd_threshold'] * 0.00001 and histz <= 0
+			return hist <= -round(VARIABLES['macd_threshold'] * 0.00001, 5) and histz <= 0
 		else:
-			return hist >= VARIABLES['macd_threshold'] * 0.00001 and histz >= 0
+			return hist >= round(VARIABLES['macd_threshold'] * 0.00001, 5) and histz >= 0
 
 	else:
 		if direction == Direction.LONG:
-			return hist >= VARIABLES['macd_threshold'] * 0.00001 and histz >= 0
+			return hist >= round(VARIABLES['macd_threshold'] * 0.00001, 5) and histz >= 0
 		else:
-			return hist <= -VARIABLES['macd_threshold'] * 0.00001 and histz <= 0
+			return hist <= -round(VARIABLES['macd_threshold'] * 0.00001, 5) and histz <= 0
 
 def isMacdEntryThreeConfirmation(direction, reverse = False):
 	hist = macd.getCurrent()[2]
@@ -837,15 +837,15 @@ def isMacdEntryThreeConfirmation(direction, reverse = False):
 
 	if reverse:
 		if direction == Direction.LONG:
-			return hist <= -VARIABLES['macd_threshold'] * 0.00001 or histz <= -VARIABLES['macd_z_threshold'] * 0.00001
+			return hist <= -round(VARIABLES['macd_threshold'] * 0.00001, 5) or histz <= -round(VARIABLES['macd_z_threshold'] * 0.00001, 5)
 		else:
-			return hist >= VARIABLES['macd_threshold'] * 0.00001 or histz >= VARIABLES['macd_z_threshold'] * 0.00001
+			return hist >= round(VARIABLES['macd_threshold'] * 0.00001, 5) or histz >= round(VARIABLES['macd_z_threshold'] * 0.00001, 5)
 
 	else:
 		if direction == Direction.LONG:
-			return hist >= VARIABLES['macd_threshold'] * 0.00001 or histz >= VARIABLES['macd_z_threshold'] * 0.00001
+			return hist >= round(VARIABLES['macd_threshold'] * 0.00001, 5) or histz >= round(VARIABLES['macd_z_threshold'] * 0.00001, 5)
 		else:
-			return hist <= -VARIABLES['macd_threshold'] * 0.00001 or histz <= -VARIABLES['macd_z_threshold'] * 0.00001
+			return hist <= -round(VARIABLES['macd_threshold'] * 0.00001, 5) or histz <= -round(VARIABLES['macd_z_threshold'] * 0.00001, 5)
 
 def isCciConfirmation(shift, direction, reverse = False):
 	chidx = cci.getCurrent()[0]
