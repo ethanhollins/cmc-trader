@@ -634,17 +634,17 @@ def entryTwoConfirmation(shift, direction):
 	print("Entry TWO ("+str(direction)+"):",
 			str(isCloseHLPrevBlackPara(shift, direction)),
 			str(isAllParaConfirmation(shift, direction)),
-			str(isMacdEntryTwoConfirmation(shift, direction)),
+			str(isMacdEntryTwoConfirmation(direction)),
 			str(isRsiConfirmation(shift, direction)),
-			str(isRsiObos(shift, direction))
+			str(not isRsiObos(shift, direction))
 		)
 
 	return (
 			isCloseHLPrevBlackPara(shift, direction) and
 			isAllParaConfirmation(shift, direction) and
-			isMacdEntryTwoConfirmation(shift, direction) and
+			isMacdEntryTwoConfirmation(direction) and
 			isRsiConfirmation(shift, direction) and
-			isRsiObos(shift, direction)
+			not isRsiObos(shift, direction)
 		)
 
 def entryThreeConfirmation(shift, direction):
@@ -725,6 +725,7 @@ def isCloseHLPrevBlackPara(shift, direction):
 
 	if one and two and three and four:
 
+		print(str(one.start), str(two.start), str(three.start), str(four.start))
 		if direction == Direction.LONG:
 			cross_sar = max(one.start, two.start, three.start, four.start)
 
