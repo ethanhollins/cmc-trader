@@ -1551,6 +1551,13 @@ class Utilities:
 
 		return datetime.datetime(year=time.year, month=time.month, day=time.day, hour=0, minute=0, second=0)
 
+	def addTimestampOffset(self, timestamp, timestamp_offset):
+		time = self.convertTimestampToTime(timestamp)
+		time = self.setTimezone(time, 'Australia/Melbourne')
+		time += datetime.timedelta(seconds=timestamp_offset)
+		self.convertTimezone(time, 'Australia/Melbourne')
+		return self.convertDateTimeToTimestamp(time)
+
 	def getLastSavedTimestamp(self, chart):
 		dt = self.getAustralianTime()
 		

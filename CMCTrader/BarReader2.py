@@ -86,7 +86,7 @@ class BarReader(object):
 			if not current_timestamp in ohlc_timestamps and not self.utils.isWeekendTime(dt):
 				missing_timestamps.append(current_timestamp)
 
-			current_timestamp += chart.timestamp_offset
+			current_timestamp = self.utils.addTimestampOffset(current_timestamp, chart.timestamp_offset)
 
 		if (len(missing_timestamps) > 0):
 			self.getBarDataByTimestamp(chart, missing_timestamps)
@@ -120,7 +120,7 @@ class BarReader(object):
 			if not current_timestamp in ohlc_timestamps and not self.utils.isWeekendTime(dt):
 				missing_timestamps.append(current_timestamp)
 
-			current_timestamp += chart.timestamp_offset
+			current_timestamp = self.utils.addTimestampOffset(current_timestamp, chart.timestamp_offset)
 
 		if (len(missing_timestamps) > 0):
 			self.getBarDataByTimestamp(chart, missing_timestamps)

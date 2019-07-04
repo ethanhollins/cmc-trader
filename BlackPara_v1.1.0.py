@@ -128,7 +128,7 @@ def init(utilities):
 	rsi = utils.RSI(Constants.GBPUSD, Constants.ONE_MINUTE, 10)
 	cci = utils.CCI(Constants.GBPUSD, Constants.ONE_MINUTE, 5)
 
-	# rsi = utils.RSI(Constants.GBPUSD, Constants.FOUR_HOURS, 10)
+	rsi = utils.RSI(Constants.GBPUSD, Constants.FOUR_HOURS, 10)
 
 	setGlobalVars()
 
