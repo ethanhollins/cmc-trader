@@ -120,15 +120,13 @@ def init(utilities):
 
 	utils = utilities
 	orange_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.2, 0.2)
-	# purple_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.06, 0.2) # 0.06
-	# yellow_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.04, 0.2) # 0.04
-	# black_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.017, 0.04)
-	# macd = utils.MACD(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
-	# macdz = utils.MACDZ(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
-	# rsi = utils.RSI(Constants.GBPUSD, Constants.ONE_MINUTE, 10)
-	# cci = utils.CCI(Constants.GBPUSD, Constants.ONE_MINUTE, 5)
-
-	rsi = utils.RSI(Constants.GBPUSD, Constants.FOUR_HOURS, 10)
+	purple_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.06, 0.2) # 0.06
+	yellow_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.04, 0.2) # 0.04
+	black_sar = utils.SAR_M(Constants.GBPUSD, Constants.ONE_MINUTE, 0.017, 0.04)
+	macd = utils.MACD(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
+	macdz = utils.MACDZ(Constants.GBPUSD, Constants.ONE_MINUTE, 12, 26, 9)
+	rsi = utils.RSI(Constants.GBPUSD, Constants.ONE_MINUTE, 10)
+	cci = utils.CCI(Constants.GBPUSD, Constants.ONE_MINUTE, 5)
 
 	setGlobalVars()
 
@@ -589,17 +587,17 @@ def entrySetup(shift, trigger):
 			if entryOneConfirmation(shift, trigger):
 				trigger.entry_state = EntryState.COMPLETE
 				return confirmation(trigger)
-			# if entryTwoConfirmation(shift, trigger.direction):
-			# 	trigger.entry_state = EntryState.COMPLETE
-			# 	return confirmation(trigger)
+			if entryTwoConfirmation(shift, trigger.direction):
+				trigger.entry_state = EntryState.COMPLETE
+				return confirmation(trigger)
 
 		# Entry Three
-		# if trigger.entry_three_state == EntryThreeState.TWO:
-		# 	if entryThreeConfirmation(shift, trigger.direction):
-		# 		trigger.entry_three_state = EntryThreeState.COMPLETE
-		# 		return confirmation(trigger)
-		# 	else:
-		# 		trigger.entry_three_state = EntryThreeState.ONE
+		if trigger.entry_three_state == EntryThreeState.TWO:
+			if entryThreeConfirmation(shift, trigger.direction):
+				trigger.entry_three_state = EntryThreeState.COMPLETE
+				return confirmation(trigger)
+			else:
+				trigger.entry_three_state = EntryThreeState.ONE
 
 		if isBlackParaConfirmation(shift, trigger.direction, reverse=True):
 			trigger.entry_state = EntryState.ONE
