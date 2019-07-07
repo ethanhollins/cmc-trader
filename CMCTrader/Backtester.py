@@ -251,37 +251,40 @@ class Backtester(object):
 		parts = endTime.split(':')
 		endTime = self.utils.convertTimeToTimestamp(int(day), int(month), int(parts[0]), int(parts[1]))
 
-		start_time = self.utils.convertTimestampToTime(startTime)
-		end_time = self.utils.convertTimestampToTime(endTime)
+		
 
 		''' Perform data collection '''
 		values = {}
 		backtest_values = {}
 		for chart in self.utils.charts:
-			dt = datetime.datetime(year = start_time.year, month = start_time.month, day = start_time.day, hour = 0, minute = 0, second = 0)
-			while dt < end_time:
-				if (os.path.exists('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json')):
-					with open('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year)+'.json', 'r') as f:
+			start_time = self.utils.getStorageDay(startTime, chart.period)
+			end_time = self.utils.getStorageDay(endTime, chart.period)
+
+			while start_time <= end_time:
+				f_name = 'recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(start_time.day)+'-'+str(start_time.month)+'-'+str(start_time.year)+'.json'
+				if (os.path.exists(f_name)):
+					with open(f_name, 'r') as f:
 						values = {int(k):v for k,v in json.load(f).items() if int(k) <= endTime}
 						chart.ohlc = {**chart.ohlc, **values}
 				else:
-					print("WARNING:", str(chart.pair)+'-'+str(chart.period)+'_'+str(dt.day)+'-'+str(dt.month)+'-'+str(dt.year), "file was not found.")
+					print("WARNING:", f_name, "file was not found.")
 
 				if Constants.STORAGE_DAY(chart.period):
-					dt += datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
+					start_time += datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS)
 
 				elif Constants.STORAGE_WEEK(chart.period):
-					dt += datetime.timedelta(seconds=Constants.STORAGE_WEEK_SECONDS)
+					start_time += datetime.timedelta(seconds=Constants.STORAGE_WEEK_SECONDS)
 
 				elif Constants.STORAGE_MONTH(chart.period):
-					dt += datetime.timedelta(seconds=Constants.STORAGE_MONTH_SECONDS)
+					start_time += datetime.timedelta(seconds=Constants.STORAGE_MONTH_SECONDS)
 
 				elif Constants.STORAGE_YEAR(chart.period):
-					dt += datetime.timedelta(seconds=Constants.STORAGE_YEAR_SECONDS)
+					start_time += datetime.timedelta(seconds=Constants.STORAGE_YEAR_SECONDS)
 
 			chart.ohlc = {int(k):v for k,v in chart.ohlc.items()}
 
 			chart_timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0])]
+			print(chart.period)
 			print("start:", str(self.utils.convertTimestampToTime(chart_timestamps[0])), "end:", str(self.utils.convertTimestampToTime(chart_timestamps[-1])))
 
 			# sorted_ohlc = [[],[],[],[]]
@@ -303,10 +306,9 @@ class Backtester(object):
 			# 	index += 1
 
 			key = chart.pair + '-' + str(chart.period)
-			backtest_values[key] = self.utils.formatForBacktest(chart, self.utils.convertDateTimeToTimestamp(start_time), chart_timestamps)
+			backtest_values[key] = self.utils.formatForBacktest(chart, chart_timestamps[0], chart_timestamps)
 
 		name = self.utils.plan_name
-		# print(backtest_values)
 
 		self.backtest(backtest_values)
 
@@ -387,28 +389,38 @@ class Backtester(object):
 
 		# position_logs = None
 
-		chart = self.utils.getLowestPeriodChart()
+		sorted_timestamps = []
+		charts = []
+		for key in values:			
+			l = sorted([i[0] for i in values[key]['ohlc'].items()])
 
-		pair = chart.pair
-		period = chart.period
-		key = '-'.join([pair, str(period)])
+			pair = key.split('-')[0]
+			period = int(key.split('-')[1])
+			chart = self.utils.getChart(pair, period)
+			charts.append(chart)
 
-		sorted_timestamps = [i[0] for i in sorted(values[key]['ohlc'].items(), key=lambda kv: kv[0], reverse=False)]
+			if len(l) > 0:
+				self.removeTimestampsUntil(chart, l[0])
 
-		self.removeTimestampsUntil(chart, sorted_timestamps[0])
+			sorted_timestamps += l
+
+		sorted_timestamps = list(dict.fromkeys(sorted_timestamps))
+		sorted_timestamps.sort()
 
 		for timestamp in sorted_timestamps:
 			current_timestamp = timestamp
 
-			self.insertValuesByTimestamp(timestamp, chart, values[key]['ohlc'], values[key]['overlays'], values[key]['studies'])
+			for chart in charts:
+				key = '-'.join([chart.pair, str(chart.period)])
+				if timestamp in values[key]['ohlc']:
+					self.insertValuesByTimestamp(timestamp, chart, values[key]['ohlc'], values[key]['overlays'], values[key]['studies'])
+					self.checkStopLoss(chart)
+					self.checkTakeProfit(chart)
 
 			time = self.getLondonTime(timestamp)
 
 			if self.down_time:
 				self.utils.setTradeTimes(currentTime = time)
-
-			self.checkStopLoss()
-			self.checkTakeProfit()
 
 			if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
 				self.runMainLoop(time)
@@ -434,17 +446,23 @@ class Backtester(object):
 		# self.utils.positions = []
 		# self.utils.closedPositions = []
 		# self.resetBarValues()
+		sorted_timestamps = []
+		charts = []
+		for key in values:			
+			l = sorted([i[0] for i in values[key]['ohlc'].items()])
 
-		chart = self.utils.getLowestPeriodChart()
+			pair = key.split('-')[0]
+			period = int(key.split('-')[1])
+			chart = self.utils.getChart(pair, period)
+			charts.append(chart)
 
-		pair = chart.pair
-		period = chart.period
-		key = '-'.join([pair, str(period)])
+			if len(l) > 0:
+				self.removeTimestampsUntil(chart, l[0])
 
-		sorted_timestamps = [i[0] for i in sorted(values['ohlc'].items(), key=lambda kv: kv[0], reverse=False)]
+			sorted_timestamps += l
 
-		if len(sorted_timestamps) > 0:
-			self.removeTimestampsUntil(chart, sorted_timestamps[0])
+		sorted_timestamps = list(dict.fromkeys(sorted_timestamps))
+		sorted_timestamps.sort()
 
 		real_time = self.utils.getLondonTime()
 
@@ -457,13 +475,16 @@ class Backtester(object):
 				
 			current_timestamp = timestamp
 
-			self.insertValuesByTimestamp(timestamp, chart, values['ohlc'], values['overlays'], values['studies'])
+			for chart in charts:
+				key = '-'.join([chart.pair, str(chart.period)])
+				if timestamp in values[key]['ohlc']:
+					self.insertValuesByTimestamp(timestamp, chart, values[key]['ohlc'], values[key]['overlays'], values[key]['studies'])
+					self.checkStopLoss(chart)
+					self.checkTakeProfit(chart)
+
 			
 			time = self.getLondonTime(timestamp)
-
-			self.checkStopLoss()
-			self.checkTakeProfit()
-			
+	
 			self.runMainLoop(time)
 
 		state = State.NONE
@@ -670,7 +691,6 @@ class Backtester(object):
 	def insertValuesByTimestamp(self, timestamp, chart, ohlc, overlays, studies):
 		chart.ohlc[timestamp] = ohlc[timestamp]
 
-		print(len(overlays))
 		for i in range(len(overlays)):
 
 			history = chart.overlays[i].history
@@ -691,7 +711,6 @@ class Backtester(object):
 					continue
 
 		for j in range(len(studies)):
-
 			history = chart.studies[j].history
 			indicator = studies[j]
 			
@@ -812,9 +831,7 @@ class Backtester(object):
 				elif update.action == ActionType.MODIFY_ENTRY_PRICE:
 					pass
 
-	def checkStopLoss(self):
-
-		chart = self.utils.getLowestPeriodChart()
+	def checkStopLoss(self, chart):
 
 		high = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][1]
 		low = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][2]
@@ -848,9 +865,7 @@ class Backtester(object):
 						except AttributeError as e:
 							pass
 
-	def checkTakeProfit(self):
-
-		chart = self.utils.getLowestPeriodChart()
+	def checkTakeProfit(self, chart):
 
 		high = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][1]
 		low = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][2]

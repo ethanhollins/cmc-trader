@@ -67,155 +67,161 @@ class BarReader(object):
 
 		return True, missing_timestamps_dict
 	
+	# def getMissingBarData(self, chart):
+	# 	chart.resetZoom()
+
+	# 	print("getMissingBarData:")
+	# 	latest_timestamp = chart.getCurrentTimestamp(debug=True)
+	# 	ohlc_timestamps = chart.getTimestamps()
+	# 	current_timestamp = chart.latest_timestamp
+
+	# 	if current_timestamp == 0:
+	# 		current_timestamp = chart.getLatestTimestamp(0)
+
+	# 	missing_timestamps = []
+
+	# 	while (current_timestamp <= latest_timestamp):
+	# 		dt = self.utils.setTimezone(self.utils.convertTimestampToTime(current_timestamp), 'Australia/Melbourne')
+	# 		self.utils.setWeekendTime(dt)
+	# 		if not current_timestamp in ohlc_timestamps and not self.utils.isWeekendTime(dt):
+	# 			missing_timestamps.append(current_timestamp)
+
+	# 		current_timestamp = self.utils.addTimestampOffset(current_timestamp, chart.timestamp_offset)
+
+	# 	if (len(missing_timestamps) > 0):
+	# 		self.getBarDataByTimestamp(chart, missing_timestamps)
+
+	# 	if latest_timestamp > chart.latest_timestamp:
+	# 		chart.latest_timestamp = latest_timestamp
+		
+	# 	self.utils.setWeekendTime(self.utils.getAustralianTime())
+	# 	return missing_timestamps
+
 	def getMissingBarData(self, chart):
 		chart.resetZoom()
 
 		print("getMissingBarData:")
-		latest_timestamp = chart.getCurrentTimestamp(debug=True)
-		ohlc_timestamps = chart.getTimestamps()
 		current_timestamp = chart.latest_timestamp
 
 		if current_timestamp == 0:
 			current_timestamp = chart.getLatestTimestamp(0)
 
-		missing_timestamps = []
+		missing_timestamps = self.getMissingBarDataByTimestamp(chart, current_timestamp)
 
-		while (current_timestamp <= latest_timestamp):
-			dt = self.utils.setTimezone(self.utils.convertTimestampToTime(current_timestamp), 'Australia/Melbourne')
-			self.utils.setWeekendTime(dt)
-			if not current_timestamp in ohlc_timestamps and not self.utils.isWeekendTime(dt):
-				missing_timestamps.append(current_timestamp)
-
-			current_timestamp = self.utils.addTimestampOffset(current_timestamp, chart.timestamp_offset)
-
-		if (len(missing_timestamps) > 0):
-			self.getBarDataByTimestamp(chart, missing_timestamps)
-
+		latest_timestamp = sorted(missing_timestamps, reverse=True)[0]
 		if latest_timestamp > chart.latest_timestamp:
 			chart.latest_timestamp = latest_timestamp
 		
-		self.utils.setWeekendTime(self.utils.getAustralianTime())
 		return missing_timestamps
+
+	# @Backtester.skip_on_backtest
+	# def getMissingBarDataByTimestamp(self, chart, timestamp):
+	# 	chart.resetZoom()
+
+	# 	latest_timestamp = chart.getCurrentTimestamp(debug=True)
+	# 	ohlc_timestamps = chart.getTimestamps()
+	# 	current_timestamp = timestamp
+	# 	ny_time = self.utils.setTimezone(self.utils.convertTimestampToTime(current_timestamp), 'Australia/Melbourne')
+	# 	ny_time = self.utils.convertTimezone(ny_time, 'America/New_York')
+
+	# 	missing_timestamps = []
+
+	# 	comp_timestamp = latest_timestamp
+	# 	while current_timestamp < comp_timestamp:
+	# 		comp_timestamp -= chart.timestamp_offset
+
+	# 	offset = current_timestamp % comp_timestamp
+	# 	current_timestamp -= offset
+
+	# 	while current_timestamp <= latest_timestamp:
+	# 		dt = self.utils.setTimezone(self.utils.convertTimestampToTime(current_timestamp), 'Australia/Melbourne')
+	# 		self.utils.setWeekendTime(dt)
+	# 		if not current_timestamp in ohlc_timestamps and not self.utils.isWeekendTime(dt):
+	# 			missing_timestamps.append(current_timestamp)
+
+	# 		current_timestamp, ny_time = self.utils.addTimestampOffset(ny_time, chart.timestamp_offset)
+
+	# 	if (len(missing_timestamps) > 0):
+	# 		self.getBarDataByTimestamp(chart, missing_timestamps)
+
+	# 	if latest_timestamp > chart.latest_timestamp:
+	# 		chart.latest_timestamp = latest_timestamp
+
+	# 	self.utils.setWeekendTime(self.utils.getAustralianTime())
+	# 	return missing_timestamps
+
+	# def getBarDataByStartEndTimestamp(self, start, end):
+	# 	missing_timestamps = {}
+		
+	# 	for chart in self.utils.charts:
+	# 		latest_timestamp = chart.getCurrentTimestamp(debug=True)
+	# 		req_timestamps = []
+
+	# 		if len(chart.overlays) > 0 or len(chart.studies) >  0:
+	# 			current_timestamp = start - 80 * chart.timestamp_offset
+	# 		else:
+	# 			current_timestamp = start
+
+	# 		comp_timestamp = latest_timestamp
+	# 		while current_timestamp < comp_timestamp:
+	# 			comp_timestamp -= chart.timestamp_offset
+
+	# 		offset = current_timestamp % comp_timestamp
+			
+	# 		current_timestamp -= offset
+
+	# 		while current_timestamp <= end:
+	# 			req_timestamps.append(current_timestamp)
+	# 			current_timestamp += chart.timestamp_offset
+
+	# 		found_timestamps = self.getBarDataByTimestamp(chart, req_timestamps)
+	# 		missing_timestamps[chart.pair+"-"+str(chart.period)] = found_timestamps
+
+	# 	return missing_timestamps
 
 	@Backtester.skip_on_backtest
 	def getMissingBarDataByTimestamp(self, chart, timestamp):
-		chart.resetZoom()
 
-		latest_timestamp = chart.getCurrentTimestamp(debug=True)
-		ohlc_timestamps = chart.getTimestamps()
-		current_timestamp = timestamp
+		for i in range(chart.getDataPointsLength()-1, -1, -1):
+			if chart.getTimestampFromDataPoint(i) == timestamp:
+				index = i
+				break
+			elif chart.getTimestampFromDataPoint(i) in chart.ohlc:
+				index = i + 1
+				break
 
-		missing_timestamps = []
-
-		comp_timestamp = latest_timestamp
-		while current_timestamp < comp_timestamp:
-			comp_timestamp -= chart.timestamp_offset
-
-		offset = current_timestamp % comp_timestamp
-		current_timestamp -= offset
-
-		while current_timestamp <= latest_timestamp:
-			dt = self.utils.setTimezone(self.utils.convertTimestampToTime(current_timestamp), 'Australia/Melbourne')
-			self.utils.setWeekendTime(dt)
-			if not current_timestamp in ohlc_timestamps and not self.utils.isWeekendTime(dt):
-				missing_timestamps.append(current_timestamp)
-
-			current_timestamp = self.utils.addTimestampOffset(current_timestamp, chart.timestamp_offset)
-
-		if (len(missing_timestamps) > 0):
-			self.getBarDataByTimestamp(chart, missing_timestamps)
-
-		if latest_timestamp > chart.latest_timestamp:
-			chart.latest_timestamp = latest_timestamp
-
-		self.utils.setWeekendTime(self.utils.getAustralianTime())
-		return missing_timestamps
-
-	def getBarDataByStartEndTimestamp(self, start, end):
-		missing_timestamps = {}
-		
-		for chart in self.utils.charts:
-			latest_timestamp = chart.getCurrentTimestamp(debug=True)
-			req_timestamps = []
-
-			if len(chart.overlays) > 0 or len(chart.studies) >  0:
-				current_timestamp = start - 80 * chart.timestamp_offset
-			else:
-				current_timestamp = start
-
-			comp_timestamp = latest_timestamp
-			while current_timestamp < comp_timestamp:
-				comp_timestamp -= chart.timestamp_offset
-
-			offset = current_timestamp % comp_timestamp
-			
-			current_timestamp -= offset
-
-			while current_timestamp <= end:
-				req_timestamps.append(current_timestamp)
-				current_timestamp += chart.timestamp_offset
-
-			found_timestamps = self.getBarDataByTimestamp(chart, req_timestamps)
-			missing_timestamps[chart.pair+"-"+str(chart.period)] = found_timestamps
-
-		return missing_timestamps
-
-	def getBarDataByTimestamp(self, chart, timestamps):
-
-		found_timestamps = []
-
-		for timestamp in sorted(timestamps):
-			if self.performBarRead(chart, timestamp):
-				found_timestamps.append(timestamp)
+		found_timestamps = self.getBarDataByIndex(chart, index)
 
 		return found_timestamps
 
-	def performBarRead(self, chart, timestamp):
+	def getBarDataByIndex(self, chart, index):
+
+		found_timestamps = []
+		timestamp = None
+		offset = 0
+
+		for i in range(index, chart.getDataPointsLength()-1):
+			timestamp, offset = self.performBarRead(chart, i, timestamp, offset)
+			found_timestamps.append(timestamp)
+
+		return found_timestamps
+
+	def performBarRead(self, chart, index, prev_timestamp, offset):
 		
-		index = chart.getDataPointsLength()-1 - chart.getRealBarOffset(timestamp)
-		if index < 0:
-			index = chart.getOppositeRealBarOffset(timestamp)
-			
-			if index < 0:
-				index = 0
-			elif index > chart.getDataPointsLength()-1:
-				index = chart.getDataPointsLength()-1
+		if prev_timestamp:
+			temp_ts = chart.getTimestampFromDataPoint(index-1 - offset)
+			if temp_ts != prev_timestamp:
+				chart.reloadData()
+				temp_ts = chart.getTimestampFromDataPoint(index-1 - offset)
+				while temp_ts != prev_timestamp:
+					if temp_ts > prev_timestamp:
+						offset += 1
+					else:
+						offset -= 1
 
-		elif index > chart.getDataPointsLength()-1:
-			index = chart.getDataPointsLength()-1
+					temp_ts = chart.getTimestampFromDataPoint(index-1 - offset)
 
-		dp_timestamp = 0
-
-		passed_fwd = False
-		passed_back = False
-
-		while not dp_timestamp == timestamp:
-			try:
-				dp_timestamp = chart.getTimestampFromDataPoint(index)
-			except:
-				if index < 0:
-					index = 0
-				elif index > chart.getDataPointsLength()-1:
-					index = chart.getDataPointsLength()-1
-
-				break
-
-			if passed_fwd and passed_back:
-				print("Bar doesn't exist,", str(self.utils.convertTimestampToTime(timestamp)))
-				return False
-
-			if dp_timestamp > timestamp:
-				passed_fwd = True
-				index -= 1
-			elif dp_timestamp < timestamp:
-				passed_back = True
-				index += 1
-
-		offset = chart.getDataPointsLength() - index
-
-		# chart.panLeft(offset-2)
-
-		bar_index = chart.getCurrentBarIndex()
+		timestamp = chart.getTimestampFromDataPoint(index - offset)
 		data_points = chart.getDataPoints()
 		ohlc = [
 			data_points[index]['open'], 
@@ -231,14 +237,82 @@ class BarReader(object):
 		chart.ohlc[timestamp] = ohlc
 
 		if len(chart.overlays) > 0:
-			self._getOverlayData(chart, timestamp, index, data_points, offset)
+			self._getOverlayData(chart, timestamp, index, data_points)
 		
 		if len(chart.studies) > 0:
-			self._getStudyData(chart, timestamp, index, data_points, offset)
+			self._getStudyData(chart, timestamp, index, data_points)
 
-		return True
+		return timestamp, offset
 
-	def _getOverlayData(self, chart, timestamp, bar_index, data_points, offset):
+	# def performBarRead(self, chart, timestamp):
+		
+	# 	index = chart.getDataPointsLength()-1 - chart.getRealBarOffset(timestamp)
+	# 	if index < 0:
+	# 		index = chart.getOppositeRealBarOffset(timestamp)
+			
+	# 		if index < 0:
+	# 			index = 0
+	# 		elif index > chart.getDataPointsLength()-1:
+	# 			index = chart.getDataPointsLength()-1
+
+	# 	elif index > chart.getDataPointsLength()-1:
+	# 		index = chart.getDataPointsLength()-1
+
+	# 	dp_timestamp = 0
+
+	# 	passed_fwd = False
+	# 	passed_back = False
+
+	# 	while not dp_timestamp == timestamp:
+	# 		try:
+	# 			dp_timestamp = chart.getTimestampFromDataPoint(index)
+	# 		except:
+	# 			if index < 0:
+	# 				index = 0
+	# 			elif index > chart.getDataPointsLength()-1:
+	# 				index = chart.getDataPointsLength()-1
+
+	# 			break
+
+	# 		if passed_fwd and passed_back:
+	# 			print("Bar doesn't exist,", str(self.utils.convertTimestampToTime(timestamp)))
+	# 			return False
+
+	# 		if dp_timestamp > timestamp:
+	# 			passed_fwd = True
+	# 			index -= 1
+	# 		elif dp_timestamp < timestamp:
+	# 			passed_back = True
+	# 			index += 1
+
+	# 	offset = chart.getDataPointsLength() - index
+
+	# 	# chart.panLeft(offset-2)
+
+	# 	bar_index = chart.getCurrentBarIndex()
+	# 	data_points = chart.getDataPoints()
+	# 	ohlc = [
+	# 		data_points[index]['open'], 
+	# 		data_points[index]['high'], 
+	# 		data_points[index]['low'], 
+	# 		data_points[index]['close']
+	# 	]
+
+	# 	print("INDEX:", str(index))
+	# 	print("time:", str(self.utils.convertTimestampToTime(timestamp)))
+	# 	print("ohlc:", str(ohlc))
+
+	# 	chart.ohlc[timestamp] = ohlc
+
+	# 	if len(chart.overlays) > 0:
+	# 		self._getOverlayData(chart, timestamp, index, data_points, offset)
+		
+	# 	if len(chart.studies) > 0:
+	# 		self._getStudyData(chart, timestamp, index, data_points, offset)
+
+	# 	return True
+
+	def _getOverlayData(self, chart, timestamp, bar_index, data_points):
 
 		for overlay in chart.overlays:
 			ohlc = [
@@ -249,7 +323,7 @@ class BarReader(object):
 			]
 			overlay.insertValues(timestamp, ohlc)
 	
-	def _getStudyData(self, chart, timestamp, bar_index, data_points, offset):
+	def _getStudyData(self, chart, timestamp, bar_index, data_points):
 		for study in chart.studies:
 			ohlc = [
 				[i['open'] for i in data_points[:bar_index+1]],

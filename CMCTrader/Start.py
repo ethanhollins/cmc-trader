@@ -268,11 +268,11 @@ class Start(object):
 
 		self.utils.updateRecovery()
 
-		raise Exception('stop')
 		if (not self.utils.is_backtest and not self.utils.manualChartReading and 
 			not self.utils.isWeekendTime(self.utils.getAustralianTime()) and
 			(self.utils.isTradeTime() or len(self.utils.positions) > 0)):
 			self.utils.getRecovery()
+		# raise Exception('stop')
 
 		self.utils.getAllOpenPositions()
 
