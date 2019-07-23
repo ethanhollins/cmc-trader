@@ -124,8 +124,6 @@ def onStartTrading():
 	print("onStartTrading")
 
 	setGlobalVars()
-
-	print("Starting Bank:", str(bank))
 	
 def setGlobalVars():
 	global long_trigger, short_trigger
