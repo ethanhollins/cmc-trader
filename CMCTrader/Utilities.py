@@ -105,7 +105,7 @@ class Utilities:
 
 		self.historyLog = HistoryLog(self.driver, self)
 
-		self.startServer()
+		# self.startServer()
 		
 		self._startPrompt()
 
@@ -1197,9 +1197,14 @@ class Utilities:
 		if x == '':
 			pass
 		elif x == 'stop':
-			self.setStopped()
+			if not self.isStopped:
+				self.setStopped()
 		elif x == 'start':
-			self.setStarted()
+			if self.isStopped:
+				self.setStarted()
+		elif x == 'restart':
+			if self.isStopped:
+				self.restart()
 		elif x == 'manual':
 			self.setManualChartReading()
 		elif x == 'backtest':
@@ -1210,6 +1215,8 @@ class Utilities:
 			self.changeVar(x)
 		elif x.startswith('add news'):
 			self.addNews(x)
+		elif x.startswith('bank'):
+			self.changeBank(x)
 		else:
 			print("Didn't recognize command:", x)
 			
@@ -1309,7 +1316,26 @@ class Utilities:
 				print("News added!")
 			except:
 				print("Unable to add", str(parts[2]), str(parts[3]), "to news items.")
-				
+	
+	def changeBank(self, cmd):
+		parts = cmd.split(' ')
+		if len(parts) == 1:
+			print('External: {0:.2f}\nMaximum: {1:.2f}'.format(self.external_bank, self.maximum_bank))
+		else:
+			for p in parts:
+				if p.startswith('-'):
+					cmd = p.strip('-')
+					if cmd == 'external' or cmd == 'e':
+						try:
+							self.updateBank(external_bank=float(parts[parts.index(p)+1]))
+						except:
+							print('Error: Illegal parameter for external bank.')
+					if cmd == 'maximum' or cmd == 'm':
+						try:
+							self.updateBank(maximum_bank=float(parts[parts.index(p)+1]))
+						except:
+							print('Error: Illegal parameter for maximum bank.')
+
 	def getBankSize(self):
 		text = self.driver.execute_script(
 				'return document.querySelector(\'div[class="account-summary-item account-value"]\').querySelector(\'span[class="value"]\').innerHTML;'

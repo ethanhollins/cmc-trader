@@ -134,10 +134,9 @@ def setGlobalVars():
 	global pending_entries, pending_breakevens, pending_exits
 	global time_state, stop_state
 
-	if utils.getBankSize() > utils.maximum_bank:
+	bank = utils.getBankSize() + utils.external_bank
+	if bank > utils.maximum_bank:
 		bank = utils.maximum_bank
-	else:
-		bank = utils.getBankSize()
 
 	long_trigger = Trigger(Direction.LONG)
 	short_trigger = Trigger(Direction.SHORT)

@@ -48,12 +48,12 @@ def bank(sid, data):
 				'maximum': utils.maximum_bank
 			}
 		elif k == 'external':
-			# try:
-			res['external'] = float(data['external'])
-			utils.updateBank(external_bank=float(data['external']))
-			# except:
-			# 	print('Server Error: Illegal external bank parameter.')
-			# 	res['external'] = None
+			try:
+				res['external'] = float(data['external'])
+				utils.updateBank(external_bank=float(data['external']))
+			except:
+				print('Server Error: Illegal external bank parameter.')
+				res['external'] = None
 		elif k == 'maximum':
 			try:
 				res['maximum'] = float(data['maximum'])
