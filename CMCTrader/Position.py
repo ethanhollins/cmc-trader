@@ -22,6 +22,8 @@ def close_redirect(func):
 			self.utils.closedPositions.append(self)
 			del self.utils.positions[self.utils.positions.index(self)]
 
+			self.utils.deleteLocalStoragePosition(self.orderID)
+
 			event = 'Close Trade'
 
 			try:
@@ -40,6 +42,8 @@ def close_redirect(func):
 			self.utils.closedPositions.append(self)
 			del self.utils.positions[self.utils.positions.index(self)]
 		
+			self.utils.deleteLocalStoragePosition(self.orderID)
+
 		elif self.isDummy:
 
 			self.closeprice = self.utils.getBid(self.pair)
@@ -48,8 +52,9 @@ def close_redirect(func):
 			self.utils.closedPositions.append(self)
 			del self.utils.positions[self.utils.positions.index(self)]
 
+			self.utils.deleteLocalStoragePosition(self.orderID)
+
 		else:
-			print("IS NONE")
 			return func(*args, **kwargs)
 	return wrapper
 
@@ -68,6 +73,8 @@ def stopandreverse_redirect(func):
 			self.utils.closedPositions.append(self)
 			del self.utils.positions[self.utils.positions.index(self)]
 
+			self.utils.deleteLocalStoragePosition(self.orderID)
+
 		elif self.utils.backtester.isRecover():
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
 
@@ -78,6 +85,8 @@ def stopandreverse_redirect(func):
 
 			self.utils.closedPositions.append(self)
 			del self.utils.positions[self.utils.positions.index(self)]
+
+			self.utils.deleteLocalStoragePosition(self.orderID)
 
 			if self.direction == 'buy':
 				pos = self.utils.sell(int(self.lotsize + args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
@@ -94,6 +103,8 @@ def stopandreverse_redirect(func):
 			self.utils.closedPositions.append(self)
 			del self.utils.positions[self.utils.positions.index(self)]
 
+			self.utils.deleteLocalStoragePosition(self.orderID)
+
 			if self.direction == 'buy':
 				pos = self.utils.sell(int(args[1]), pairs = [self.pair], sl = kwargs['sl'], tp = kwargs['tp'])
 			else:
@@ -105,31 +116,46 @@ def stopandreverse_redirect(func):
 
 def function_redirect(func):
 	name = func.__name__
-	if name == 'modifyPositionSize':
-		action = bt.ActionType.MODIFY_POS_SIZE
-	elif name == 'modifyTrailing':
-		action = bt.ActionType.MODIFY_TRAILING
-	elif name == 'modifySL':
-		action = bt.ActionType.MODIFY_SL
-	elif name == 'modifyTP':
-		action = bt.ActionType.MODIFY_TP
-	elif name == 'removeSL':
-		action = bt.ActionType.REMOVE_SL
-	elif name == 'removeTP':
-		action = bt.ActionType.REMOVE_TP
-	elif name == 'modifyEntryPrice':
-		action = bt.ActionType.MODIFY_ENTRY_PRICE
-	elif name == 'cancel':
-		action = bt.ActionType.CANCEL
-	else:
-		return
 
 	def wrapper(*args, **kwargs):
 		self = args[0]
 		if self.utils.backtester.isBacktesting():
+
+			# if name == 'modifyPositionSize':
+			# elif name == 'modifyTrailing':
+			if name == 'modifySL':
+				points = args[1]
+				self.sl = self.calculateSLPrice(points)
+			elif name == 'modifyTP':
+				points = args[1]
+				self.tp = self.calculateTPPrice(points)
+			elif name == 'removeSL':
+				self.sl = 0
+			elif name == 'removeTP':
+				self.tp = 0
+			# elif name == 'modifyEntryPrice':
+			# elif name == 'cancel':
+
 			return
 		elif self.utils.backtester.isRecover():
 			latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
+
+			if name == 'modifyPositionSize':
+				action = bt.ActionType.MODIFY_POS_SIZE
+			elif name == 'modifyTrailing':
+				action = bt.ActionType.MODIFY_TRAILING
+			elif name == 'modifySL':
+				action = bt.ActionType.MODIFY_SL
+			elif name == 'modifyTP':
+				action = bt.ActionType.MODIFY_TP
+			elif name == 'removeSL':
+				action = bt.ActionType.REMOVE_SL
+			elif name == 'removeTP':
+				action = bt.ActionType.REMOVE_TP
+			elif name == 'modifyEntryPrice':
+				action = bt.ActionType.MODIFY_ENTRY_PRICE
+			elif name == 'cancel':
+				action = bt.ActionType.CANCEL
 
 			self.utils.backtester.actions.append(bt.Action(self, action, bt.current_timestamp, args = args, kwargs = kwargs))
 		
@@ -236,7 +262,54 @@ def profit_redirect_backtest(func):
 			return func(*args, **kwargs)
 	return wrapper
 
+def percentage_profit_redirect_backtest(func):
+	def wrapper(*args, **kwargs):
+		self = args[0]
+
+		if self.utils.backtester.isRecover() or self.utils.backtester.isBacktesting():
+
+			chart = self.utils.getLowestPeriodChart()
+
+			try:
+				price_type = kwargs['price_type']
+			except:
+				price_type = 'c'
+
+			if price_type == 'o':
+				price = chart.ohlc[bt.current_timestamp][0]
+			elif price_type == 'h':
+				price = chart.ohlc[bt.current_timestamp][1]
+			elif price_type == 'l':
+				price = chart.ohlc[bt.current_timestamp][2]
+			else:
+				price = chart.ohlc[bt.current_timestamp][3]
+
+			if (float(self.closeprice) == 0):
+				if (self.direction == 'buy'):
+					profit = price - float(self.entryprice)
+					profit = self.utils.convertToPips(profit)
+					profit = profit / self.stoprange * self.risk
+				else:
+					profit = float(self.entryprice) - price
+					profit = self.utils.convertToPips(profit)
+					profit = profit / self.stoprange * self.risk
+			else:
+				if (self.direction == 'buy'):
+					profit = float(self.closeprice) - float(self.entryprice)
+					profit = self.utils.convertToPips(profit)
+					profit = profit / self.stoprange * self.risk
+				else:
+					profit = float(self.entryprice) - float(self.closeprice)
+					profit = self.utils.convertToPips(profit)
+					profit = profit / self.stoprange * self.risk
+
+			return round(profit, 2)	
+		else:
+			return func(*args, **kwargs)
+	return wrapper
+
 class Position(object):
+	position_netting = True
 
 	def __init__(self, utils, ticket, orderID, pair, ordertype, direction):
 		self.utils = utils
@@ -252,6 +325,9 @@ class Position(object):
 		self.closeTime = None
 		
 		self.lotsize = 0
+		self.stoprange = 0
+		self.risk = 0
+
 		self.sl = 0
 		self.tp = 0
 		self.entryprice = 0
@@ -581,6 +657,65 @@ class Position(object):
 
 		print("Set position breakeven take profit.")
 
+	def isBreakeven(self):
+		return self.sl == self.entryprice or self.tp == self.entryprice
+
+	def calculateSLPoints(self, price):
+		if self.direction == 'buy':
+			points = self.entryprice - price
+		else:
+			points = price - self.entryprice
+		
+		return round(self.utils.convertToPips(points), 1)
+
+	def calculateSLPrice(self, points):
+		price = self.utils.convertToPrice(points)
+		if self.direction == 'buy':
+			return round(self.entryprice - price, 5)
+		else:
+			return round(self.entryprice + price, 5)
+
+	def isSLPoints(self, points):
+		sl_price = self.utils.convertToPrice(points)
+
+		if self.direction == 'buy':
+			check_sl = self.entryprice - sl_price
+		else:
+			check_sl = self.entryprice + sl_price
+			
+		return self.sl == check_sl
+
+	def isSLPrice(self, price):
+		return self.sl == price
+
+	def calculateTPPoints(self, price):
+		if self.direction == 'buy':
+			points = price - self.entryprice
+		else:
+			points = self.entryprice - price
+		
+		return round(self.utils.convertToPips(points), 1)
+
+	def calculateTPPrice(self, points):
+		price = self.utils.convertToPrice(points)
+		if self.direction == 'buy':
+			return round(self.entryprice + price, 5)
+		else:
+			return round(self.entryprice - price, 5)
+
+	def isTPPoints(self, points):
+		tp_price = self.utils.convertToPrice(points)
+
+		if self.direction == 'buy':
+			check_tp = self.entryprice + tp_price
+		else:
+			check_tp = self.entryprice - tp_price
+			
+		return self.tp == check_tp
+
+	def isTPPrice(self, price):
+		return self.tp == price
+
 	@apply_redirect
 	def apply(self):
 		if self.modifyTicket is None:
@@ -828,6 +963,29 @@ class Position(object):
 				profit = self.utils.convertToPips(profit)
 
 		return round(profit, 1)
+
+	@percentage_profit_redirect_backtest
+	def getPercentageProfit(self, price_type = 'c'):
+		if (float(self.closeprice) == 0):
+			if (self.direction == 'buy'):
+				profit = self.utils.getBid(self.pair) - float(self.entryprice)
+				profit = self.utils.convertToPips(profit)
+				profit = profit / self.stoprange * self.risk
+			else:
+				profit = float(self.entryprice) - self.utils.getAsk(self.pair)
+				profit = self.utils.convertToPips(profit)
+				profit = profit / self.stoprange * self.risk
+		else:
+			if (self.direction == 'buy'):
+				profit = float(self.closeprice) - float(self.entryprice)
+				profit = self.utils.convertToPips(profit)
+				profit = profit / self.stoprange * self.risk
+			else:
+				profit = float(self.entryprice) - float(self.closeprice)
+				profit = self.utils.convertToPips(profit)
+				profit = profit / self.stoprange * self.risk
+
+		return round(profit, 2)
 
 	def _getStopLossCloseElem(self):
 		elem_id = self.driver.execute_script(

@@ -34,11 +34,14 @@ from CMCTrader.PositionLog import PositionLog
 from CMCTrader.OrderLog import OrderLog
 from CMCTrader.BarReader2 import BarReader
 from CMCTrader.Backtester import Backtester
-from CMCTrader.SocketManager import SocketManager
+from CMCTrader import SocketManager
 
 from CMCTrader.Indicators.SMA import SMA
+from CMCTrader.Indicators.BOLL import BOLL
+from CMCTrader.Indicators.MAE import MAE
 from CMCTrader.Indicators.SAR import SAR
 from CMCTrader.Indicators.SAR_M import SAR_M
+from CMCTrader.Indicators.ATR import ATR
 from CMCTrader.Indicators.RSI import RSI
 from CMCTrader.Indicators.CCI import CCI
 from CMCTrader.Indicators.MACD import MACD
@@ -93,13 +96,17 @@ class Utilities:
 
 		self.is_downtime = True
 
+		# Bank
+		self.external_bank = 0
+		self.maximum_bank = 0
+		self.initBank()
+
 		self.setTradeTimes()
 
 		self.historyLog = HistoryLog(self.driver, self)
 
-		# self.socket_manager = SocketManager(self)
-		# self.socket_manager.send("cmd", "lololol")
-
+		self.startServer()
+		
 		self._startPrompt()
 
 	def reinit(self, driver, get_chart_regions=True):
@@ -162,8 +169,32 @@ class Utilities:
 		t = threading.Thread(target = task)
 		t.start()
 
-	def _setSecondsElem(self):
-		return 
+	def initBank(self):
+		result = db.getItems(self.user_id, 'account_bank')
+
+		if result['account_bank']:
+			self.external_bank = float(result['account_bank']['external'])
+			self.maximum_bank = float(result['account_bank']['maximum'])
+		else:
+			self.external_bank = 0
+			self.maximum_bank = 1000
+
+	def updateBank(self, external_bank=None, maximum_bank=None):
+		if external_bank:
+			self.external_bank = external_bank
+		if maximum_bank:
+			self.maximum_bank = maximum_bank
+		db.updateItems(self.user_id, {
+			'account_bank' : {
+				'external': format(self.external_bank, ".15g"),
+				'maximum': format(self.maximum_bank, ".15g")
+			} 
+		})
+
+	def startServer(self):
+		task = SocketManager.init
+		t = threading.Thread(target=task, args=(self,))
+		t.start()
 
 	def setTime(self):
 		self.secs_elem = self.driver.execute_script(
@@ -178,12 +209,19 @@ class Utilities:
 			'return document.querySelector(\'[class="current-time"]\').querySelector(\'[class="h"]\');'
 		)
 
-	def SMA(self, pair, chart_period):
+	def SMA(self, pair, chart_period, timeperiod):
 		chart = self.getChart(pair, chart_period)
-		sma = SMA(self, len(chart.overlays), chart)
+		sma = SMA(self, len(chart.overlays), chart, timeperiod)
 		chart.overlays.append(sma)
 		chart.overlays.sort(key=lambda x: x.index)
 		return sma
+
+	def MAE(self, pair, chart_period, timeperiod, percent_off):
+		chart = self.getChart(pair, chart_period)
+		mae = MAE(self, len(chart.overlays), chart, timeperiod, percent_off)
+		chart.overlays.append(mae)
+		chart.overlays.sort(key=lambda x: x.index)
+		return mae
 
 	def SAR(self, pair, chart_period, colour):
 		chart = self.getChart(pair, chart_period)
@@ -198,6 +236,20 @@ class Utilities:
 		chart.overlays.append(sar_m)
 		chart.overlays.sort(key=lambda x: x.index)
 		return sar_m
+
+	def BOLL(self, pair, chart_period, timeperiod, stds):
+		chart = self.getChart(pair, chart_period)
+		boll = BOLL(self, len(chart.overlays), chart, timeperiod, stds)
+		chart.overlays.append(boll)
+		chart.overlays.sort(key=lambda x: x.index)
+		return boll
+
+	def ATR(self, pair, chart_period, timeperiod):
+		chart = self.getChart(pair, chart_period)
+		atr = ATR(self, len(chart.studies), chart, timeperiod)
+		chart.studies.append(atr)
+		chart.studies.sort(key=lambda x: x.index)
+		return atr
 
 	def RSI(self, pair, chart_period, timeperiod):
 		chart = self.getChart(pair, chart_period)
@@ -296,23 +348,53 @@ class Utilities:
 
 		db.updateItems(self.trader_id, {'user_global_storage' : temp})
 
+	@Backtester.get_local_storage_on_backtest
 	def getLocalStorage(self):
 		result = db.getItems(self.user_id, 'user_local_storage')
 		if result['user_local_storage'] and self.plan_name in result['user_local_storage']:
 			return result['user_local_storage'][self.plan_name]
 		else:
-			return None
+			return {}
 
+	def getLocalStorageParent(self):
+		result = db.getItems(self.user_id, 'user_local_storage')
+		if result['user_local_storage']:
+			return result['user_local_storage']
+		else:
+			return {}
+
+	@Backtester.update_local_storage_on_backtest
 	def updateLocalStorage(self, storage):
-		temp = self.getLocalStorage()
+		temp = self.getLocalStorageParent()
 		if temp:
-			print("is not none")
 			temp[self.plan_name] = storage
 		else:
-			print("is none")
 			temp = {self.plan_name : storage}
 
 		db.updateItems(self.user_id, {'user_local_storage' : temp})
+
+	def addLocalStoragePosition(self, order_id):
+		local_storage = self.getLocalStorage()
+
+
+		if not "POSITIONS" in local_storage:
+			local_storage["POSITIONS"] = []
+
+		pos_properties = {
+			'order_id': order_id,
+			'data': {}
+		}
+		local_storage["POSITIONS"].append(pos_properties)
+		self.updateLocalStorage(local_storage)
+
+	def deleteLocalStoragePosition(self, order_id):
+		local_storage = self.getLocalStorage()
+		if "POSITIONS" in local_storage:
+			for p in local_storage["POSITIONS"]:
+				if order_id == p["order_id"]:
+					del local_storage["POSITIONS"][local_storage["POSITIONS"].index(p)]
+					self.updateLocalStorage(local_storage)
+					break
 
 	def convertToPips(self, price):
 		return price / 0.00001 / 10
@@ -320,16 +402,16 @@ class Utilities:
 	def convertToPrice(self, pips):
 		return pips * 0.00001 * 10
 
-	def buy(self, lotsize, pairs = [], ordertype = 'market', entry = 0, sl = 0.0, tp = 0.0):
+	def buy(self, lotsize, pairs = [], ordertype = 'market', entry = 0, sl = 0.0, tp = 0.0, risk=1.0):
 		if (ordertype == 'market' or ordertype == 'm'):
 			if (len(pairs) <= 0):
 				for ticket in self.tickets:
-					return self._marketOrder('buy', ticket, ticket.pair, lotsize, sl, tp)
+					return self._marketOrder('buy', ticket, ticket.pair, lotsize, sl, tp, risk)
 			else:
 				for p in pairs:
 					try:
 						ticket = self.getTicket(p)
-						return self._marketOrder('buy', ticket, p, lotsize, sl, tp)
+						return self._marketOrder('buy', ticket, p, lotsize, sl, tp, risk)
 					except:
 						print("ERROR: Pair " + p + " not found!")
 						return None
@@ -365,17 +447,17 @@ class Utilities:
 
 		return None
 	
-	def sell(self, lotsize, pairs = [], ordertype = 'market', entry = 0, sl = 0.0, tp = 0.0):
+	def sell(self, lotsize, pairs = [], ordertype = 'market', entry = 0, sl = 0.0, tp = 0.0, risk=1.0):
 		if (ordertype == 'market' or ordertype == 'm'):
 			if (len(pairs) <= 0):
 				print(self.tickets)
 				for ticket in self.tickets:
-					return self._marketOrder('sell', ticket, ticket.pair, lotsize, sl, tp)
+					return self._marketOrder('sell', ticket, ticket.pair, lotsize, sl, tp, risk)
 			else:
 				for p in pairs:
 					try:
 						ticket = self.getTicket(p)
-						return self._marketOrder('sell', ticket, p, lotsize, sl, tp)
+						return self._marketOrder('sell', ticket, p, lotsize, sl, tp, risk)
 					except:
 						print("ERROR: Pair " + p + " not found!")
 						return None
@@ -411,14 +493,6 @@ class Utilities:
 
 		return None
 
-# for pos in self.positions:
-# 						if value[0] == pos.orderID:
-# 							if not pos.sl == value[6]:
-# 								if ()
-# 									pos.modifySL(self.utils.convertToPips())
-
-# 							if not pos.tp == value[7]:
-
 	def updatePositions(self):
 		print("Updating Positions")
 		listenedTypes = [
@@ -450,6 +524,9 @@ class Utilities:
 				pos.tp = float(event[7])
 				pos.isTrailing = event[9]
 				self.positions.append(pos)
+
+				self.addLocalStoragePosition(pos.orderID)
+				
 			else:
 				for pos in self.positions + self.closedPositions:
 					if event[0] == pos.orderID:
@@ -480,6 +557,9 @@ class Utilities:
 				pos.tp = float(event[7])
 				pos.isTrailing = event[9]
 				self.positions.append(pos)
+
+				self.addLocalStoragePosition(pos.orderID)
+				
 			else:
 				for pos in self.positions + self.closedPositions:
 					if event[0] == pos.orderID:
@@ -542,6 +622,8 @@ class Utilities:
 						except AttributeError as e:
 							pass
 
+					self.deleteLocalStoragePosition(pos.orderID)
+
 			for order in self.orders:
 				if event[0] == order.orderID:
 					del self.orders[self.orders.index(order)]
@@ -576,6 +658,8 @@ class Utilities:
 							self.plan.onTrade(pos, event[2])
 						except AttributeError as e:
 							pass
+
+					self.deleteLocalStoragePosition(pos.orderID)
 
 		elif (event[2] == 'SE Order Sell Trade' or event[2] == 'SE Order Buy Trade' or
 			event[2] == 'Limit Order Sell Trade' or event[2] == 'Limit Order Buy Trade'):
@@ -644,6 +728,13 @@ class Utilities:
 	def positionExists(self, pos):
 		return self.positionLog.positionExists(pos)
 
+	def getPosByOrderId(self, order_id):
+		for pos in self.positions:
+			if pos.orderID == order_id:
+				return pos
+
+		return None
+
 	def getAllOpenPositions(self):
 		position_id_list = [i.orderID for i in self.positions + self.closedPositions]
 		print(position_id_list)
@@ -658,7 +749,7 @@ class Utilities:
 		print(self.positions)
 
 	@Backtester.market_redirect_backtest
-	def _marketOrder(self, direction, ticket, pair, lotsize, sl, tp):
+	def _marketOrder(self, direction, ticket, pair, lotsize, sl, tp, risk):
 		ticket.makeVisible()
 
 		if (direction == 'buy'):
@@ -707,8 +798,12 @@ class Utilities:
 		pos.sl = float(properties[6])
 		pos.tp = float(properties[7])
 		pos.entryprice = float(properties[5])
+		pos.stoprange = sl
+		pos.risk = risk
 
 		self.positions.append(pos)
+
+		self.addLocalStoragePosition(pos.orderID)
 
 		print("Market " + str(direction) + " at " + str(pos.entryprice))
 
@@ -845,14 +940,16 @@ class Utilities:
 		parts = startDate.split('/')
 		day = parts[0]
 		month = parts[1]
+		year = parts[2]
 		parts = startTime.split(':')
-		startTime = self.convertTimeToTimestamp(int(day), int(month), int(parts[0]), int(parts[1]))
+		startTime = self.convertTimeToTimestamp(int(day), int(month), int(year), int(parts[0]), int(parts[1]))
 
 		parts = endDate.split('/')
 		day = parts[0]
 		month = parts[1]
+		year = parts[2]
 		parts = endTime.split(':')
-		endTime = self.convertTimeToTimestamp(int(day), int(month), int(parts[0]), int(parts[1]))
+		endTime = self.convertTimeToTimestamp(int(day), int(month), int(year), int(parts[0]), int(parts[1]))
 		return self.barReader.getBarDataByStartEndTimestamp(startTime, endTime)
 
 	def getCurrentTimestamp(self):
@@ -944,12 +1041,9 @@ class Utilities:
 		now = now.replace(tzinfo=None)
 		return int((now - then).total_seconds())
 
-	def convertTimeToTimestamp(self, day, month, hour, minute):
-		tz = pytz.timezone('Australia/Melbourne')
-		date = datetime.datetime.now(tz = tz)
-
+	def convertTimeToTimestamp(self, day, month, year, hour, minute):
 		then = Constants.DT_START_DATE
-		now = datetime.datetime(year = date.year, month = month, day = day, hour = hour, minute = minute, second = 0)
+		now = datetime.datetime(year = year, month = month, day = day, hour = hour, minute = minute, second = 0)
 
 		return int((now - then).total_seconds())
 
@@ -1037,7 +1131,7 @@ class Utilities:
 		if (currentTime == None):
 			currentTime = self.getLondonTime()
 
-		if (not self.startTime == None and not self.endTime == None):
+		if self.startTime and self.endTime:
 			if (self.startTime <= currentTime <= self.endTime):
 				return True
 			else:
@@ -1095,7 +1189,7 @@ class Utilities:
 				return False
 
 	def printTime(self, time):
-		print("Time:",str(time.hour)+":"+str(time.minute)+":"+str(time.second))
+		print("Time:",str(time.hour)+":"+str(time.minute)+":"+str(time.second), str(time.day)+"/"+str(time.month)+"/"+str(time.year))
 
 	def _prompt(self):
 		x = input()
@@ -1129,6 +1223,29 @@ class Utilities:
 	def setStarted(self):
 		self.isStopped = False
 		print("Trading has been started.")
+
+	def restart(self):
+		print("Restarting")
+		self.isLive = False
+
+		self.updatePositions()
+
+		is_updated, missing_timestamps = self.updateValues()
+
+		if (is_updated):
+			values = {}
+			for key in missing_timestamps:
+				pair = key.split('-')[0]
+				period = int(key.split('-')[1])
+				chart = self.getChart(pair, period)
+
+				chart_values = self.formatForBacktest(chart, self.getEarliestTimestamp(missing_timestamps[key]), missing_timestamps[key])
+				values[key] = chart_values
+
+			self.backtester.recover(values)
+
+		self.updateRecovery()
+		self.isStopped = False
 
 	def setManualChartReading(self):
 		self.manualChartReading = True
@@ -1209,6 +1326,13 @@ class Utilities:
 
 		return round(totalProfit, 1)
 
+	def getTotalProfitPercent(self):
+		totalProfit = 0
+		for pos in self.closedPositions:
+			totalProfit += pos.getPercentageProfit()
+
+		return round(totalProfit, 2)
+
 	def getEarliestTimestamp(self, timestamps):
 		timestamps.sort()
 		return timestamps[0]
@@ -1247,48 +1371,8 @@ class Utilities:
 	def reinitAUDUSDTicket(self):
 		self.tAUDUSD = self.createTicket(Constants.AUDUSD)
 
-	# def formatForRecover(self, chart, timestamps):
-	# 	if (type(timestamps) == list):
-	# 		earliest_timestamp = self.getEarliestTimestamp(timestamps)
-	# 	else:
-	# 		earliest_timestamp = timestamps
-
-	# 	if not earliest_timestamp % chart.timestamp_offset == 0:
-	# 		earliest_timestamp -= earliest_timestamp % chart.timestamp_offset
-
-	# 	offset = chart.getRelativeOffset(earliest_timestamp)
-
-	# 	timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0:offset+1]
-
-	# 	print(timestamps)
-
-	# 	values = {}
-
-	# 	values[chart.pair+"-"+str(chart.period)]['ohlc'] = {}
-	# 	values[chart.pair+"-"+str(chart.period)]['overlays'] = []
-	# 	values[chart.pair+"-"+str(chart.period)]['studies'] = []
-
-	# 	for timestamp in timestamps:
-	# 		values[chart.pair+"-"+str(chart.period)]['ohlc'][timestamp] = chart.ohlc[timestamp]
-
-	# 	count = 0
-	# 	for overlay in chart.overlays:
-	# 		values[chart.pair+"-"+str(chart.period)]['overlays'].append({})
-	# 		for timestamp in timestamps:
-	# 			print(values[chart.pair+"-"+str(chart.period)]['overlays'])
-	# 			values[chart.pair+"-"+str(chart.period)]['overlays'][count][timestamp] = overlay.history[timestamp]
-	# 		count += 1
-
-	# 	count = 0
-	# 	for study in chart.studies:
-	# 		values[chart.pair+"-"+str(chart.period)]['studies'].append({})
-	# 		for timestamp in timestamps:
-	# 			values[chart.pair+"-"+str(chart.period)]['studies'][count][timestamp] = study.history[timestamp]
-	# 		count += 1
-
-	# 	print(values)
-	# 	return values
-
+	def setPositionNetting(self, x):
+		Position.position_netting = x
 
 	def isChartAvailable(self, chart_id):
 		availability_checker = self.driver.find_element(By.XPATH, "//div[@id='"+str(chart_id)+"']//div[contains(@class, 'popup-container')]")
@@ -1334,12 +1418,17 @@ class Utilities:
 
 	def formatForBacktest(self, chart, start_timestamp, timestamps):
 
-		offset = timestamps.index(start_timestamp)
-		timestamps = timestamps[offset:]
+		offset = 0
+		for i in range(len(timestamps)):
+			if timestamps[i] >= start_timestamp:
+				offset = i
+				break
+
+		min_period = self.getMinPeriod(chart)
 
 		values = {'ohlc': {}, 'overlays': [], 'studies': []}
 
-		for timestamp in timestamps:
+		for timestamp in timestamps[offset:]:
 			if timestamp in chart.ohlc:
 				values['ohlc'][timestamp] = chart.ohlc[timestamp]
 			else:
@@ -1352,8 +1441,8 @@ class Utilities:
 		for overlay in chart.overlays:
 			values['overlays'].append({})
 
-			for timestamp in timestamps:
-				if timestamp in ohlc_timestamps and ohlc_timestamps.index(timestamp) + 1 > 80:
+			for timestamp in timestamps[offset:]:
+				if timestamp in ohlc_timestamps and ohlc_timestamps.index(timestamp) + 1 > min_period:
 					temp_ohlc = [
 						[i[0] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
 						[i[1] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
@@ -1369,8 +1458,8 @@ class Utilities:
 		for study in chart.studies:
 			values['studies'].append({})
 			
-			for timestamp in timestamps:
-				if timestamp in ohlc_timestamps and ohlc_timestamps.index(timestamp) + 1 > 80:
+			for timestamp in timestamps[offset:]:
+				if timestamp in ohlc_timestamps and ohlc_timestamps.index(timestamp) + 1 > min_period:
 					temp_ohlc = [
 						[i[0] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
 						[i[1] for i in ohlc][:ohlc_timestamps.index(timestamp) + 1],
@@ -1389,7 +1478,8 @@ class Utilities:
 
 		for chart in self.charts:
 
-			earliest_ts = chart.getTimestampFromDataPoint(80)
+			min_period = self.getMinPeriod(chart)
+			earliest_ts = chart.getTimestampFromDataPoint(min_period)
 
 			then = self.getStorageDay(earliest_ts, chart.period, periods_ago=1)
 			then = self.convertDateTimeToTimestamp(then)
@@ -1397,19 +1487,17 @@ class Utilities:
 			until = chart.getCurrentTimestamp()
 
 			last_ts = self.getLastSavedTimestamp(then, until, chart)
-			print("last ts:", str(last_ts))
 
 			# ts = self.adjustTimestamp(chart, earliest_ts, last_ts)
 
 			if last_ts and last_ts != 0 and last_ts > earliest_ts:
-				ts = last_ts + chart.timestamp_offset
+				ts = last_ts
 			else:
 				ts = earliest_ts
 
-			print("ts:", str(ts))
 
 			self.barReader.getMissingBarDataByTimestamp(chart, ts)
-			sorted_timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0]) if i[0] >= ts]
+			sorted_timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0]) if i[0] > ts]
 
 			write_vals = {}
 			
@@ -1422,7 +1510,6 @@ class Utilities:
 				else:
 					write_vals[date] = {t: chart.ohlc[t]}
 					
-			print(write_vals)
 			for date in write_vals:
 				if os.path.exists('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+date+'.json'):
 					with open('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+date+'.json', 'r') as f:
@@ -1446,7 +1533,9 @@ class Utilities:
 
 		for chart in self.charts:
 
-			earliest_ts = chart.getTimestampFromDataPoint(80)
+			min_period = self.getMinPeriod(chart)
+			print("MIN PERIOD:", str(min_period))
+			earliest_ts = chart.getTimestampFromDataPoint(min_period)
 
 			then = self.getStorageDay(earliest_ts, chart.period, periods_ago=1)
 			until = self.getStorageDay(chart.getCurrentTimestamp(), chart.period)
@@ -1454,8 +1543,6 @@ class Utilities:
 			all_timestamps = []
 
 			while then <= until:
-
-				print(str(then), str(until))
 
 				if os.path.exists('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(then.day)+'-'+str(then.month)+'-'+str(then.year)+'.json'):
 					with open('recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(then.day)+'-'+str(then.month)+'-'+str(then.year)+'.json', 'r') as f:
@@ -1486,7 +1573,7 @@ class Utilities:
 				index = 0
 				for i in sorted_timestamps:
 
-					if index > 80:
+					if index > min_period:
 						for overlay in chart.overlays:
 							overlay.insertValues(i, [
 									sorted_ohlc[0][:index],
@@ -1506,16 +1593,16 @@ class Utilities:
 				
 				then = self.getStorageDay(self.convertDateTimeToTimestamp(then), chart.period, periods_ago=-1)
 
-			if chart.getTimestampFromDataPoint(80) > self.getEarliestTimestamp(all_timestamps):
-				earliest_timestamp = chart.getTimestampFromDataPoint(80)
+			if chart.getTimestampFromDataPoint(min_period) > self.getEarliestTimestamp(all_timestamps):
+				earliest_timestamp = chart.getTimestampFromDataPoint(min_period)
 			else:
 				earliest_timestamp = self.getEarliestTimestamp(all_timestamps)
 			print("get missing:", earliest_timestamp)
 			missing_timestamps = self.barReader.getMissingBarDataByTimestamp(chart, earliest_timestamp)
 			all_timestamps += missing_timestamps
 			all_timestamps.sort()
-			chart_values = self.formatForBacktest(chart, earliest_timestamp, all_timestamps)
-			new_values[str(chart.pair) + '-' + str(chart.period)] = chart_values # ADD IN KEY TO DISTINGUISH CHARTS AT THIS POINT
+			chart_values = self.formatForBacktest(chart, all_timestamps[min_period], all_timestamps)
+			new_values[str(chart.pair) + '-' + str(chart.period)] = chart_values
 
 		print(new_values.keys())
 		self.backtester.recover(new_values)
@@ -1527,37 +1614,24 @@ class Utilities:
 
 		return y - diff
 
-	# def getTimestampDay(self, timestamp, days_ago=0, override=False):
-	# 	time = self.convertTimestampToTime(timestamp)
-	# 	time -= datetime.timedelta(days=days_ago)
-	# 	time = self.setTimezone(time, 'Australia/Melbourne')
-	# 	self.setWeekendTime(time)
-
-	# 	if self.isWeekendTime(time):
-	# 		if days_ago == 0:
-	# 			days_ago = 1
-
-	# 		if override:
-	# 			while self.isWeekendTime(time):
-	# 				time -= datetime.timedelta(days=days_ago/abs(days_ago))
-	# 		else:
-	# 			return None
-
-	# 	return datetime.datetime(year=time.year, month=time.month, day=time.day, hour=0, minute=0, second=0)
+	def getMinPeriod(self, chart):
+		return max([i.min_period for i in chart.overlays + chart.studies])
 
 	def getStorageDay(self, timestamp, period, periods_ago=0):
 		time = self.convertTimestampToTime(timestamp)
 
 		if Constants.STORAGE_DAY(period):
 			time -= datetime.timedelta(seconds=Constants.STORAGE_DAY_SECONDS * periods_ago)
+
 			time = datetime.datetime(year=time.year, month=time.month, day=time.day, hour=0, minute=0, second=0)
 			time = self.setTimezone(time, 'Australia/Melbourne')
 
 			delta = -Constants.STORAGE_DAY_SECONDS if periods_ago < 0 else Constants.STORAGE_DAY_SECONDS
 
 			self.setWeekendTime(time)
-			while self.isWeekendTime(time):
+			while self.isWeekendTime(time) and not time.weekday() == 0:
 				time -= datetime.timedelta(seconds=delta)
+
 			return datetime.datetime(year=time.year, month=time.month, day=time.day, hour=0, minute=0, second=0)
 
 		if Constants.STORAGE_WEEK(period):
@@ -1591,12 +1665,10 @@ class Utilities:
 		if Constants.STORAGE_YEAR(chart.period):
 			period_offset = Constants.STORAGE_YEAR_SECONDS
 
-		print(str(then)+"\n"+str(until))
-
 		last_ts = 0
 		while then <= until:
 			f_name = 'recovery/'+str(chart.pair)+'-'+str(chart.period)+'_'+str(then.day)+'-'+str(then.month)+'-'+str(then.year)+'.json'
-			print(f_name)
+
 			if os.path.exists(f_name):
 				with open(f_name, 'r') as f:
 					data = json.load(f)

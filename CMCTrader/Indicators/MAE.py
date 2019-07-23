@@ -1,29 +1,30 @@
-VALUE_WIDTH = 123
-VALUE_HEIGHT = 24
-X_START = 180
+from CMCTrader import Constants
+from CMCTrader import Backtester
 
-class SMA(object):
+class MAE(object):
 
-	def __init__(self, utils, index, chart, timeperiod):
+	def __init__(self, utils, index, chart, timeperiod, percent_off):
 		self.utils = utils
 		self.index = index
 		self.chart = chart
 
 		self.timeperiod = timeperiod
+		self.percent_off = percent_off
 		self.min_period = self.timeperiod
 
 		self.history = {}
-		self.type = 'SMA'
+		self.type = 'MAE'
 
 	def insertValues(self, timestamp, ohlc):
-		value = self._calculate(ohlc)
+		values = self._calculate(ohlc)
 
-		self.history[int(timestamp)] = value
+		self.history[int(timestamp)] = values
+		return values
 
 	def getValue(self, ohlc):
-		value = self._calculate(ohlc)
+		values = self._calculate(ohlc)
 
-		return value
+		return values
 
 	def _calculate(self, ohlc):
 
@@ -33,7 +34,11 @@ class SMA(object):
 			for i in range(length-1, length-1-self.timeperiod, -1):
 				ma += ohlc[3][i]
 
-			return round(ma / self.timeperiod, 5)
+			ma /= self.timeperiod
+			return [
+				round(ma + ma * (self.percent_off / 100), 5), 
+				round(ma - ma * (self.percent_off / 100), 5)
+			]
 
 		else:
 			return None
@@ -57,4 +62,3 @@ class SMA(object):
 		self.utils.barReader.getMissingBarDataByTimestamp(self.chart, timestamp)
 
 		return [i[1] for i in sorted(self.history.items(), key=lambda kv: kv[0], reverse=True)[shift:shift + amount]]
-		

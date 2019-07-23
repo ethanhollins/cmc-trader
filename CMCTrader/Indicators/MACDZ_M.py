@@ -12,11 +12,10 @@ class MACDZ_M(object):
 		self.fastperiod = fastperiod
 		self.slowperiod = slowperiod
 		self.signalperiod = signalperiod
-		self.req_val_count = 38 + slowperiod
+		self.min_period = slowperiod
 
 		self.history = {}
 		self.type = 'MACDZ_M'
-		self.collection_type = Constants.DATA_POINT_COLLECT
 
 	def insertValues(self, timestamp, ohlc):
 		arrays = self._calculate(ohlc)
@@ -53,15 +52,15 @@ class MACDZ_M(object):
 
 		return [macd]
 
-	def calcEMA(self, data, period):
+	def calcEMA(self, close, period):
 		ema = []
 		multi = float(2.0 / (period + 1.0))
 
-		for i in range(len(data)):
+		for i in range(len(close)):
 			if i >= period and len(ema) == 0:
-				ema.append(float(sum(data[i-period:i])/period))
+				ema.append(float(sum(close[i-period:i])/period))
 			elif len(ema) > 0:
-				ema.append((data[i] - ema[len(ema)-1]) * multi + ema[len(ema)-1])
+				ema.append((close[i] - ema[len(ema)-1]) * multi + ema[len(ema)-1])
 
 		return ema
 

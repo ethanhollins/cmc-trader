@@ -14,11 +14,10 @@ class MACDZ(object):
 		self.fastperiod = fastperiod
 		self.slowperiod = slowperiod
 		self.signalperiod = signalperiod
-		self.req_val_count = 38 + slowperiod
+		self.min_period = slowperiod
 
 		self.history = {}
 		self.type = 'MACDZ'
-		self.collection_type = Constants.DATA_POINT_COLLECT
 
 	def insertValues(self, timestamp, ohlc):
 		arrays = self._calculate(ohlc)
@@ -52,6 +51,7 @@ class MACDZ(object):
 		slow_ema = (2 * ema_s_one) - ema_s_two
 
 		macd = fast_ema - slow_ema
+		# macd = ema_f_one - ema_s_one
 
 		ema_sig_one = talib.EMA(macd, timeperiod=self.signalperiod)
 		ema_sig_two = talib.EMA(ema_sig_one, timeperiod=self.signalperiod)

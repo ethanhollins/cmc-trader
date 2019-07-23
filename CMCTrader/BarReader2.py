@@ -108,9 +108,10 @@ class BarReader(object):
 
 		missing_timestamps = self.getMissingBarDataByTimestamp(chart, current_timestamp)
 
-		latest_timestamp = sorted(missing_timestamps, reverse=True)[0]
-		if latest_timestamp > chart.latest_timestamp:
-			chart.latest_timestamp = latest_timestamp
+		if len(missing_timestamps) > 0:
+			latest_timestamp = sorted(missing_timestamps, reverse=True)[0]
+			if latest_timestamp > chart.latest_timestamp:
+				chart.latest_timestamp = latest_timestamp
 		
 		return missing_timestamps
 
@@ -181,18 +182,21 @@ class BarReader(object):
 
 	@Backtester.skip_on_backtest
 	def getMissingBarDataByTimestamp(self, chart, timestamp):
+		if timestamp in chart.ohlc:
+			return []
 
-		for i in range(chart.getDataPointsLength()-1, -1, -1):
+		print(timestamp)
+		for i in range(chart.getDataPointsLength()-2, -1, -1):
+			print(str(chart.getTimestampFromDataPoint(i)), str(timestamp))
+			# print(i)
 			if chart.getTimestampFromDataPoint(i) == timestamp:
 				index = i
 				break
-			elif chart.getTimestampFromDataPoint(i) in chart.ohlc:
-				index = i + 1
+			elif chart.getTimestampFromDataPoint(i-1) in chart.ohlc:
+				index = i
 				break
 
-		found_timestamps = self.getBarDataByIndex(chart, index)
-
-		return found_timestamps
+		return self.getBarDataByIndex(chart, index)
 
 	def getBarDataByIndex(self, chart, index):
 
@@ -207,7 +211,6 @@ class BarReader(object):
 		return found_timestamps
 
 	def performBarRead(self, chart, index, prev_timestamp, offset):
-		
 		if prev_timestamp:
 			temp_ts = chart.getTimestampFromDataPoint(index-1 - offset)
 			if temp_ts != prev_timestamp:

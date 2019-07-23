@@ -14,3 +14,6 @@ build
 setup.py
 old/
 todo.txt
+MAE/
+plots/
+MAE_versions/

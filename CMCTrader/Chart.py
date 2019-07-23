@@ -302,6 +302,9 @@ class Chart(object):
 	def getLatestTimestamp(self, index):
 		return sorted(self.ohlc.items(), key=lambda kv: kv[0], reverse=True)[index][0]
 
+	def getOHLC(self, shift):
+		return [i[1] for i in sorted(self.ohlc.items(), key=lambda kv: kv[0], reverse=True)][shift]
+
 	def needsUpdate(self):
 		current_timestamp = self.getCurrentTimestamp()
 		return current_timestamp > self.latest_timestamp

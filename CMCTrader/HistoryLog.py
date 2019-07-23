@@ -33,7 +33,10 @@ class HistoryLog(object):
 			)
 
 	def setTimestamp(self):
-		return self.utils.convertDateTimeToTimestamp(self.utils.startTime)
+		if self.utils.startTime:
+			return self.utils.convertDateTimeToTimestamp(self.utils.startTime)
+		else:
+			return self.utils.convertDateTimeToTimestamp(datetime.datetime.now())
 
 	def getFilteredHistory(self):
 		row_list = self.driver.execute_script(

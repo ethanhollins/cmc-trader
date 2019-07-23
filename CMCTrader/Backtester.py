@@ -5,6 +5,9 @@ import json
 import traceback
 import datetime
 import time as t
+import random
+import string
+import matplotlib.pyplot as plt
 
 from CMCTrader import Constants
 
@@ -38,6 +41,7 @@ class Action(object):
 		self.timestamp = timestamp
 
 class Backtester(object):
+	temp_local_storage = {}
 
 	def __init__(self, utils, plan):
 		global state, current_timestamp, pair, sorted_timestamps
@@ -94,19 +98,31 @@ class Backtester(object):
 				chart = self.getLowestPeriodChart()
 				close = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][3]
 
-				pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
+				letters = string.ascii_lowercase
+				order_id = ''.join(random.choice(letters) for i in range(10))
+
+				pos = self.createPosition(self, args[2], order_id, args[3], 'market', args[1])
 				pos.lotsize = args[4]
+				pos.risk = args[7]
+				pos.stoprange = args[5]
+
+				self.addLocalStoragePosition(pos.orderID)
 
 				if (args[1] == 'buy'):
-					pos.sl = close - self.convertToPrice(args[5])
-					pos.tp = close + self.convertToPrice(args[6])
+					if args[5] != 0:
+						pos.sl = round(close - self.convertToPrice(args[5]), 5)
+					if args[6] != 0:
+						pos.tp = round(close + self.convertToPrice(args[6]), 5)
 					event = 'Buy Trade'
 				else:
-					pos.sl = close + self.convertToPrice(args[5])
-					pos.tp = close - self.convertToPrice(args[6])
+					if args[5] != 0:
+						pos.sl = round(close + self.convertToPrice(args[5]), 5)
+					if args[6] != 0:
+						pos.tp = round(close - self.convertToPrice(args[6]), 5)
 					event = 'Sell Trade'
 				
 				pos.entryprice = close
+				pos.openTime = current_timestamp
 
 				print(str(pos.direction), str(pos.entryprice), str(pos.sl), str(pos.tp))
 
@@ -126,8 +142,16 @@ class Backtester(object):
 			elif (state == State.RECOVER):
 				latest_history_timestamp = self.historyLog.getLatestHistoryTimestamp()
 
-				pos = self.createPosition(self, args[2], 0, args[3], 'market', args[1])
+				letters = string.ascii_lowercase
+				order_id = ''.join(random.choice(letters) for i in range(10))
+
+				pos = self.createPosition(self, args[2], order_id, args[3], 'market', args[1])
+				pos.lotsize = args[4]
+				pos.risk = args[7]
+				pos.stoprange = args[5]
 				
+				self.addLocalStoragePosition(pos.orderID)
+
 				chart = self.getLowestPeriodChart()
 				close = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][3]
 
@@ -135,16 +159,21 @@ class Backtester(object):
 				pos.openTime = current_timestamp
 				pos.isTemp = True
 				self.backtester.actions.append(Action(pos, ActionType.ENTER, current_timestamp, args = args, kwargs = kwargs))
-				self.positions.append(pos)
 
 				if (args[1] == 'buy'):
-					pos.sl = close - self.convertToPrice(args[5])
-					pos.tp = close + self.convertToPrice(args[6])
+					if args[5] != 0:
+						pos.sl = round(close - self.convertToPrice(args[5]), 5)
+					if args[6] != 0:
+						pos.tp = round(close + self.convertToPrice(args[6]), 5)
 					event = 'Buy Trade'
 				else:
-					pos.sl = close + self.convertToPrice(args[5])
-					pos.tp = close - self.convertToPrice(args[6])
+					if args[5] != 0:
+						pos.sl = round(close + self.convertToPrice(args[5]), 5)
+					if args[6] != 0:
+						pos.tp = round(close - self.convertToPrice(args[6]), 5)
 					event = 'Sell Trade'
+
+				self.positions.append(pos)
 
 				try:
 					self.plan.onEntry(pos)
@@ -224,6 +253,24 @@ class Backtester(object):
 				return func(*args, **kwargs)
 		return wrapper
 
+	def get_local_storage_on_backtest(func):
+		def wrapper(*args, **kwargs):
+			if (not state == State.NONE):
+				return Backtester.temp_local_storage
+			else:
+				return func(*args, **kwargs)
+		return wrapper
+
+	def update_local_storage_on_backtest(func):
+		def wrapper(*args, **kwargs):
+			self = args[0]
+			if (not state == State.NONE):
+				Backtester.temp_local_storage = args[1]
+				return
+			else:
+				return func(*args, **kwargs)
+		return wrapper
+
 	def runBacktest(self):
 
 		''' Get Times '''
@@ -242,22 +289,23 @@ class Backtester(object):
 		parts = startDate.split('/')
 		day = parts[0]
 		month = parts[1]
+		year = parts[2]
 		parts = startTime.split(':')
-		startTime = self.utils.convertTimeToTimestamp(int(day), int(month), int(parts[0]), int(parts[1]))
+		startTime = self.utils.convertTimeToTimestamp(int(day), int(month), int(year), int(parts[0]), int(parts[1]))
 
 		parts = endDate.split('/')
 		day = parts[0]
 		month = parts[1]
+		year = parts[2]
 		parts = endTime.split(':')
-		endTime = self.utils.convertTimeToTimestamp(int(day), int(month), int(parts[0]), int(parts[1]))
-
-		
+		endTime = self.utils.convertTimeToTimestamp(int(day), int(month), int(year), int(parts[0]), int(parts[1]))
 
 		''' Perform data collection '''
 		values = {}
 		backtest_values = {}
 		for chart in self.utils.charts:
-			start_time = self.utils.getStorageDay(startTime, chart.period)
+			min_period = self.utils.getMinPeriod(chart)
+			start_time = self.utils.getStorageDay(startTime - chart.timestamp_offset * min_period, chart.period)
 			end_time = self.utils.getStorageDay(endTime, chart.period)
 
 			while start_time <= end_time:
@@ -284,29 +332,20 @@ class Backtester(object):
 			chart.ohlc = {int(k):v for k,v in chart.ohlc.items()}
 
 			chart_timestamps = [i[0] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0])]
-			print(chart.period)
-			print("start:", str(self.utils.convertTimestampToTime(chart_timestamps[0])), "end:", str(self.utils.convertTimestampToTime(chart_timestamps[-1])))
-
-			# sorted_ohlc = [[],[],[],[]]
-			# for i in [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0])]:
-			# 	sorted_ohlc[0].append(i[0])
-			# 	sorted_ohlc[1].append(i[1])
-			# 	sorted_ohlc[2].append(i[2])
-			# 	sorted_ohlc[3].append(i[3])
-
-			# index = 0
-			# for i in chart_timestamps:
-
-			# 	if index > 80:
-			# 		for overlay in chart.overlays:
-			# 			overlay.insertValues(i, sorted_ohlc[:index+1])
-			# 		for study in chart.studies:
-			# 			study.insertValues(i, sorted_ohlc[:index+1])
-
-			# 	index += 1
 
 			key = chart.pair + '-' + str(chart.period)
-			backtest_values[key] = self.utils.formatForBacktest(chart, chart_timestamps[0], chart_timestamps)
+			start_ts = startTime
+
+			for t in chart_timestamps[min_period:]:
+				if t >= start_ts:
+					start_ts = t
+					break
+
+			for t in chart_timestamps:
+				if t > endTime:
+					del chart_timestamps[chart_timestamps.index(t)]
+
+			backtest_values[key] = self.utils.formatForBacktest(chart, start_ts, chart_timestamps)
 
 		name = self.utils.plan_name
 
@@ -385,9 +424,7 @@ class Backtester(object):
 		global state, pair, current_timestamp, sorted_timestamps
 		state = State.BACKTEST
 
-		start_time = t.time()
-
-		# position_logs = None
+		Backtester.temp_local_storage = {}
 
 		sorted_timestamps = []
 		charts = []
@@ -406,9 +443,20 @@ class Backtester(object):
 
 		sorted_timestamps = list(dict.fromkeys(sorted_timestamps))
 		sorted_timestamps.sort()
+		aus_time = self.utils.convertTimestampToTime(sorted_timestamps[0])
+		current_month = aus_time.month
+		current_day = 0
+
+		closed_positions = []
+		global graph_vals
+		graph_vals = ([], [], [], self.utils.plan_name)
+
+		global method
+		method = 'step'
 
 		for timestamp in sorted_timestamps:
 			current_timestamp = timestamp
+			aus_time = self.utils.convertTimestampToTime(timestamp)
 
 			for chart in charts:
 				key = '-'.join([chart.pair, str(chart.period)])
@@ -422,17 +470,103 @@ class Backtester(object):
 			if self.down_time:
 				self.utils.setTradeTimes(currentTime = time)
 
-			if (timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1))):
+			if self.utils.endTime and timestamp > self.utils.convertDateTimeToTimestamp(self.utils.endTime - datetime.timedelta(days=1)):
+				self.runMainLoop(time)
+			else:
 				self.runMainLoop(time)
 
-			input("Press enter to continue...")
+			if method == 'step':
+				self.execCmd(input('Enter Cmd or Continue: '))
+			elif method == 'run':
+				if aus_time.month != current_month:
+					is_next_month = False
+					if len(self.utils.positions) > 0:
+						for pos in self.utils.positions:
+							pos_time = self.utils.convertTimestampToTime(pos.openTime)
+							if pos_time.month == current_month:
+								is_next_month = True
+								break
+					else:
+						is_next_month = True
 
-		print(t.time() - start_time)
+					if is_next_month:
+						profit_pips = 0
+						profit_perc = 0
+						for pos in self.utils.closedPositions:
+							pos_time = self.utils.convertTimestampToTime(pos.openTime)
+							if pos_time.month == current_month:
+								profit_pips += pos.getProfit()
+								profit_perc += pos.getPercentageProfit()
+
+						print('Pips:', str(profit_pips)+'\n%:', str(profit_perc))
+						print('End of month '+str(current_month))
+						self.execCmd(input('Enter Cmd or Continue: '))
+						closed_positions += self.utils.closedPositions
+						self.utils.closedPositions = []
+						current_month = aus_time.month
+
+			if aus_time.day != current_day:
+				profit, _ = self.getPercentageProfit(
+					closed_positions + 
+					self.utils.closedPositions + 
+					self.utils.positions
+				)
+				graph_vals[0].append(aus_time.strftime('%d/%m'))
+				graph_vals[1].append(profit)
+
+				if aus_time.day == 1:
+					graph_vals[2].append(aus_time.strftime('%d/%m'))
+
+				current_day = aus_time.day
+
+		closed_positions += self.utils.closedPositions
+		self.utils.closedPositions = closed_positions
+
+		profit, abs_dd = self.getPercentageProfit(closed_positions)
+		print('\nEND OF BACKTEST')
+		print('Pips:', str(self.utils.getTotalProfit())+'\n%:', str(round(profit, 2))+'\ndd:', str(round(abs_dd, 2)))
+		
+		start_bal = 100000
+		end_bal, drawdown = self.getCompoundedBalanceProfit(start_bal, closed_positions)
+		print('Start Bal:', str(start_bal), 'End Bal:', str(end_bal))
+		print('Compounded %:', str(self.getBalancePercentProfit(start_bal, end_bal))+'%', 'Drawdown:', str(drawdown)+'%')
+		
+		wins, losses = self.getWinLoss(closed_positions)
+		print('Wins:', str(wins), 'Losses:', str(losses), 'Ratio:', str(round(wins/losses, 2))+':1')
+		total_trades = wins + losses
+		print('Win %:', str(round(wins/total_trades * 100, 2)), 'Loss %:', str(round(losses/total_trades * 100, 2)))
+
+		gain, pain = self.getGPR(closed_positions)
+		gpr = round(gain/pain, 2)
+		print('Total Gain %:', str(gain)+'%', 'Total Loss %:', str(pain)+'%', 'GPR Ratio:', str(gpr)+':1')
+		print('Breakeven %:', str(round(1/(gpr+1)*100, 2)))
+
+		print('\nCompounded Results:\n')
+
+		for i in range(1,100):
+			perc = float(i)/2.0
+			end_bal, drawdown = self.getCompoundedBalanceProfit(start_bal, closed_positions, percent=perc)
+			percent = self.getBalancePercentProfit(start_bal, end_bal)
+			print(str(perc)+'%:', 'Compounded %:', str(self.getBalancePercentProfit(start_bal, end_bal))+'%', 'Drawdown:', str(drawdown)+'%')
+
+		is_exit = False
+		while not is_exit:
+			is_exit = self.execCmd(input('Enter Cmd or Continue: '))
+
+		self.utils.positions = []
+		self.utils.closedPositions = []
 
 		state = State.NONE
 
 	def recover(self, values):
 		global state, pair, current_timestamp, sorted_timestamps
+
+		if self.utils.isLive:
+			Backtester.temp_local_storage = self.utils.getLocalStorage()
+			Backtester.temp_local_storage = Backtester.temp_local_storage if Backtester.temp_local_storage else {}
+		else:
+			Backtester.temp_local_storage = {}
+
 		state = State.RECOVER
 		self.has_run = False
 
@@ -448,7 +582,8 @@ class Backtester(object):
 		# self.resetBarValues()
 		sorted_timestamps = []
 		charts = []
-		for key in values:			
+		for key in values:
+			print(values[key])
 			l = sorted([i[0] for i in values[key]['ohlc'].items()])
 
 			pair = key.split('-')[0]
@@ -481,7 +616,6 @@ class Backtester(object):
 					self.insertValuesByTimestamp(timestamp, chart, values[key]['ohlc'], values[key]['overlays'], values[key]['studies'])
 					self.checkStopLoss(chart)
 					self.checkTakeProfit(chart)
-
 			
 			time = self.getLondonTime(timestamp)
 	
@@ -491,6 +625,12 @@ class Backtester(object):
 
 		print("POSITIONS:", str(self.utils.positions))
 		print("CLOSED POSITIONS:", str(self.utils.closedPositions))
+
+		local_storage = self.utils.getLocalStorage()
+		local_storage = local_storage if local_storage else {}
+
+		if not "POSITIONS" in local_storage:
+			local_storage["POSITIONS"] = []
 
 		if self.utils.isLive:
 			self.resetTempPositions()
@@ -508,33 +648,32 @@ class Backtester(object):
 
 			self.updatePositions()
 		else:
+			self.resetTempPositions()
+			self.actions = []
+
 			for order_id in self.utils.positionLog.getCurrentPositions():
 				history = self.utils.historyLog.getHistoryByOrderId(order_id)
 
 				for event in history:
 					self.utils.updateEvent(event, run_callback_funcs=False)
-				
-				new_pos = None
-				for pos in self.utils.positions:
-					if pos.orderID == order_id:
-						new_pos = pos
 
-				pos_found = False
-				if new_pos and new_pos.openTime >= self.utils.convertDateTimeToTimestamp(self.utils.startTime):
-					for pos in self.utils.positions:
-						if pos.direction == new_pos.direction and pos.isTemp:
-							print("pos found")
-							pos_found = True
-							del self.utils.positions[self.utils.positions.index(pos)]
-					
-					if not pos_found:
-						print("pos not found")
-						new_pos.close()
+			# self.updatePositions(is_live=False)
 
-			for pos in self.utils.positions + self.utils.closedPositions:
-				if pos.isTemp:
-					pos.isTemp = False
-					pos.isDummy = True
+		for pos in local_storage["POSITIONS"]:
+			if not pos["order_id"] in [p.orderID for p in self.utils.positions if p.orderID != 0]:
+				del local_storage["POSITIONS"][local_storage["POSITIONS"].index(pos)]
+
+		for pos in self.utils.positions:
+			if not pos.orderID in [p["order_id"] for p in local_storage["POSITIONS"] if p["order_id"] != 0]:
+				pos_properties = {
+					'order_id': pos.orderID,
+					'data': {}
+				}
+				local_storage["POSITIONS"].append(pos_properties)
+
+
+		# print("up:", str(local_storage))
+		self.utils.updateLocalStorage(local_storage)
 
 		print("POSITIONS:", str(self.utils.positions))
 		print("CLOSED POSITIONS:", str(self.utils.closedPositions))
@@ -563,8 +702,135 @@ class Backtester(object):
 		
 		return time.astimezone(tz)
 
-	def runMainLoop(self, time):
+	def execCmd(self, x):
+		global method
+		if x == 'step' or x == 's':
+			method = 'step'
+		elif x == 'run' or x == 'r':
+			method = 'run'
+		elif x.startswith('graph'):
+			parts = x.split(' ')
+			if len(parts) == 2:
+				plans = parts[1].split(',')
+				try:
+					vals = [graph_vals]
+					for i in plans:
+						vals.append(self.loadPlot(i))
+					self.plot(vals)
+				except:
+					print('Error: Unable to load plots.')
+			else:
+				self.plot([graph_vals])
 
+		elif x.startswith('save'):
+			parts = x.split(' ')
+			if len(parts) == 2:
+				name = parts[1]
+				self.savePlot(name, graph_vals)
+
+		elif x == 'new':
+			return True
+
+		return False
+
+	def plot(self, vals):
+		plt.figure()
+
+		colors = ['b','g','r','c','m','y']
+		ticks = []
+		for i in range(len(vals)):
+			l = vals[i]
+			c = colors[i%len(colors)]
+			plt.plot(l[0], l[1], c, label=l[3])
+			ticks.extend(x for x in l[2] if x not in ticks)
+
+		plt.xticks(ticks, rotation=45)
+		plt.ylabel('Percent')
+		plt.xlabel('Date')
+		plt.legend()
+
+		plt.gcf().subplots_adjust(bottom=0.15)
+		plt.show()
+
+	def savePlot(self, name, vals):
+		prefix = 'plot_'
+		data = {
+			'xvals': vals[0],
+			'yvals': vals[1],
+			'xticks': vals[2],
+			'name': name
+		}
+		with open('plots/' + prefix + name + '.json', 'w') as f:
+			json.dump(data, f)
+
+	def loadPlot(self, name):
+		prefix = 'plot_'
+
+		with open('plots/' + prefix + name + '.json', 'r') as f:
+			data = json.load(f)
+			return (data['xvals'], data['yvals'], data['xticks'], data['name'])
+
+	def getPercentageProfit(self, positions):
+		percent = 0
+		max_perc = 0
+		drawdown = 0
+		for pos in positions:
+			percent += pos.getPercentageProfit()
+
+			if percent > max_perc:
+				max_perc = percent
+			else:
+				if max_perc - percent != 0:
+					t_dd = max_perc - percent
+					if t_dd > drawdown:
+						drawdown = t_dd
+
+		return percent, drawdown
+
+	def getCompoundedBalanceProfit(self, start, positions, percent=1.0):
+		balance = start
+		b_max = start
+		drawdown = 0
+		for pos in positions:
+			balance += (balance * ((pos.getPercentageProfit() * percent) / 100))
+
+			if balance > b_max:
+				b_max = balance
+			else:
+				if b_max - balance != 0:
+					if ((b_max - balance) / b_max) * 100 > drawdown:
+						drawdown = ((b_max - balance) / b_max) * 100
+
+		return round(balance, 2), round(drawdown, 2)
+
+	def getBalancePercentProfit(self, start, end):
+		return round(((end / start) * 100) - 100, 2)
+
+	def getWinLoss(self, positions):
+		wins = 0
+		losses = 0
+
+		for pos in positions:
+			if pos.getPercentageProfit() >= 0:
+				wins += 1
+			else:
+				losses += 1
+		return wins, losses
+
+	def getGPR(self, positions):
+		gain = 0
+		pain = 0
+
+		for pos in positions:
+			perc = pos.getPercentageProfit()
+			if perc >= 0:
+				gain += abs(perc)
+			else:
+				pain += abs(perc)
+
+		return round(gain, 2), round(pain, 2)
+
+	def runMainLoop(self, time):
 		if (self.utils.isTradeTime(currentTime = time) or len(self.utils.positions) > 0):
 			
 			if (self.down_time):
@@ -581,9 +847,9 @@ class Backtester(object):
 				self.down_time = False
 
 			try:
-				self.plan.onLoop()
+				self.plan.onNewBar()
 			except AttributeError as e:
-				# print(str(e), "continuing...")
+				print(str(e), "continuing...")
 				print(traceback.format_exc())
 				pass
 			except Exception as e:
@@ -592,9 +858,9 @@ class Backtester(object):
 				return
 
 			try:
-				self.plan.onNewBar()
+				self.plan.onLoop()
 			except AttributeError as e:
-				print(str(e), "continuing...")
+				# print(str(e), "continuing...")
 				print(traceback.format_exc())
 				pass
 			except Exception as e:
@@ -744,7 +1010,7 @@ class Backtester(object):
 
 		return self.utils.historyLog.updateHistory(listenedTypes)
 
-	def updatePositions(self):
+	def updatePositions(self, is_live=True):
 		latest_history_timestamp = self.utils.historyLog.getLatestHistoryTimestamp()
 
 		print("posees")
@@ -758,90 +1024,89 @@ class Backtester(object):
 		# 	if pos.isTemp:
 		# 		del self.utils.positions[self.utils.positions.index(pos)]
 
-		updates = [i for i in self.actions if i.timestamp > latest_history_timestamp]
-
-		new_index = 0
-
-		for i in range(len(updates)):
-			if (
-				updates[i].action == ActionType.CLOSE
-				or updates[i].action == ActionType.STOP_AND_REVERSE
-				or updates[i].action == ActionType.ENTER # MIMIC POSITION APPENDING AND CLOSED POSITION APPENDING INSTEAD.. NEED TO REPLACE PLACEHOLDER POSITIONS ALSO
-				):
-				new_index = i
-
-		updates = updates[new_index:]
-
-		for update in updates:
-			if len(self.utils.positions) > 0:
-				current_pos = self.utils.positions[0]
+		print(self.actions)
+		cutoff_pos = []
+		for i in range(len(self.actions)-1, -1, -1):
+			action = self.actions[i]
+			if action.timestamp > latest_history_timestamp and not action.position in cutoff_pos:
+				if action.action == ActionType.CLOSE or action.action == ActionType.STOP_AND_REVERSE:
+					cutoff_pos.append(action.position)
 			else:
-				current_pos = None
+				del self.actions[i]
 
-			if update.action == ActionType.ENTER:
+		print(self.actions)
+
+		for update in self.actions:
+			pos = update.position
+
+			if update.action == ActionType.ENTER and is_live:
 				self.utils._marketOrder(*update.args, **update.kwargs)
-			elif update.action == ActionType.STOP_AND_REVERSE:
-				if not current_pos == None:
-					if update.position.direction == current_pos.direction:
-						current_pos.stopAndReverse(*update.args, **update.kwargs)
+			elif update.action == ActionType.STOP_AND_REVERSE and is_live:
+				if not pos == None:
+					if update.position.direction == pos.direction:
+						pos.stopAndReverse(*update.args, **update.kwargs)
 				else:
 					if update.position.direction == 'buy':
 						self.utils.buy(update.args[1], sl = args[2], tp = args[3])
 					elif update.position.direction == 'sell':
 						self.utils.sell(update.args[1], sl = args[2], tp = args[3])
 			
-			elif not current_pos == None:
-				if update.action == ActionType.CLOSE:
-					if update.position.direction == current_pos.direction:
-						current_pos.close()
+			elif not pos == None:
+				if update.action == ActionType.CLOSE and is_live:
+					if update.position.direction == pos.direction:
+						pos.close()
 					
 				elif update.action == ActionType.MODIFY_POS_SIZE:
-					if update.position.direction == current_pos.direction:
-						current_pos.modifyPositionSize(*update.args, **update.kwargs)
+					if update.position.direction == pos.direction:
+						pos.modifyPositionSize(*update.args, **update.kwargs)
 
 				elif update.action == ActionType.MODIFY_TRAILING:
-					if update.position.direction == current_pos.direction:
-						current_pos.modifyTrailing(*update.args, **update.kwargs)
+					if update.position.direction == pos.direction:
+						pos.modifyTrailing(*update.args, **update.kwargs)
 
 				elif update.action == ActionType.MODIFY_SL:
-					if update.position.direction == current_pos.direction:
-						current_pos.modifySL(*update.args, **update.kwargs)
+					if update.position.direction == pos.direction:
+						pos.modifySL(*update.args, **update.kwargs)
 
 				elif update.action == ActionType.MODIFY_TP:
-					if update.position.direction == current_pos.direction:
-						current_pos.modifyTP(*update.args, **update.kwargs)
+					if update.position.direction == pos.direction:
+						pos.modifyTP(*update.args, **update.kwargs)
 
 				elif update.action == ActionType.REMOVE_SL:
-					if update.position.direction == current_pos.direction:
-						current_pos.removeSL()
+					if update.position.direction == pos.direction:
+						pos.removeSL()
 
 				elif update.action == ActionType.REMOVE_TP:
-					if update.position.direction == current_pos.direction:
-						current_pos.removeTP()
+					if update.position.direction == pos.direction:
+						pos.removeTP()
 
 				elif update.action == ActionType.BREAKEVEN:
-					if update.position.direction == current_pos.direction:
-						current_pos.breakeven()
+					if update.position.direction == pos.direction:
+						pos.breakeven()
 				elif update.action == ActionType.APPLY:
-					if update.position.direction ==current_pos.direction:
-						current_pos.apply()
+					if update.position.direction == pos.direction:
+						pos.apply()
 
 				elif update.action == ActionType.CANCEL:
 					pass
 				elif update.action == ActionType.MODIFY_ENTRY_PRICE:
 					pass
 
+		self.actions = []
+
 	def checkStopLoss(self, chart):
 
-		high = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][1]
-		low = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][2]
+		ohlc = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)]
+		high = ohlc[0][1]
+		low = ohlc[0][2]
 
-		for pos in self.utils.positions:
+		for i in range(len(self.utils.positions)-1, -1, -1):
+			pos = self.utils.positions[i]
 			if not pos.sl == 0:
 				if pos.direction == 'buy':
 					if low <= pos.sl:
+						print('sl buy:', str(low), str(pos.sl))
 						pos.closeprice = pos.sl
-						pos.close()
 						try:
 							self.utils.plan.onStopLoss(pos)
 						except AttributeError as e:
@@ -851,10 +1116,12 @@ class Backtester(object):
 							self.plan.onTrade(pos, 'Stop Loss')
 						except AttributeError as e:
 							pass
+						pos.close()
+						pos.closeprice = pos.sl
 				else:
 					if high >= pos.sl:
+						print('sl sell:', str(high), str(pos.sl))
 						pos.closeprice = pos.sl
-						pos.close()
 						try:
 							self.utils.plan.onStopLoss(pos)
 						except AttributeError as e:
@@ -864,18 +1131,21 @@ class Backtester(object):
 							self.plan.onTrade(pos, 'Stop Loss')
 						except AttributeError as e:
 							pass
+							
+						pos.close()
+						pos.closeprice = pos.sl
 
 	def checkTakeProfit(self, chart):
 
 		high = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][1]
 		low = [i[1] for i in sorted(chart.ohlc.items(), key=lambda kv: kv[0], reverse=True)][0][2]
 
-		for pos in self.utils.positions:
+		for i in range(len(self.utils.positions)-1, -1, -1):
+			pos = self.utils.positions[i]
 			if not pos.tp == 0:
 				if pos.direction == 'buy':
 					if high >= pos.tp:
 						pos.closeprice = pos.tp
-						pos.close()
 						try:
 							self.utils.plan.onTakeProfit(pos)
 						except AttributeError as e:
@@ -885,10 +1155,11 @@ class Backtester(object):
 							self.plan.onTrade(pos, 'Take Profit')
 						except AttributeError as e:
 							pass
+						pos.close()
+						pos.closeprice = pos.tp
 				else:
 					if low <= pos.tp:
 						pos.closeprice = pos.tp
-						pos.close()
 						try:
 							self.utils.plan.onTakeProfit(pos)
 						except AttributeError as e:
@@ -898,6 +1169,8 @@ class Backtester(object):
 							self.plan.onTrade(pos, 'Take Profit')
 						except AttributeError as e:
 							pass
+						pos.close()
+						pos.closeprice = pos.tp
 
 	def isNotBacktesting(self):
 		return state == State.NONE

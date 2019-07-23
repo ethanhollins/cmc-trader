@@ -256,10 +256,10 @@ class Start(object):
 
 		self.utils = Utilities(self.driver, self.plan, self.user_info)
 
-		try:
-			self.plan.init(self.utils)
-		except AttributeError as e:
-			pass
+		# try:
+		self.plan.init(self.utils)
+		# except AttributeError as e:
+		# 	pass
 
 		# directory = "./recovery"
 		# for filename in os.listdir(directory):
@@ -267,7 +267,8 @@ class Start(object):
 		# 	os.remove(filepath)
 
 		self.utils.updateRecovery()
-
+		print(self.utils.isTradeTime())
+		self.utils.setWeekendTime(self.utils.getAustralianTime())
 		if (not self.utils.is_backtest and not self.utils.manualChartReading and 
 			not self.utils.isWeekendTime(self.utils.getAustralianTime()) and
 			(self.utils.isTradeTime() or len(self.utils.positions) > 0)):
@@ -338,16 +339,18 @@ class Start(object):
 						if (is_updated):
 							# self.utils.save_state = self.plan.SaveState(self.utils)
 							values = {}
+							run_recover = False
 							for key in missing_timestamps:
 								pair = key.split('-')[0]
 								period = int(key.split('-')[1])
 								chart = self.utils.getChart(pair, period)
 
 								if len(missing_timestamps[key]) > 1:
+									run_recover = True
 									chart_values = self.utils.formatForBacktest(chart, self.utils.getEarliestTimestamp(missing_timestamps[key]), missing_timestamps[key])
-									values = chart_values
-
-							if len(values) > 0:
+									values[key] = chart_values
+							# print(values)
+							if run_recover:
 								print("recover")
 								self.utils.backtester.recover(values)
 							else:
