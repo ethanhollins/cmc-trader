@@ -9,9 +9,9 @@ VARIABLES = {
 	'TIMEZONE': 'America/New_York',
 	'PAIRS': [Constants.GBPUSD],
 	'BANK': None,
-	'risk': 1.0,
+	'risk': 3.0,
 	'PLAN': None,
-	'stoprange': 25,
+	'stoprange': 130,
 	'breakeven_min_pips': 3,
 	'max_ct_entry_retries': 3,
 	'ts_offset': 1,
@@ -126,17 +126,11 @@ def onStartTrading():
 	setGlobalVars()
 
 	print("Starting Bank:", str(bank))
-
 	
 def setGlobalVars():
-	global bank
 	global long_trigger, short_trigger
 	global pending_entries, pending_breakevens, pending_exits
 	global time_state, stop_state
-
-	bank = utils.getBankSize() + utils.external_bank
-	if bank > utils.maximum_bank:
-		bank = utils.maximum_bank
 
 	long_trigger = Trigger(Direction.LONG)
 	short_trigger = Trigger(Direction.SHORT)
@@ -223,6 +217,10 @@ def handleRegularEntry(entry):
 	Handle regular entries 
 	and check if tradable conditions are met.
 	'''
+
+	bank = utils.getBankSize() + utils.external_bank
+	if bank > utils.maximum_bank:
+		bank = utils.maximum_bank
 
 	if entry.direction == Direction.LONG:
 		pos = utils.buy(
