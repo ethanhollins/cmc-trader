@@ -34,7 +34,7 @@ from CMCTrader.PositionLog import PositionLog
 from CMCTrader.OrderLog import OrderLog
 from CMCTrader.BarReader2 import BarReader
 from CMCTrader.Backtester import Backtester
-from CMCTrader import SocketManager
+# from CMCTrader import SocketManager
 
 from CMCTrader.Indicators.SMA import SMA
 from CMCTrader.Indicators.BOLL import BOLL
