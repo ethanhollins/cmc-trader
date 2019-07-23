@@ -45,7 +45,8 @@ def bank(sid, data):
 		if k == 'get':
 			res['get'] = {
 				'external': utils.external_bank,
-				'maximum': utils.maximum_bank
+				'maximum': utils.maximum_bank,
+				'total': utils.external_bank + utils.getBankSize()
 			}
 		elif k == 'external':
 			try:
