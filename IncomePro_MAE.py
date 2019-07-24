@@ -468,7 +468,7 @@ def ctEntrySetup(shift, trigger):
 	if trigger:
 
 		if trigger.ct_entry_state == CTEntryState.ONE:			
-			if closeBelowBollConf(shift, trigger.direction):
+			if closeBelowBollConf(shift, trigger.direction) or isHitBoll(shift, trigger.direction, reverse=True):
 				return
 
 			if isRetHitCtIMae(shift, trigger.direction, reverse=True):
@@ -922,8 +922,8 @@ def isCloseInsideBoll(shift, direction, reverse=False):
 		else:
 			return close > s_boll_lower and close > l_boll_lower
 
-def isHitBoll(shift, direction):
-	return isHitShortBoll(shift, direction) or isHitLongBoll(shift, direction)
+def isHitBoll(shift, direction, reverse=False):
+	return isHitShortBoll(shift, direction, reverse=reverse) or isHitLongBoll(shift, direction, reverse=reverse)
 
 def isHitShortBoll(shift, direction, reverse=False):
 	upper, lower = short_boll.getCurrent()
