@@ -325,8 +325,8 @@ class Position(object):
 		self.closeTime = None
 		
 		self.lotsize = 0
-		self.stoprange = 0
-		self.risk = 0
+		self.stoprange = 130
+		self.risk = 1.0
 
 		self.sl = 0
 		self.tp = 0

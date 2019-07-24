@@ -112,6 +112,8 @@ class BarReader(object):
 			latest_timestamp = sorted(missing_timestamps, reverse=True)[0]
 			if latest_timestamp > chart.latest_timestamp:
 				chart.latest_timestamp = latest_timestamp
+		else:
+			chart.latest_timestamp = current_timestamp
 		
 		return missing_timestamps
 
