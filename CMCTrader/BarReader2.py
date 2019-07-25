@@ -184,12 +184,10 @@ class BarReader(object):
 
 	@Backtester.skip_on_backtest
 	def getMissingBarDataByTimestamp(self, chart, timestamp):
-		print(timestamp)
+
 		for i in range(chart.getDataPointsLength()-2, -1, -1):
-			# print(i)
 			if chart.getTimestampFromDataPoint(i) == timestamp:
 				if i == chart.getDataPointsLength()-2:
-					print('already got it')
 					return []
 				else:
 					index = i + 1

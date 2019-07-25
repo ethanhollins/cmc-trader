@@ -1,5 +1,4 @@
 from CMCTrader import Constants
-from CMCTrader.Backtester import Backtester
 from enum import Enum
 import datetime
 import types
