@@ -288,20 +288,32 @@ def percentage_profit_redirect_backtest(func):
 				if (self.direction == 'buy'):
 					profit = price - float(self.entryprice)
 					profit = self.utils.convertToPips(profit)
-					profit = profit / self.stoprange * self.risk
+					if self.stoprange and self.risk:
+						profit = profit / self.stoprange * self.risk
+					else:
+						profit = 0
 				else:
 					profit = float(self.entryprice) - price
 					profit = self.utils.convertToPips(profit)
-					profit = profit / self.stoprange * self.risk
+					if self.stoprange and self.risk:
+						profit = profit / self.stoprange * self.risk
+					else:
+						profit = 0
 			else:
 				if (self.direction == 'buy'):
 					profit = float(self.closeprice) - float(self.entryprice)
 					profit = self.utils.convertToPips(profit)
-					profit = profit / self.stoprange * self.risk
+					if self.stoprange and self.risk:
+						profit = profit / self.stoprange * self.risk
+					else:
+						profit = 0
 				else:
 					profit = float(self.entryprice) - float(self.closeprice)
 					profit = self.utils.convertToPips(profit)
-					profit = profit / self.stoprange * self.risk
+					if self.stoprange and self.risk:
+						profit = profit / self.stoprange * self.risk
+					else:
+						profit = 0
 
 			return round(profit, 2)	
 		else:
@@ -970,20 +982,32 @@ class Position(object):
 			if (self.direction == 'buy'):
 				profit = self.utils.getBid(self.pair) - float(self.entryprice)
 				profit = self.utils.convertToPips(profit)
-				profit = profit / self.stoprange * self.risk
+				if self.stoprange and self.risk:
+					profit = profit / self.stoprange * self.risk
+				else:
+					profit = 0
 			else:
 				profit = float(self.entryprice) - self.utils.getAsk(self.pair)
 				profit = self.utils.convertToPips(profit)
-				profit = profit / self.stoprange * self.risk
+				if self.stoprange and self.risk:
+					profit = profit / self.stoprange * self.risk
+				else:
+					profit = 0
 		else:
 			if (self.direction == 'buy'):
 				profit = float(self.closeprice) - float(self.entryprice)
 				profit = self.utils.convertToPips(profit)
-				profit = profit / self.stoprange * self.risk
+				if self.stoprange and self.risk:
+					profit = profit / self.stoprange * self.risk
+				else:
+					profit = 0
 			else:
 				profit = float(self.entryprice) - float(self.closeprice)
 				profit = self.utils.convertToPips(profit)
-				profit = profit / self.stoprange * self.risk
+				if self.stoprange and self.risk:
+					profit = profit / self.stoprange * self.risk
+				else:
+					profit = 0
 
 		return round(profit, 2)
 

@@ -2,6 +2,7 @@ from CMCTrader import Constants
 import time
 
 VARIABLES = {
+	'PAIRS': [Constants.GBPUSD],
 	'risk' : 1.0,
 	'stoploss' : 17
 }
@@ -10,32 +11,40 @@ VARIABLES = {
 
 def init(utilities):
 	print("Hello init World!")
-	global utils, boll, count, is_live
-
+	global utils
+	global sma, inner_mae, outer_mae, limit_mae, short_boll, long_boll, macd, rsi, atr, chart
+	
 	utils = utilities
 
-	boll = utils.BOLL(Constants.GBPUSD, Constants.ONE_MINUTE, 20, 2.0)
+	sma = utils.SMA(Constants.GBPUSD, Constants.FOUR_HOURS, 10)
+	inner_mae = utils.MAE(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 0.035)
+	outer_mae = utils.MAE(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 0.09)
+	limit_mae = utils.MAE(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 0.2)
+	short_boll = utils.BOLL(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 2.2)
+	long_boll = utils.BOLL(Constants.GBPUSD, Constants.FOUR_HOURS, 20, 1.9)
+	rsi = utils.RSI(Constants.GBPUSD, Constants.FOUR_HOURS, 10)
+	macd = utils.MACD(Constants.GBPUSD, Constants.FOUR_HOURS, 4, 40, 3)
+	atr = utils.ATR(Constants.GBPUSD, Constants.FOUR_HOURS, 20)
+	chart = utils.getChart(Constants.GBPUSD, Constants.FOUR_HOURS)
+
+	utils.setPositionNetting(False)
+
+	global count
 	count = 0
-	is_live = False
 
 def onLoop():
 	global count
 
-	# if utils.backtester.isNotBacktesting():
-	# 	count += 1
-	# 	if count == 1:
-	# 		print("do it")
-	# 		# local_storage = utils.getLocalStorage()
-	# 		# print(local_storage)
-	# 		# pos = utils.buy(400)
-	# 		local_storage = utils.getLocalStorage()
-			
-	# 		for pos in local_storage['POSITIONS']:
-	# 			pos['data']['hello'] = 'world'
+	if count == 0 and utils.backtester.isNotBacktesting():
 
-	# 		print(local_storage)
-	# 		utils.updateLocalStorage(local_storage)
-	# 		# pos.close()
+		utils.buy(
+			utils.getLotsize(20000, 3.0, 130), 
+			pairs = VARIABLES['PAIRS'], 
+			sl = 130,
+			risk = 3.0
+		)
+
+		count += 1
 
 	return
 
@@ -43,17 +52,17 @@ def onNewBar():
 	print("onNewBar\n")
 	global count, pos, is_live
 
-	if utils.backtester.isNotBacktesting():
-		is_live = True
+	# if utils.backtester.isNotBacktesting():
+	# 	is_live = True
 	
 
-	if is_live:
-		count += 1
-		if count == 1:
-			pos = utils.buy(400)
-		elif count == 2:
-			pos.breakeven()
-			pos.apply()
+	# if is_live:
+	# 	count += 1
+	# 	if count == 1:
+	# 		pos = utils.buy(400)
+	# 	elif count == 2:
+	# 		pos.breakeven()
+	# 		pos.apply()
 
 		# elif count == 3:
 		# 	pos.apply()

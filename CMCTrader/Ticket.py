@@ -152,7 +152,12 @@ class Ticket(object):
 	def placeOrder(self):
 		failed = False
 
-		if ("disabled" in self.getActionBtnElem().get_attribute("class")):
+		try:
+			wait = ui.WebDriverWait(self.driver, 10)
+
+			wait.until(lambda driver : not self.isButtonDisabled())
+		except:
+			print('IS DISABLED')
 			return 0
 
 		self.driver.execute_script(
@@ -216,11 +221,15 @@ class Ticket(object):
 			return 0
 
 		if (failed):
+			print('FAILED')
 			return 0
 		else:
 			return orderID
 
-	def isSecondButtonVisible():
+	def isButtonDisabled(self):
+		return "disabled" in self.getActionBtnElem().get_attribute("class")
+
+	def isSecondButtonVisible(self):
 		text = self.driver.execute_script(
 				'return arguments[0].innerHTML;',
 				self.getActionBtnElem()

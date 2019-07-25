@@ -1343,7 +1343,7 @@ class Utilities:
 		return float(text.strip('$').replace(',', ''))
 
 	def getLotsize(self, bank, risk, stoprange):
-		return int(round(((bank * (risk/100.0) * self.getAUDPrice()) / stoprange * 10000)/100)*100)
+		return int(round(( (bank * (risk/100.0) * self.getAUDPrice()) / stoprange * 10000) / 100) * 100)
 
 	def getTotalProfit(self):
 		totalProfit = 0
