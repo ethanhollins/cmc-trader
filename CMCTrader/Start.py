@@ -267,10 +267,7 @@ class Start(object):
 		# 	os.remove(filepath)
 
 		self.utils.updateRecovery()
-		print(self.utils.isTradeTime())
-		self.utils.setWeekendTime(self.utils.getAustralianTime())
-		if (not self.utils.is_backtest and not self.utils.manualChartReading and 
-			not self.utils.isWeekendTime(self.utils.getAustralianTime()) and
+		if (not self.utils.is_backtest and not self.utils.manualChartReading and
 			(self.utils.isTradeTime() or len(self.utils.positions) > 0)):
 			self.utils.getRecovery()
 		# raise Exception('stop')

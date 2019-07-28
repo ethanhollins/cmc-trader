@@ -8,9 +8,9 @@ VARIABLES = {
 	'TIMEZONE': 'America/New_York',
 	'PAIRS': [Constants.GBPUSD],
 	'BANK': None,
-	'risk': 3.0,
+	'risk': 1.0,
 	'PLAN': None,
-	'stoprange': 130,
+	'stoprange': 200,
 	'breakeven_min_pips': 3,
 	'max_ct_entry_retries': 3,
 	'ts_offset': 1,
@@ -335,6 +335,7 @@ def checkTime():
 def runSequence(shift):
 	''' Main trade plan sequence '''
 	print(
+		"OHLC:", str(chart.getOHLC(shift)),
 		"SMA:", str(sma.getCurrent()),
 		"RSI:", str(rsi.getCurrent()),
 		"I_MAE:", str(inner_mae.getCurrent()),  
