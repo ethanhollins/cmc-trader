@@ -798,9 +798,7 @@ class Utilities:
 		else:
 			ticket.setTakeProfit(float(tp))
 
-		# orderID = ticket.placeOrder()
-
-		return
+		orderID = ticket.placeOrder()
 
 		if (orderID == 0):
 			print("Error occured on market order!")
