@@ -170,6 +170,9 @@ class Utilities:
 		t.start()
 
 	def log(self, tag, msg, debug=False):
+		# if self.backtester.isBacktesting():
+		# 	return
+
 		if debug:
 			if self.backtester.isBacktesting():
 				if tag:
@@ -795,7 +798,9 @@ class Utilities:
 		else:
 			ticket.setTakeProfit(float(tp))
 
-		orderID = ticket.placeOrder()
+		# orderID = ticket.placeOrder()
+
+		return
 
 		if (orderID == 0):
 			print("Error occured on market order!")

@@ -38,11 +38,42 @@ def onLoop():
 	if count == 0 and utils.backtester.isNotBacktesting():
 
 		utils.buy(
-			utils.getLotsize(20000, 3.0, 130), 
+			400, 
 			pairs = VARIABLES['PAIRS'], 
 			sl = 130,
 			risk = 3.0
 		)
+
+		time.sleep(1)
+
+		utils.sell(
+			500, 
+			pairs = VARIABLES['PAIRS'], 
+			sl = 80,
+			tp = 200,
+			risk = 3.0
+		)
+
+		time.sleep(0.63)
+
+		utils.buy(
+			400, 
+			pairs = VARIABLES['PAIRS'], 
+			sl = 25,
+			risk = 3.0
+		)
+
+		time.sleep(2)
+
+		utils.sell(
+			500, 
+			pairs = VARIABLES['PAIRS'], 
+			sl = 130,
+			tp = 30,
+			risk = 3.0
+		)
+
+		time.sleep(1)
 
 		count += 1
 

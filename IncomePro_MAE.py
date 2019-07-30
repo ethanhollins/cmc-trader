@@ -149,7 +149,7 @@ def onFinishTrading():
 def onNewBar():
 	''' Function called on every new bar '''
 	utils.log("\nonNewBar",'')
-	utils.printTime(utils.getAustralianTime())
+	utils.log('', utils.getAustralianTime().strftime('%d/%m/%y %H:%M:%S'))
 	
 	checkTime()
 
@@ -1083,4 +1083,5 @@ def report():
 						str(pos.getPercentageProfit(price_type='c'))+'%')
 		)
 
+	utils.log('', utils.getAustralianTime().strftime('%d/%m/%y %H:%M:%S'))
 	utils.log('', "--|\n")
