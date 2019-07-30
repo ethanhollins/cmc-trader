@@ -98,7 +98,7 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global sma, inner_mae, outer_mae, limit_mae, short_boll, long_boll, macd, rsi, atr, chart
+	global sma, inner_mae, outer_mae, limit_mae, limit_two_mae, short_boll, long_boll, macd, rsi, atr, chart
 
 	utils = utilities
 
@@ -106,6 +106,7 @@ def init(utilities):
 	inner_mae = utils.MAE(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 0.035)
 	outer_mae = utils.MAE(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 0.09)
 	limit_mae = utils.MAE(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 0.2)
+	limit_two_mae = utils.MAE(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 0.24)
 	short_boll = utils.BOLL(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 2.2)
 	long_boll = utils.BOLL(Constants.GBPUSD, Constants.FOUR_HOURS, 20, 1.9)
 	rsi = utils.RSI(Constants.GBPUSD, Constants.FOUR_HOURS, 10)
@@ -120,7 +121,7 @@ def init(utilities):
 def onStartTrading():
 	''' Function called on trade start time '''
 
-	print("onStartTrading")
+	utils.log("onStartTrading", '')
 
 	setGlobalVars()
 	
@@ -141,13 +142,13 @@ def setGlobalVars():
 def onFinishTrading():
 	''' Function called on trade end time '''
 
-	print("onFinishTrading")
+	utils.log("onFinishTrading",'')
 
-	print("Total PIPS gain:", str(utils.getTotalProfit()))
+	utils.log('onFinishTrading', "Total PIPS gain:", str(utils.getTotalProfit()))
 
 def onNewBar():
 	''' Function called on every new bar '''
-	print("\nonNewBar")
+	utils.log("\nonNewBar",'')
 	utils.printTime(utils.getAustralianTime())
 	
 	checkTime()
@@ -160,7 +161,7 @@ def onNewBar():
 def onDownTime():
 	''' Function called outside of trading time '''
 
-	print("onDownTime")
+	utils.log("onDownTime", '')
 	ausTime = utils.printTime(utils.getAustralianTime())
 
 def onLoop():
@@ -179,10 +180,10 @@ def handleEntries():
 	for entry in pending_entries[:1]:
 		
 		if isOppDirectionPositionExists(local_storage, entry.direction):
-			print("Attempting position enter long: stop and reverse")
+			utils.log('handleEntries', "Attempting position enter long: stop and reverse")
 			handleStopAndReverse(entry, local_storage)
 		else:
-			print("Attempting position enter long: regular")
+			utils.log('handleEntries', "Attempting position enter long: regular")
 			handleRegularEntry(entry)
 
 		pending_entries = []
@@ -259,7 +260,6 @@ def handleRegularEntry(entry):
 			}
 			break
 
-	print("s:", str(local_storage))
 	utils.updateLocalStorage(local_storage)
 
 # def handleCloseOppPositions(entry, storage):
@@ -280,10 +280,9 @@ def handleRegularEntry(entry):
 # 					pos.close()
 
 def onStopLoss(pos):
-	print("onStopLoss")
+	utils.log("onStopLoss", '')
 
 	local_storage = utils.getLocalStorage()
-	print("sl:", str(local_storage))
 	p_data = None
 	if 'POSITIONS' in local_storage:
 		for p in local_storage['POSITIONS']:
@@ -322,20 +321,21 @@ def checkTime():
 
 	time = utils.convertTimestampToTime(chart.getLatestTimestamp(0))
 	london_time = utils.convertTimezone(utils.setTimezone(time, 'Australia/Melbourne'), 'Europe/London')
-	print('London Time:', str(london_time))
+	utils.log('checkTime', ('London Time:', str(london_time)))
 	if london_time.weekday() == 4 and london_time.hour >= 20:
-		print('is STOP!')
+		utils.log('checkTime', 'is STOP!')
 		time_state = TimeState.STOP
 	elif london_time.weekday() == 4 and london_time.hour >= 12:
-		print('is NCT!')
+		utils.log('checkTime', 'is NCT!')
 		time_state = TimeState.NCT
 	else:
 		time_state = TimeState.TRADING
 
 def runSequence(shift):
 	''' Main trade plan sequence '''
-	print(
-		"OHLC:", str(chart.getOHLC(shift)),
+	utils.log(
+		'runSequence',
+		("OHLC:", str(chart.getOHLC(shift)),
 		"SMA:", str(sma.getCurrent()),
 		"RSI:", str(rsi.getCurrent()),
 		"I_MAE:", str(inner_mae.getCurrent()),  
@@ -343,7 +343,7 @@ def runSequence(shift):
 		"S_BOLL:", str(short_boll.getCurrent()),
 		"L_BOLL:", str(long_boll.getCurrent()),
 		"MACD:", str(macd.getCurrent()),
-		"ATR:", str(atr.getCurrent())
+		"ATR:", str(atr.getCurrent()))
 	)
 
 	if time_state == TimeState.STOP:
@@ -370,12 +370,13 @@ def tMacdEntrySetup(shift, trigger):
 				return confirmation(trigger, EntryType.TEntry)
 
 def tMacdEntryConfirmationOne(shift, direction):
-	print('T Macd Entry One ('+str(direction)+'):',
-		str(isMacdzDirOneConf(shift, direction)),
-		str(isCloseABLMaeIn(shift, direction, reverse=True)),
-		str(isCloseABSma(shift, direction, reverse=True)),
-		str(isBB(shift, direction)),
-		str(not isDoji(shift))
+	utils.log('tMacdEntryConfirmationOne',
+		('T Macd Entry One ('+str(direction)+'):',
+				str(isMacdzDirOneConf(shift, direction)),
+				str(isCloseABLMaeIn(shift, direction, reverse=True)),
+				str(isCloseABSma(shift, direction, reverse=True)),
+				str(isBB(shift, direction)),
+				str(not isDoji(shift)))
 	)
 	return (
 		isMacdzDirOneConf(shift, direction) and
@@ -388,11 +389,12 @@ def tMacdEntryConfirmationOne(shift, direction):
 	)
 
 def tMacdEntryConfirmationTwo(shift, direction):
-	print('T Macd Entry Two ('+str(direction)+'):',
-		str(isMacdzDirTwoConf(shift, direction)),
-		str(isCloseABSma(shift, direction)),
-		str(isBB(shift, direction)),
-		str(not isDoji(shift))
+	utils.log('tMacdEntryConfirmationTwo',
+		('T Macd Entry Two ('+str(direction)+'):',
+				str(isMacdzDirTwoConf(shift, direction)),
+				str(isCloseABSma(shift, direction)),
+				str(isBB(shift, direction)),
+				str(not isDoji(shift)))
 	)
 
 	return (
@@ -427,12 +429,13 @@ def tRsiEntrySetup(shift, trigger):
 			return
 
 def tRsiEntryConfirmation(shift, direction):
-	print('T Rsi Entry One ('+str(direction)+'):',
-		str(isPriorRsiConf(shift, direction)),
-		str(isCloseABIMaeIn(shift, direction, reverse=True)),
-		str(isCloseABLMaeIn(shift, direction)),
-		str(isBB(shift, direction)),
-		str(not isDoji(shift))
+	utils.log('tRsiEntryConfirmation',
+		('T Rsi Entry One ('+str(direction)+'):',
+				str(isPriorRsiConf(shift, direction)),
+				str(isCloseABIMaeIn(shift, direction, reverse=True)),
+				str(isCloseABLMaeIn(shift, direction)),
+				str(isBB(shift, direction)),
+				str(not isDoji(shift)))
 	)
 	return (
 		isPriorRsiConf(shift, direction) and
@@ -544,10 +547,11 @@ def ctEntrySetup(shift, trigger):
 		
 
 def ctEntryConfirmation(shift, direction):
-	print('CT Init Conf ('+str(direction)+'):',
-			str(isRsiDirConf(shift, direction, reverse=True)),
-			str(isBollAboveLMae(shift, direction, reverse=True)),
-			str(isCloseABOMaeOut(shift, direction, reverse=True)),
+	utils.log('ctEntryConfirmation',
+		('CT Init Conf ('+str(direction)+'):',
+					str(isRsiDirConf(shift, direction, reverse=True)),
+					str(isBollAboveLMae(shift, direction, reverse=True)),
+					str(isCloseABOMaeOut(shift, direction, reverse=True)))
 		)
 	
 
@@ -556,11 +560,12 @@ def ctEntryConfirmation(shift, direction):
 		isBollAboveLMae(shift, direction, reverse=True) and
 		isCloseABOMaeOut(shift, direction, reverse=True)
 	):
-		print('CT Entry ('+str(direction)+'): ('+
-			str(isHitLongBoll(shift, direction, reverse=True) and 
-				isHitShortBoll(shift, direction, reverse=True)), 'or',
-			str(isCloseABShortBoll(shift, direction, reverse=True)), 'or',
-			str(isCloseABLongBoll(shift, direction, reverse=True))+')'
+		utils.log('ctEntryConfirmation',
+			('CT Entry ('+str(direction)+'): ('+
+						str(isHitLongBoll(shift, direction, reverse=True) and 
+							isHitShortBoll(shift, direction, reverse=True)), 'or',
+						str(isCloseABShortBoll(shift, direction, reverse=True)), 'or',
+						str(isCloseABLongBoll(shift, direction, reverse=True))+')')
 		)
 
 		if (isHitLongBoll(shift, direction, reverse=True) and 
@@ -590,7 +595,7 @@ def closeBelowBollConf(shift, direction):
 
 def ctReverseTagConfirmation(shift, direction):
 	return (
-		isRetHitLMae(shift, direction, reverse=True) and
+		isRetHitLMaeTwo(shift, direction, reverse=True) and
 		isCloseInsideBoll(shift, direction, reverse=True)
 	)
 
@@ -836,6 +841,21 @@ def isRetHitLMae(shift, direction, reverse=False):
 		else:
 			return high >= lower
 
+def isRetHitLMaeTwo(shift, direction, reverse=False):
+	upper, lower = limit_two_mae.getCurrent()
+	_, high, low, _ = chart.getOHLC(shift)
+
+	if reverse:
+		if direction == Direction.LONG:
+			return high >= lower
+		else:
+			return low <= upper
+	else:
+		if direction == Direction.LONG:
+			return low <= upper
+		else:
+			return high >= lower
+
 def isRetHitCtLMae(shift, direction, reverse=False):
 	upper, lower = limit_mae.getCurrent()
 	_, high, low, _ = chart.getOHLC(shift)
@@ -1005,7 +1025,7 @@ def getStopRange():
 
 def confirmation(trigger, entry_type):
 	''' confirm entry '''
-	print('confirmation init')
+	utils.log('confirmation', 'confirmation init')
 
 	if entry_type == EntryType.TEntry:
 		trigger.t_macd_entry_state = TMacdEntryState.ONE
@@ -1030,35 +1050,37 @@ def confirmation(trigger, entry_type):
 
 	trigger.entry_type = entry_type
 	trigger.stop_range = getStopRange()
-	print("confirmation:", str(trigger.direction), str(entry_type), str(trigger.stop_range))
+	utils.log("confirmation", (str(trigger.direction), str(entry_type), str(trigger.stop_range)))
 	pending_entries.append(trigger)
 
 def report():
 	''' Prints report for debugging '''
 
-	print("\n")
+	utils.log('', "\n")
 
-	print("L:", str(long_trigger))
-	print("S:", str(short_trigger))
+	utils.log('', "L:", str(long_trigger))
+	utils.log('', "S:", str(short_trigger))
 
-	print("CLOSED POSITIONS:")
+	utils.log('', "CLOSED POSITIONS:")
 	count = 0
 	for pos in utils.closedPositions:
 		count += 1
-		print(str(count) + ":", 
-			str(pos.direction), 
-			"Profit:", str(pos.getProfit(price_type = 'c')), '|',
-			str(pos.getPercentageProfit(price_type='c'))+'%'
+		utils.log('', 
+			(str(count) + ":", 
+						str(pos.direction), 
+						"Profit:", str(pos.getProfit(price_type = 'c')), '|',
+						str(pos.getPercentageProfit(price_type='c'))+'%')
 		)
 
-	print("POSITIONS:")
+	utils.log('', "POSITIONS:")
 	count = 0
 	for pos in utils.positions:
 		count += 1
-		print(str(count) + ":", 
-			str(pos.direction), 
-			"Profit:", str(pos.getProfit(price_type = 'c')), '|',
-			str(pos.getPercentageProfit(price_type='c'))+'%'
+		utils.log('', 
+			(str(count) + ":", 
+						str(pos.direction), 
+						"Profit:", str(pos.getProfit(price_type = 'c')), '|',
+						str(pos.getPercentageProfit(price_type='c'))+'%')
 		)
 
-	print("--|\n")
+	utils.log('', "--|\n")

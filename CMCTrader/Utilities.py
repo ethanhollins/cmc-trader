@@ -169,6 +169,31 @@ class Utilities:
 		t = threading.Thread(target = task)
 		t.start()
 
+	def log(self, tag, msg, debug=False):
+		if debug:
+			if self.backtester.isBacktesting():
+				if tag:
+					if type(msg) == tuple:
+						print('{0}:\n {1}'.format(str(tag), ' '.join(msg)))
+					else:
+						print('{0}:\n {1}'.format(str(tag), str(msg)))
+				else:
+					if type(msg) == tuple:
+						print(' '.join(msg))
+					else:
+						print(str(msg))
+		else:
+			if tag:
+				if type(msg) == tuple:
+					print('{0}:\n {1}'.format(str(tag), ' '.join(msg)))
+				else:
+					print('{0}:\n {1}'.format(str(tag), str(msg)))
+			else:
+				if type(msg) == tuple:
+					print(' '.join(msg))
+				else:
+					print(str(msg))
+
 	def initBank(self):
 		result = db.getItems(self.user_id, 'account_bank')
 
