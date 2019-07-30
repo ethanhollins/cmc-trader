@@ -288,12 +288,25 @@ class Chart(object):
 		return int(latest_timestamp - (offset * self.timestamp_offset))
 
 	def getTimestampFromDataPoint(self, index):
-		raw = self.driver.execute_script(
-				self.getObj() +
-				'var data_point = obj.reader.dataPoints[arguments[0]];'
-				'return String(data_point.time);',
-				index
-			)
+
+		attempts = 0
+		while True:
+			try:
+				attempts += 1
+				raw = self.driver.execute_script(
+						self.getObj() +
+						'var data_point = obj.reader.dataPoints[arguments[0]];'
+						'return String(data_point.time);',
+						index
+					)
+				break
+			except:
+				if attempts >= 5:
+					raise Exception('Error getting obj.')
+				else:
+					time.sleep(1)
+					print('Error getting obj.')
+					pass
 
 		raw = ' '.join(raw.split(' ')[:5])
 		dt = self.convertRawDateToDatetime(raw)
