@@ -106,7 +106,7 @@ def init(utilities):
 	inner_mae = utils.MAE(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 0.035)
 	outer_mae = utils.MAE(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 0.09)
 	limit_mae = utils.MAE(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 0.2)
-	limit_two_mae = utils.MAE(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 0.24)
+	limit_two_mae = utils.MAE(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 0.25)
 	short_boll = utils.BOLL(Constants.GBPUSD, Constants.FOUR_HOURS, 10, 2.2)
 	long_boll = utils.BOLL(Constants.GBPUSD, Constants.FOUR_HOURS, 20, 1.9)
 	rsi = utils.RSI(Constants.GBPUSD, Constants.FOUR_HOURS, 10)
