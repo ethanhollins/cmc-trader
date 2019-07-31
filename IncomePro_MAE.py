@@ -253,7 +253,13 @@ def handleRegularEntry(entry):
 	# 		sl = entry.stop_range,
 	# 		risk = VARIABLES['risk']
 	# 	)
-		
+	
+	if not pos:
+		utils.setStopped()
+		print('SOMETHING WENT WRONG WITH POSITION ENTRY!')
+		return
+
+
 	local_storage = utils.getLocalStorage()
 
 	for p in local_storage['POSITIONS']:
