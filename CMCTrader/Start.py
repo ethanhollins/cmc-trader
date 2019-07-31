@@ -168,12 +168,11 @@ class Start(object):
 		while 'loader' not in self.driver.current_url:
 			if 'accountOptionsSelection' in self.driver.current_url and not accountSelected:
 
-				if len(self.driver.find_elements(By.XPATH, "//div[@id='"+str(self.account_id)+"']")) > 0:
+				try:
 					account_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
 					account_btn.click()
 					accountSelected = True
-				else:
-
+				except:
 					try:
 						wait = ui.WebDriverWait(self.driver, 10)
 						wait.until(EC.presence_of_element_located(
