@@ -99,6 +99,7 @@ class Utilities:
 		# Bank
 		self.external_bank = 0
 		self.maximum_bank = 0
+		self.minimum_bank = 0
 		self.initBank()
 
 		self.setTradeTimes()
@@ -203,9 +204,11 @@ class Utilities:
 		if result['account_bank']:
 			self.external_bank = float(result['account_bank']['external'])
 			self.maximum_bank = float(result['account_bank']['maximum'])
+			self.minimum_bank = float(result['account_bank']['minimum'])
 		else:
 			self.external_bank = 0
 			self.maximum_bank = 1000
+			self.minimum_bank = 2000
 
 	def updateBank(self, external_bank=None, maximum_bank=None):
 		if external_bank:

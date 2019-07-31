@@ -168,37 +168,43 @@ class Start(object):
 		while 'loader' not in self.driver.current_url:
 			if 'accountOptionsSelection' in self.driver.current_url and not accountSelected:
 
-				try:
-					wait = ui.WebDriverWait(self.driver, 10)
-					wait.until(EC.presence_of_element_located(
-						(By.XPATH, "//button[text() = '"+str(self.account_name)+"']")
-					))
-					account_type_btn = self.driver.find_element(By.XPATH, "//button[text() = '"+str(self.account_name)+"']")
-					
-					try:
-						account_type_btn.click()
-					except WebDriverException as e:
-						pass
-
-					wait = ui.WebDriverWait(self.driver, 10)
-					wait.until(EC.presence_of_element_located(
-						(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
-					))
-
-					wait = ui.WebDriverWait(self.driver, 10)
-					wait.until(EC.element_to_be_clickable(
-						(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
-					))
-
-					self.driver.implicitly_wait(2)
-
+				if len(self.driver.find_elements(By.XPATH, "//div[@id='"+str(self.account_id)+"']")) > 0:
 					account_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
 					account_btn.click()
 					accountSelected = True
-				except:
-					self.driver.get(CMC_WEBSITE);
-					self.login()
-					return
+				else:
+
+					try:
+						wait = ui.WebDriverWait(self.driver, 10)
+						wait.until(EC.presence_of_element_located(
+							(By.XPATH, "//button[text() = '"+str(self.account_name)+"']")
+						))
+						account_type_btn = self.driver.find_element(By.XPATH, "//button[text() = '"+str(self.account_name)+"']")
+						
+						try:
+							account_type_btn.click()
+						except WebDriverException as e:
+							pass
+
+						wait = ui.WebDriverWait(self.driver, 10)
+						wait.until(EC.presence_of_element_located(
+							(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
+						))
+
+						wait = ui.WebDriverWait(self.driver, 10)
+						wait.until(EC.element_to_be_clickable(
+							(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
+						))
+
+						self.driver.implicitly_wait(2)
+
+						account_btn = self.driver.find_element(By.XPATH, "//div[@id='"+str(self.account_id)+"']")
+						account_btn.click()
+						accountSelected = True
+					except:
+						self.driver.get(CMC_WEBSITE);
+						self.login()
+						return
 
 			elif not accountSelected:
 				print("Unable to login, trying again.")

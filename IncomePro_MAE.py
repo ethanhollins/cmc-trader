@@ -220,6 +220,10 @@ def handleRegularEntry(entry):
 	if bank > utils.maximum_bank:
 		bank = utils.maximum_bank
 
+	if bank <= utils.minimum_bank:
+		utils.log('', 'Bank is below minimum {0:.2f}'.format(utils.minimum_bank))
+		return
+
 	if entry.direction == Direction.LONG:
 		pos = utils.buy(
 			utils.getLotsize(bank, VARIABLES['risk'], VARIABLES['stoprange']), 
