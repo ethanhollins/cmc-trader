@@ -37,6 +37,7 @@ class Chart(object):
 
 	def getObj(self):
 		pair = self.pair[:3] + '/' + self.pair[3:]
+
 		return (
 				'var obj = null;'
 				'var charts = window.ProChart.charts;'
@@ -50,9 +51,34 @@ class Chart(object):
 				'        obj = chart;'
 				'    }'
 				'}'
+				'if (obj == null) return null;'
 			)
 
+	def isObj(self):
+		wait = ui.WebDriverWait(self.driver, 10)
+		wait.until(lambda driver : self.checkIfObj())
+
+	def checkIfObj(self):
+		pair = self.pair[:3] + '/' + self.pair[3:]
+
+		return self.driver.execute_script(
+			'var obj = null;'
+			'var charts = window.ProChart.charts;'
+			'for (var i=0; i < charts.length; i++)'
+			'{'
+			'    var chart = charts[i];'
+			'    var pair = chart.reader.product.abbreviatedName;'
+			'    var period = chart.reader.chartSettings.chartModel.chartTopNavConfig.featureWindow.feature.data.s.chi;'
+			'    if (pair.localeCompare("'+str(pair)+'") == 0 && period == parseInt("'+str(self.period)+'"))'
+			'    {'
+			'        obj = chart;'
+			'    }'
+			'}'
+			'return obj != null;'
+		)
+
 	def getId(self):
+		self.isObj()
 		return self.driver.execute_script(
 			self.getObj() +
 			'return obj.id;'
@@ -66,12 +92,14 @@ class Chart(object):
 		)
 
 	def getWidth(self):
+		self.isObj()
 		return self.driver.execute_script(
 			self.getObj() +
 			'return obj.getWidth();'
 		)
 
 	def getHeight(self):
+		self.isObj()
 		return self.driver.execute_script(
 			self.getObj() +
 			'return obj.getHeight();'
@@ -122,6 +150,7 @@ class Chart(object):
 			return 60 * 60 * 24 * 30 #!
 
 	def reset(self):
+		self.isObj()
 		self.driver.execute_script(
 			self.getObj() +
 			'obj.reset();',
@@ -131,6 +160,7 @@ class Chart(object):
 		if not zoom:
 			zoom = self.zoom
 
+		self.isObj()
 		self.driver.execute_script(
 			self.getObj() +
 			'obj.reset();'
@@ -139,6 +169,7 @@ class Chart(object):
 		)
 
 	def zoomIn(self, amount):
+		self.isObj()
 		self.driver.execute_script(
 			self.getObj() +
 			'obj.zoomIn(arguments[0]);',
@@ -146,6 +177,7 @@ class Chart(object):
 		)
 
 	def zoomOut(self, amount):
+		self.isObj()
 		self.driver.execute_script(
 			self.getObj() +
 			'obj.zoomOut(arguments[0]);',
@@ -153,6 +185,7 @@ class Chart(object):
 		)
 
 	def reloadData(self):
+		self.isObj()
 		self.driver.execute_script(
 			self.getObj() +
 			'obj.reloadData();'
@@ -163,6 +196,7 @@ class Chart(object):
 		time.sleep(0.15)
 
 	def getOHLCData(self, index):
+		self.isObj()
 		return self.driver.execute_script(
 				self.getObj() +
 				'var data_point = obj.reader.dataPoints[arguments[0]];'
@@ -171,24 +205,28 @@ class Chart(object):
 			)
 
 	def getDataPoints(self):
+		self.isObj()
 		return self.driver.execute_script(
 				self.getObj() +
 				'return obj.reader.dataPoints;'
 			)
 
 	def getDataPointsLength(self):
+		self.isObj()
 		return self.driver.execute_script(
 				self.getObj() +
 				'return obj.reader.dataPoints.length;'
 			)
 
 	def hasReloadFinished(self):
+		self.isObj()
 		return not self.driver.execute_script(
 			self.getObj() +
 			'return obj.isDataRefreshing();'
 		)
 
 	def panLeft(self, amount):
+		self.isObj()
 		self.driver.execute_script(
 			self.getObj() +
 			'for (var i=0; i < arguments[0]; i++)'
@@ -199,6 +237,7 @@ class Chart(object):
 		)
 
 	def panRight(self, amount):
+		self.isObj()
 		self.driver.execute_script(
 			self.getObj() +
 			'for (var i=0; i < arguments[0]; i++)'
@@ -212,6 +251,7 @@ class Chart(object):
 		return [i[0] for i in sorted(self.ohlc.items(), key=lambda kv: kv[0], reverse=True)]
 
 	def getWindowAt(self, x, y):
+		self.isObj()
 		return self.driver.execute_script(
 			self.getObj() +
 			'var x = arguments[0];'
@@ -221,6 +261,7 @@ class Chart(object):
 		)
 
 	def getValueAt(self, x, y):
+		self.isObj()
 		return float(self.driver.execute_script(
 				self.getObj() +
 				'var x = arguments[0];'
@@ -233,6 +274,7 @@ class Chart(object):
 		return sorted(self.regions.items(), key=lambda kv: kv[1]['index'])[index]
 
 	def getCurrentBarIndex(self):
+		self.isObj()
 		return self.driver.execute_script(
 			self.getObj() +
 			'var x = arguments[0];'
@@ -288,25 +330,13 @@ class Chart(object):
 		return int(latest_timestamp - (offset * self.timestamp_offset))
 
 	def getTimestampFromDataPoint(self, index):
-
-		attempts = 0
-		while True:
-			try:
-				attempts += 1
-				raw = self.driver.execute_script(
-						self.getObj() +
-						'var data_point = obj.reader.dataPoints[arguments[0]];'
-						'return String(data_point.time);',
-						index
-					)
-				break
-			except:
-				if attempts >= 5:
-					raise Exception('Error getting obj.')
-				else:
-					time.sleep(1)
-					print('Error getting obj.')
-					pass
+		self.isObj()
+		raw = self.driver.execute_script(
+				self.getObj() +
+				'var data_point = obj.reader.dataPoints[arguments[0]];'
+				'return String(data_point.time);',
+				index
+			)
 
 		raw = ' '.join(raw.split(' ')[:5])
 		dt = self.convertRawDateToDatetime(raw)
