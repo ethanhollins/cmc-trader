@@ -566,7 +566,7 @@ def ctEntryConfirmation(shift, direction):
 	
 
 	if (
-		isRsiDirConf(shift, direction, reverse=True) and
+		# isRsiDirConf(shift, direction, reverse=True) and
 		isBollAboveLMae(shift, direction, reverse=True) and
 		isCloseABOMaeOut(shift, direction, reverse=True)
 	):
@@ -1068,8 +1068,8 @@ def report():
 
 	utils.log('', "\n")
 
-	utils.log('', "L:", str(long_trigger))
-	utils.log('', "S:", str(short_trigger))
+	utils.log('', ("L:", str(long_trigger)))
+	utils.log('', ("S:", str(short_trigger)))
 
 	utils.log('', "CLOSED POSITIONS:")
 	count = 0
