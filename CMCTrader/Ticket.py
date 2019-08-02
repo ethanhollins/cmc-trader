@@ -153,7 +153,7 @@ class Ticket(object):
 		failed = False
 
 		try:
-			wait = ui.WebDriverWait(self.driver, 10)
+			wait = ui.WebDriverWait(self.driver, 15)
 
 			wait.until(lambda driver : not self.isButtonDisabled())
 		except:
@@ -190,7 +190,7 @@ class Ticket(object):
 						self.getActionBtnElem(), self.getTicketElem()
 					)
 			except:
-				wait = ui.WebDriverWait(self.driver, 10)
+				wait = ui.WebDriverWait(self.driver, 15)
 				wait.until(EC.presence_of_element_located(
 					(By.XPATH, "//div[@id='"+str(self.getTicketID())+"']")
 				))
@@ -213,7 +213,7 @@ class Ticket(object):
 			pass
 
 		try:
-			wait = ui.WebDriverWait(self.driver, 10)
+			wait = ui.WebDriverWait(self.driver, 15)
 
 			wait.until(lambda driver : "disabled" not in self.getActionBtnElem().get_attribute("class"))
 		except Exception as e:
@@ -267,7 +267,7 @@ class Ticket(object):
 		return self.ticketElements['LIMIT']
 
 	def getLimitOrderPriceElem(self):
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 
 		wait.until(EC.presence_of_element_located(
 			(By.XPATH, "//div[@id='"+str(self.getTicketID())+"']//div[@name='limit']")
@@ -283,7 +283,7 @@ class Ticket(object):
 		return self.ticketElements['STOP_ENTRY']
 
 	def getStopEntryOrderPriceElem(self):
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 
 		wait.until(EC.presence_of_element_located(
 			(By.XPATH, "//div[@id='"+str(self.getTicketID())+"']//div[@name='stopEntry']")
@@ -340,7 +340,7 @@ class Ticket(object):
 				self.getTicketElem(), self.getStopLossElem()
 			)
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 
 		wait.until(EC.presence_of_element_located(
 			(By.XPATH, "//div[@id='"+str(self.getTicketID())+"']//div[@class='stopLoss']//a[@class='close']")
@@ -357,7 +357,7 @@ class Ticket(object):
 				self.getTicketElem(), self.getStopLossElem()
 			)
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 
 		wait.until(EC.presence_of_element_located(
 			(By.XPATH, "//div[@id='"+str(self.getTicketID())+"']//div[@name='stopLossPoints']")
@@ -377,7 +377,7 @@ class Ticket(object):
 				self.getTicketElem(), self.getTakeProfitElem()
 			)
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 
 		wait.until(EC.presence_of_element_located(
 			(By.XPATH, "//div[@id='"+str(self.getTicketID())+"']//div[@class='takeProfit']//a[@class='close']")
@@ -394,7 +394,7 @@ class Ticket(object):
 				self.getTicketElem(), self.getTakeProfitElem()
 			)
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 
 		wait.until(EC.presence_of_element_located(
 			(By.XPATH, "//div[@id='"+str(self.getTicketID())+"']//div[@name='takeProfitPoints']")

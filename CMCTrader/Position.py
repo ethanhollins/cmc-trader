@@ -360,12 +360,12 @@ class Position(object):
 	def _getModifyBtn(self):
 
 		if (self.isPending):
-			wait = ui.WebDriverWait(self.driver, 10)
+			wait = ui.WebDriverWait(self.driver, 15)
 			wait.until(lambda driver : self.utils.orderLog.getOrderModifyBtn(self) is not None)
 			print("found order modify btn")
 			self.modifyBtn = self.utils.orderLog.getOrderModifyBtn(self)
 		else:
-			wait = ui.WebDriverWait(self.driver, 10)
+			wait = ui.WebDriverWait(self.driver, 15)
 			wait.until(lambda driver : self.utils.positionLog.getPositionModifyButton(self) is not None)
 			print("found position modify btn")
 			self.modifyBtn = self.utils.positionLog.getPositionModifyButton(self)
@@ -406,7 +406,7 @@ class Position(object):
 	def _getModifyTicketBtns(self):
 		self._getModifyBtn()
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 		wait.until(lambda driver : self._getModifyTicket() is not None)
 
 		self.modifyTicketElements = self.driver.execute_script(
@@ -458,7 +458,7 @@ class Position(object):
 		elif (self.direction == 'sell'):
 			newPos = self.utils.buy(int(self.lotsize + lotsize), pairs = [self.pair], sl = sl, tp = tp)
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 		wait.until(lambda driver : self.utils.historyLog.getEvent(self, ['Buy Trade', 'Sell Trade', 'Close Trade']) is not None)
 		events = self.utils.historyLog.getEvent(self, ['Buy Trade', 'Sell Trade', 'Close Trade'])	
 		print("EVENTS: ", str(events))
@@ -743,9 +743,11 @@ class Position(object):
 				self.modifyTicketElements['MODIFY_BTN']
 			)
 
-			wait = ui.WebDriverWait(self.driver, 10)
-
+			wait = ui.WebDriverWait(self.driver, 15)
 			wait.until(lambda driver : self._findCloseButton())
+
+			wait = ui.WebDriverWait(self.driver, 15)
+			wait.until(lambda driver : self._isCloseButtonEnabled())
 
 			text = self.driver.execute_script(
 				'return arguments[0].innerHTML;',
@@ -768,7 +770,7 @@ class Position(object):
 			self.modifyTicket = None
 			self.modifyTicketElements = None
 
-			wait = ui.WebDriverWait(self.driver, 10)
+			wait = ui.WebDriverWait(self.driver, 15)
 
 			if (self.isPending):
 				wait.until(lambda driver : self.utils.historyLog.getEvent(self, ['Buy SE Order Modified', 'Sell SE Order Modified', 'Stop Loss Modified', 'Take Profit Modified']) is not None)
@@ -802,19 +804,22 @@ class Position(object):
 			self.modifyTicketElements['CLOSE_POSITION_BTN']
 		)
 
-		wait = ui.WebDriverWait(self.driver, 10)
-
+		wait = ui.WebDriverWait(self.driver, 15)
 		wait.until(lambda driver : self._findCloseTradeButton())
+
+		wait = ui.WebDriverWait(self.driver, 15)
+		wait.until(lambda driver : self._isCloseTradeButtonEnabled())
 
 		self.driver.execute_script(
 				'arguments[0].click();',
 				self.modifyTicketElements['MODIFY_BTN']
 			)
+		print('attempt click 1')
 
-		wait = ui.WebDriverWait(self.driver, 10)
-
+		wait = ui.WebDriverWait(self.driver, 15)
 		wait.until(lambda driver : self._findCloseButton())
 
+		print('attempt click 2')
 		self.driver.execute_script(
 				'arguments[0].click();',
 				self.modifyTicketElements['CLOSE_BTN']
@@ -823,7 +828,7 @@ class Position(object):
 		self.modifyTicket = None
 		self.modifyTicketElements = None
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 		wait.until(lambda driver : self.utils.historyLog.getEvent(self, 'Close Trade') is not None)
 
 		event = self.utils.historyLog.getEvent(self, 'Close Trade')
@@ -880,16 +885,18 @@ class Position(object):
 			self.modifyTicketElements['CANCEL_ORDER_BTN']
 		)
 
-		wait = ui.WebDriverWait(self.driver, 10)
-
+		wait = ui.WebDriverWait(self.driver, 15)
 		wait.until(lambda driver : self._findCloseTradeButton())
+
+		wait = ui.WebDriverWait(self.driver, 15)
+		wait.until(lambda driver : self._isCloseTradeButtonEnabled())
 
 		self.driver.execute_script(
 				'arguments[0].click();',
 				self.modifyTicketElements['MODIFY_BTN']
 			)
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 
 		wait.until(lambda driver : self._findCloseButton())
 
@@ -901,7 +908,7 @@ class Position(object):
 		self.modifyTicket = None
 		self.modifyTicketElements = None
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 		wait.until(lambda driver : self.utils.historyLog.getEvent(self, 'Order Cancelled') is not None)
 
 		event = self.utils.historyLog.getEvent(self, 'Order Cancelled')
@@ -912,14 +919,22 @@ class Position(object):
 
 	def _findCloseTradeButton(self):
 		btnTextList = ["Close Sell Trade", "Close Buy Trade", "Cancel Buy Stop Entry Order", "Cancel Sell Stop Entry Order"]
+		print('Close Trade Btn:', str(self.modifyTicketElements['MODIFY_BTN'].text in btnTextList))
 		return self.modifyTicketElements['MODIFY_BTN'].text in btnTextList
+
+	def _isCloseTradeButtonEnabled(self):
+		return not 'disabled' in self.modifyTicketElements['MODIFY_BTN'].get_attribute("class")
 
 	def _findCloseButton(self):
 		html = self.driver.execute_script(
 				'return arguments[0].innerHTML;',
 				self.modifyTicketElements['MODIFY_BTN']
 			)
+		print("Find Close:", str("New" in html or "Amend" in html))
 		return "New" in html or "Amend" in html
+
+	def _isCloseButtonEnabled(self):
+		return not 'disabled' in self.modifyTicketElements['MODIFY_BTN'].get_attribute("class")
 
 	@close_redirect
 	def quickExit(self):
@@ -948,7 +963,7 @@ class Position(object):
 
 		ticket.placeOrder()
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 		wait.until(lambda driver : self.utils.historyLog.getEvent(self, 'Close Trade') is not None)
 
 		event = self.utils.historyLog.getEvent(self, 'Close Trade')
@@ -1019,7 +1034,7 @@ class Position(object):
 				self.modifyTicket, self.modifyTicketElements['STOP_LOSS']
 			)
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 
 		wait.until(EC.presence_of_element_located(
 			(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//div[@class='stopLoss']//a[@class='close']")
@@ -1035,7 +1050,7 @@ class Position(object):
 				self.modifyTicket, self.modifyTicketElements['STOP_LOSS']
 			)
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 
 		wait.until(EC.presence_of_element_located(
 			(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//div[@name='stopLossPoints']")
@@ -1092,7 +1107,7 @@ class Position(object):
 				self.modifyTicket, self.modifyTicketElements['TAKE_PROFIT']
 			)
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 
 		wait.until(EC.presence_of_element_located(
 			(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//div[@class='takeProfit']//a[@class='close']")
@@ -1108,7 +1123,7 @@ class Position(object):
 				self.modifyTicket, self.modifyTicketElements['TAKE_PROFIT']
 			)
 
-		wait = ui.WebDriverWait(self.driver, 10)
+		wait = ui.WebDriverWait(self.driver, 15)
 
 		wait.until(EC.presence_of_element_located(
 			(By.XPATH, "//div[@id='"+str(self.modifyTicketElements['TICKET_ID'])+"']//div[@name='takeProfitPoints']")
