@@ -814,12 +814,10 @@ class Position(object):
 				'arguments[0].click();',
 				self.modifyTicketElements['MODIFY_BTN']
 			)
-		print('attempt click 1')
 
 		wait = ui.WebDriverWait(self.driver, 15)
 		wait.until(lambda driver : self._findCloseButton())
 
-		print('attempt click 2')
 		self.driver.execute_script(
 				'arguments[0].click();',
 				self.modifyTicketElements['CLOSE_BTN']
