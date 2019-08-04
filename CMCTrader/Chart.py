@@ -55,8 +55,34 @@ class Chart(object):
 			)
 
 	def isObj(self):
-		wait = ui.WebDriverWait(self.driver, 10)
-		wait.until(lambda driver : self.checkIfObj())
+		try:
+			wait = ui.WebDriverWait(self.driver, 180)
+			wait.until(lambda driver : self.checkIfObj())
+		except:
+			pair = self.pair[:3] + '/' + self.pair[3:]
+
+			charts_len = self.driver.execute_script(
+				'var charts = window.ProChart.charts;'
+				'return String(charts.length)'
+			)
+
+			chart_vals = self.driver.execute_script(
+				'var results = [];'
+				'var charts = window.ProChart.charts;'
+				'for (var i=0; i < charts.length; i++)'
+				'{'
+				'    var chart = charts[i];'
+				'    var pair = chart.reader.product.abbreviatedName;'
+				'    var period = chart.reader.chartSettings.chartModel.chartTopNavConfig.featureWindow.feature.data.s.chi;'
+				'    results.push(String(pair));'
+				'    results.push(String(period));'
+				'}'
+				'return results;'
+			)
+
+			raise Exception(
+				'Chart object could not be found!\nChart Length: {0}\nVals: {1}\nPair: {2}'.format(charts_len, chart_vals, pair)
+			)
 
 	def checkIfObj(self):
 		pair = self.pair[:3] + '/' + self.pair[3:]
@@ -338,9 +364,12 @@ class Chart(object):
 				index
 			)
 
-		raw = ' '.join(raw.split(' ')[:5])
-		dt = self.convertRawDateToDatetime(raw)
-		return self.convertDatetimeToTimestamp(dt)
+		if not raw:
+			return None
+		else:
+			raw = ' '.join(raw.split(' ')[:5])
+			dt = self.convertRawDateToDatetime(raw)
+			return self.convertDatetimeToTimestamp(dt)
 
 	def getLatestTimestamp(self, index):
 		return sorted(self.ohlc.items(), key=lambda kv: kv[0], reverse=True)[index][0]
@@ -350,6 +379,9 @@ class Chart(object):
 
 	def needsUpdate(self):
 		current_timestamp = self.getCurrentTimestamp()
+		if not current_timestamp:
+			return False
+
 		return current_timestamp > self.latest_timestamp
 
 	def needsReload(self, utils):
