@@ -494,7 +494,7 @@ class Start(object):
 
 		start_time = time.time()
 		while 'login' not in self.driver.current_url:
-			if time.time() - start_time > 10.0:
+			if time.time() - start_time > 500.0:
 				return self.restartCMC(firstInit=firstInit)
 			pass
 		
@@ -510,7 +510,7 @@ class Start(object):
 
 		start_time = time.time()
 		while 'login' not in self.driver.current_url:
-			if time.time() - start_time > 10.0:
+			if time.time() - start_time > 500.0:
 				return self.restartAndContinue()
 			pass
 
