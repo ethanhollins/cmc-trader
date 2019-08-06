@@ -488,6 +488,10 @@ class Start(object):
 			else:
 				self.restartCMC()
 
+			return False
+		else:
+			return True
+
 	def restartCMC(self, firstInit = False):
 		# self.initDriver()
 		self.driver.get(CMC_WEBSITE)

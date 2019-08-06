@@ -465,7 +465,7 @@ def isTEntryPosition(direction):
 			if (
 				p['data']['direction'] == direction.value and
 				p['data']['type'] == EntryType.TEntry.value
-				):
+			):
 				return True
 
 	return False
@@ -737,6 +737,21 @@ def isCloseABLMaeIn(shift, direction, reverse=False):
 		else:
 			return close > lower
 
+def isCloseABLTwoMaeIn(shift, direction, reverse=False):
+	upper, lower = limit_two_mae.getCurrent()
+	close = chart.getOHLC(shift)[3]
+
+	if reverse:
+		if direction == Direction.LONG:
+			return close > lower
+		else:
+			return close < upper
+	else:
+		if direction == Direction.LONG:
+			return close < upper
+		else:
+			return close > lower
+
 def isRsiDirConf(shift, direction, reverse=False):
 	stridx = rsi.getCurrent()[0]
 
@@ -899,6 +914,21 @@ def isRetHitLMaeTwo(shift, direction, reverse=False):
 
 def isRetHitCtLMae(shift, direction, reverse=False):
 	upper, lower = limit_mae.getCurrent()
+	_, high, low, _ = chart.getOHLC(shift)
+
+	if reverse:
+		if direction == Direction.LONG:
+			return low <= lower
+		else:
+			return high >= upper
+	else:
+		if direction == Direction.LONG:
+			return high >= upper
+		else:
+			return low <= lower
+
+def isRetHitCtLTwoMae(shift, direction, reverse=False):
+	upper, lower = limit_two_mae.getCurrent()
 	_, high, low, _ = chart.getOHLC(shift)
 
 	if reverse:

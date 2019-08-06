@@ -56,12 +56,16 @@ class Chart(object):
 			)
 
 	def isObj(self):
-		wait = ui.WebDriverWait(self.driver, 60)
-		wait.until(lambda driver : self.checkIfObj())
+		try:
+			wait = ui.WebDriverWait(self.driver, 10)
+			wait.until(lambda driver : self.checkIfObj())
+		except:
+			if not self.utils.start.checkIfInApp(is_continue=True):
+				return self.isObj()
+			else:
+				raise Exception('Error getting object.')
 
 	def checkIfObj(self):
-		self.utils.start.checkIfInApp(is_continue=True)
-
 		pair = self.pair[:3] + '/' + self.pair[3:]
 
 		return self.driver.execute_script(
