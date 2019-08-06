@@ -334,7 +334,7 @@ class Utilities:
 
 	def createChart(self, pair, period):
 		self.getTicket(pair)
-		chart = Chart(self.driver, pair, period)
+		chart = Chart(self, self.driver, pair, period)
 		self.barReader.setChartRegions(chart)
 		self.charts.append(chart)
 		return chart

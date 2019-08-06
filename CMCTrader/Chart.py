@@ -9,7 +9,8 @@ from CMCTrader import Constants
 
 class Chart(object):
 
-	def __init__(self, driver, pair, period):
+	def __init__(self, utils, driver, pair, period):
+		self.utils = utils
 		self.driver = driver
 		self.pair = pair
 		self.period = period
