@@ -121,6 +121,18 @@ class Start(object):
 			tb = traceback.format_exc()
 			self.handleError(e, tb)
 
+	def reinitAndContinue(self):
+		self.utils.isLive = False
+		self.utils.driver = self.driver
+		try:
+			self.login()
+			self.tickets = {}
+			self.charts = []
+			self.reSetup(is_continue=True)
+		except Exception as e:
+			tb = traceback.format_exc()
+			self.handleError(e, tb)
+
 	def login(self):
 		startTime = time.time()
 		while 'login' not in self.driver.current_url:
@@ -259,7 +271,7 @@ class Start(object):
 
 		print("Setting up platform...")
 
-		self.utils = Utilities(self.driver, self.plan, self.user_info)
+		self.utils = Utilities(self, self.driver, self.plan, self.user_info)
 
 		# try:
 		self.plan.init(self.utils)
@@ -283,17 +295,18 @@ class Start(object):
 
 		self.functionCalls()
 		
-	def reSetup(self):
+	def reSetup(self, is_continue=False):
 		print("Setting up platform again...")
 		print("Setting up tickets again...")
 
 		if (not hasattr(self, 'utils')):
-			self.utils = Utilities(self.driver, self.plan, self.user_info)
+			self.utils = Utilities(self, self.driver, self.plan, self.user_info)
 		else:
 			self.utils.reinit(self.driver)
 
 		# self.recoverData()
-		self.functionCalls()
+		if not is_continue:
+			self.functionCalls()
 
 	def recoverData(self):
 		try:
@@ -312,6 +325,8 @@ class Start(object):
 	def functionCalls(self):
 		while (True):
 			if not self.utils.isStopped:
+				time.sleep(0.1)
+
 				self.utils.isLive = True
 				try:
 					self.utils.setWeekendTime(self.utils.getAustralianTime())
@@ -465,16 +480,22 @@ class Start(object):
 
 		self.restartCMC(firstInit = firstInit)
 
-	def checkIfInApp(self):
+	def checkIfInApp(self, is_continue=False):
 		if 'app' not in self.driver.current_url:
 			print("CMC timed out...")
-			self.restartCMC()
+			if is_continue:
+				self.restartAndContinue()
+			else:
+				self.restartCMC()
 
 	def restartCMC(self, firstInit = False):
 		# self.initDriver()
 		self.driver.get(CMC_WEBSITE)
 
+		start_time = time.time()
 		while 'login' not in self.driver.current_url:
+			if time.time() - start_time > 10.0:
+				return self.restartCMC(firstInit=firstInit)
 			pass
 		
 		print("Logging back in...")
@@ -483,6 +504,19 @@ class Start(object):
 			self.initMainProgram()
 		else:
 			self.reinitMainProgram()
+
+	def restartAndContinue(self):
+		self.driver.get(CMC_WEBSITE)
+
+		start_time = time.time()
+		while 'login' not in self.driver.current_url:
+			if time.time() - start_time > 10.0:
+				return self.restartAndContinue()
+			pass
+
+		print("Logging back in...")
+
+		self.reinitAndContinue()
 
 	def getAustralianTime(self):
 		tz = pytz.timezone('Australia/Melbourne')

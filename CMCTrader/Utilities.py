@@ -54,7 +54,8 @@ CMC_WEBSITE = 'https://platform.cmcmarkets.com/'
 
 class Utilities:
 
-	def __init__(self, driver, plan, user_info):
+	def __init__(self, start, driver, plan, user_info):
+		self.start = start
 		self.driver = driver
 		self.plan = plan
 		self.charts = []

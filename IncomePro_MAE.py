@@ -442,6 +442,7 @@ def tRsiEntryConfirmation(shift, direction):
 	utils.log('tRsiEntryConfirmation',
 		('T Rsi Entry One ('+str(direction)+'):',
 				str(isPriorRsiConf(shift, direction)),
+				str(isRsiDirConf(shift, direction)),
 				str(isCloseABIMaeIn(shift, direction, reverse=True)),
 				str(isCloseABLMaeIn(shift, direction)),
 				str(isBB(shift, direction)),
@@ -449,6 +450,7 @@ def tRsiEntryConfirmation(shift, direction):
 	)
 	return (
 		isPriorRsiConf(shift, direction) and
+		isRsiDirConf(shift, direction) and
 		isCloseABIMaeIn(shift, direction, reverse=True) and
 		isCloseABLMaeIn(shift, direction) and
 		isBB(shift, direction) and
@@ -566,7 +568,7 @@ def ctEntryConfirmation(shift, direction):
 	
 
 	if (
-		# isRsiDirConf(shift, direction, reverse=True) and
+		isRsiPosConf(shift, direction, reverse=True) and
 		isBollAboveLMae(shift, direction, reverse=True) and
 		isCloseABOMaeOut(shift, direction, reverse=True)
 	):
@@ -611,7 +613,7 @@ def ctReverseTagConfirmation(shift, direction):
 
 def ctReverseEntryConfirmation(shift, direction):
 	return (
-		isRsiDirConf(shift, direction, reverse=True) and
+		isRsiPosConf(shift, direction, reverse=True) and
 		isCloseInsideBoll(shift, direction, reverse=True) and
 		isBB(shift, direction, reverse=True) and
 		not isDoji(shift)
@@ -749,6 +751,20 @@ def isRsiDirConf(shift, direction, reverse=False):
 		else:
 			return stridx < VARIABLES['rsi_short']
 
+def isRsiPosConf(shift, direction, reverse=False):
+	stridx = rsi.getCurrent()[0]
+
+	if reverse:
+		if direction == Direction.LONG:
+			return stridx < 50
+		else:
+			return stridx > 50
+	else:
+		if direction == Direction.LONG:
+			return stridx > 50
+		else:
+			return stridx < 50
+
 def isPriorRsiConf(shift, direction, reverse=False):
 	stridx = rsi.get(1, 1)[0][0]
 
@@ -790,6 +806,21 @@ def isMacdzDirTwoConf(shift, direction, reverse=False):
 			return hist > round(VARIABLES['macd_two'] * 0.00001, 5)
 		else:
 			return hist < round(-VARIABLES['macd_two'] * 0.00001, 5)
+
+def isRetHitOMae(shift, direction, reverse=False):
+	upper, lower = outer_mae.getCurrent()
+	_, high, low, _ = chart.getOHLC(shift)
+
+	if reverse:
+		if direction == Direction.LONG:
+			return high >= lower
+		else:
+			return low <= upper
+	else:
+		if direction == Direction.LONG:
+			return low <= upper
+		else:
+			return high >= lower
 
 def isRetHitCtOMae(shift, direction, reverse=False):
 	upper, lower = outer_mae.getCurrent()

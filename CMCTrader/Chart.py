@@ -55,36 +55,12 @@ class Chart(object):
 			)
 
 	def isObj(self):
-		try:
-			wait = ui.WebDriverWait(self.driver, 180)
-			wait.until(lambda driver : self.checkIfObj())
-		except:
-			pair = self.pair[:3] + '/' + self.pair[3:]
-
-			charts_len = self.driver.execute_script(
-				'var charts = window.ProChart.charts;'
-				'return String(charts.length)'
-			)
-
-			chart_vals = self.driver.execute_script(
-				'var results = [];'
-				'var charts = window.ProChart.charts;'
-				'for (var i=0; i < charts.length; i++)'
-				'{'
-				'    var chart = charts[i];'
-				'    var pair = chart.reader.product.abbreviatedName;'
-				'    var period = chart.reader.chartSettings.chartModel.chartTopNavConfig.featureWindow.feature.data.s.chi;'
-				'    results.push(String(pair));'
-				'    results.push(String(period));'
-				'}'
-				'return results;'
-			)
-
-			raise Exception(
-				'Chart object could not be found!\nChart Length: {0}\nVals: {1}\nPair: {2}'.format(charts_len, chart_vals, pair)
-			)
+		wait = ui.WebDriverWait(self.driver, 60)
+		wait.until(lambda driver : self.checkIfObj())
 
 	def checkIfObj(self):
+		self.utils.start.checkIfInApp(is_continue=True)
+
 		pair = self.pair[:3] + '/' + self.pair[3:]
 
 		return self.driver.execute_script(
