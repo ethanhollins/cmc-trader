@@ -1,7 +1,7 @@
 from CMCTrader import Constants
 from CMCTrader import Backtester
 
-class KELT(object):
+class KELT_EMA(object):
 
 	def __init__(self, utils, index, chart, timeperiod, atr_period, atr_multi):
 		self.utils = utils
