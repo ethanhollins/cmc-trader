@@ -291,18 +291,6 @@ class Chart(object):
 		)
 
 	def getCurrentTimestamp(self, debug=False):
-		# date = self.driver.execute_script(
-		# 	self.getObj() +
-		# 	'var x = arguments[0];'
-		# 	'var y = arguments[1];'
-		# 	'return String(obj.getDateAt(x, y));',
-		# 	self.getWidth() - Constants.READ_X, self.getRegionByIndex(0)[1]['start']
-		# )
-		# date = ' '.join(date.split(' ')[:5])
-		# if debug:
-		# 	print(date)
-		# dt = self.convertRawDateToDatetime(date)
-		# return self.convertDatetimeToTimestamp(dt)
 		return self.getTimestampFromDataPoint(self.getDataPointsLength() - 2)
 
 	def getRealBarOffset(self, timestamp):
@@ -340,8 +328,12 @@ class Chart(object):
 		self.isObj()
 		raw = self.driver.execute_script(
 				self.getObj() +
-				'var data_point = obj.reader.dataPoints[arguments[0]];'
-				'return String(data_point.time);',
+				'if (obj.reader.dataPoints.length > 0)'
+				'{'
+				'    var data_point = obj.reader.dataPoints[arguments[0]];'
+				'    return String(data_point.time);'
+				'}'
+				'return null;',
 				index
 			)
 

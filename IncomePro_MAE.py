@@ -98,7 +98,7 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global sma, inner_mae, outer_mae, limit_mae, limit_two_mae, short_boll, long_boll, macd, rsi, atr, chart
+	global sma, inner_mae, outer_mae, limit_mae, limit_two_mae, short_boll, long_boll, macd, rsi, atr, kelt, chart
 
 	utils = utilities
 
@@ -353,7 +353,8 @@ def runSequence(shift):
 		"S_BOLL:", str(short_boll.getCurrent()),
 		"L_BOLL:", str(long_boll.getCurrent()),
 		"MACD:", str(macd.getCurrent()),
-		"ATR:", str(atr.getCurrent()))
+		"ATR:", str(atr.getCurrent()),
+		"KELT:", str(kelt.getCurrent()))
 	)
 
 	if time_state == TimeState.STOP:
@@ -1100,6 +1101,7 @@ def confirmation(trigger, entry_type):
 
 	if entry_type == EntryType.TEntry:
 		trigger.t_macd_entry_state = TMacdEntryState.ONE
+		trigger.t_rsi_entry_state = TRsiEntryState.ONE
 		
 		if isTEntryPosition(trigger.direction):
 			return

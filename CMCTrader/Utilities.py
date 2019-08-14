@@ -42,6 +42,8 @@ from CMCTrader.Indicators.MAE import MAE
 from CMCTrader.Indicators.SAR import SAR
 from CMCTrader.Indicators.SAR_M import SAR_M
 from CMCTrader.Indicators.ATR import ATR
+from CMCTrader.Indicators.KELT_TYP import KELT_TYP
+from CMCTrader.Indicators.KELT_EMA import KELT_EMA
 from CMCTrader.Indicators.RSI import RSI
 from CMCTrader.Indicators.CCI import CCI
 from CMCTrader.Indicators.MACD import MACD
@@ -275,6 +277,20 @@ class Utilities:
 		chart.overlays.append(boll)
 		chart.overlays.sort(key=lambda x: x.index)
 		return boll
+
+	def KELT_TYP(self, pair, chart_period, timeperiod, atr_period, atr_multi):
+		chart = self.getChart(pair, chart_period)
+		keltner = KELT_TYP(self, len(chart.overlays), chart, timeperiod, atr_period, atr_multi)
+		chart.studies.append(keltner)
+		chart.overlays.sort(key=lambda x: x.index)
+		return keltner
+
+	def KELT_EMA(self, pair, chart_period, timeperiod, atr_period, atr_multi):
+		chart = self.getChart(pair, chart_period)
+		keltner = KELT_EMA(self, len(chart.overlays), chart, timeperiod, atr_period, atr_multi)
+		chart.studies.append(keltner)
+		chart.overlays.sort(key=lambda x: x.index)
+		return keltner
 
 	def ATR(self, pair, chart_period, timeperiod):
 		chart = self.getChart(pair, chart_period)
