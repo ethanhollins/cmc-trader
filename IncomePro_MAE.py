@@ -98,7 +98,7 @@ def init(utilities):
 	''' Initialize utilities and indicators '''
 
 	global utils
-	global sma, inner_mae, outer_mae, limit_mae, limit_two_mae, short_boll, long_boll, macd, rsi, atr, kelt, chart
+	global sma, inner_mae, outer_mae, limit_mae, limit_two_mae, short_boll, long_boll, macd, rsi, atr, chart
 
 	utils = utilities
 
@@ -353,8 +353,7 @@ def runSequence(shift):
 		"S_BOLL:", str(short_boll.getCurrent()),
 		"L_BOLL:", str(long_boll.getCurrent()),
 		"MACD:", str(macd.getCurrent()),
-		"ATR:", str(atr.getCurrent()),
-		"KELT:", str(kelt.getCurrent()))
+		"ATR:", str(atr.getCurrent())),
 	)
 
 	if time_state == TimeState.STOP:
